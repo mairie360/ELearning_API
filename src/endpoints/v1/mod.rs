@@ -1,4 +1,6 @@
+pub mod admin;
 pub mod doc;
+pub mod formations;
 
 use actix_web::web;
 
