@@ -1,6 +1,6 @@
 pub mod doc;
 pub mod get;
-pub mod id;
+pub mod user_id;
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub enum ProgressStatus {
@@ -163,4 +163,12 @@ impl UsersModuleContent {
     pub fn finished_at(&self) -> &Option<chrono::DateTime<chrono::Utc>> {
         &self.finished_at
     }
+}
+
+pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
+    cfg.service(
+        actix_web::web::scope("/users")
+            .service(get::endpoint::get_users)
+            .configure(user_id::config),
+    );
 }

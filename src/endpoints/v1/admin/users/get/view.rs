@@ -1,7 +1,12 @@
 use utoipa::ToSchema;
 
 #[derive(Debug, serde::Serialize, ToSchema)]
+pub struct User {
+    pub id: u64,
+    pub name: String,
+}
+
+#[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetUsersResultView {
-    id: u64,
-    name: String,
+    pub users: Vec<User>,
 }

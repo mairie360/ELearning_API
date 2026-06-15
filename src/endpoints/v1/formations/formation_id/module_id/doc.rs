@@ -1,4 +1,7 @@
+use crate::endpoints::v1::formations::formation_id::module_id::complete::endpoint::__path_complete_module;
+use crate::endpoints::v1::formations::formation_id::module_id::get::endpoint::__path_get_module;
 use crate::endpoints::v1::formations::formation_id::module_id::get::view::GetModuleResponseView;
+
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -8,5 +11,8 @@ use utoipa::OpenApi;
 pub struct ModuleIdDoc;
 
 #[derive(OpenApi)]
-#[openapi(paths(), components(schemas(GetModuleResponseView)))]
+#[openapi(
+    paths(get_module, complete_module),
+    components(schemas(GetModuleResponseView))
+)]
 struct Doc;

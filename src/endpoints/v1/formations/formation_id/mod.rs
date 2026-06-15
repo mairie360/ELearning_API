@@ -13,3 +13,11 @@ impl FormationIdParams {
         self.formation_id
     }
 }
+
+pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
+    cfg.service(
+        actix_web::web::scope("/{formation_id}")
+            .service(get::endpoint::get_my_formation_by_id)
+            .configure(module_id::config),
+    );
+}

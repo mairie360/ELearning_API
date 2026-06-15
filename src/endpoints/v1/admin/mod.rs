@@ -14,3 +14,11 @@ impl AdminUserDetailsQuery {
         self.details
     }
 }
+
+pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
+    cfg.service(
+        actix_web::web::scope("/admin")
+            .configure(formations::config)
+            .configure(users::config),
+    );
+}

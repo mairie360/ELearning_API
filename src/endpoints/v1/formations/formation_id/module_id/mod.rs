@@ -18,3 +18,11 @@ impl ModuleIdParams {
         self.module_id
     }
 }
+
+pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
+    cfg.service(
+        actix_web::web::scope("/{module_id}")
+            .service(get::endpoint::get_module)
+            .service(complete::endpoint::complete_module),
+    );
+}

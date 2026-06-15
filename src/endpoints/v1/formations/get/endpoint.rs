@@ -3,8 +3,7 @@ use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::pool::AppState;
 use mairie360_api_lib::security::AuthenticatedUser;
 
-use crate::endpoints::v1::admin::formations::get::view::GetFormationsResultView;
-use crate::endpoints::v1::admin::AdminUserDetailsQuery;
+use crate::endpoints::v1::formations::get::view::GetFormationsResultView;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetFormationsError {
@@ -33,8 +32,9 @@ impl ResponseError for GetFormationsError {
     }
 }
 
-async fn trigger_get_formations(
+async fn trigger_get_my_formations(
     state: web::Data<AppState>,
+    user_id: u64,
 ) -> Result<GetFormationsResultView, GetFormationsError> {
     //get_cache
 
@@ -47,30 +47,26 @@ async fn trigger_get_formations(
 
     // update cache
 
-    Ok(GetFormationsResultView { formations: vec![] })
+    Ok(GetFormationsResultView::new(vec![]))
 }
 
 #[utoipa::path(
     get,
-    params(
-        AdminUserDetailsQuery,
-    ),
     path = "",
     responses(
         (status = 200, description = "Formations retrieved successfully", body = GetFormationsResultView),
         (status = 500, description = "Internal server error")
     ),
-    tag = "Admin - Formations",
+    tag = "Formations",
     security(
         ("jwt" = [])
     )
 )]
 #[get("/")]
-pub async fn get_formations(
+pub async fn get_my_formations(
     state: web::Data<AppState>,
-    _: AuthenticatedUser,
-    _: web::Query<AdminUserDetailsQuery>,
+    auth_user: AuthenticatedUser,
 ) -> Result<impl Responder, GetFormationsError> {
-    let formations = trigger_get_formations(state).await?;
+    let formations = trigger_get_my_formations(state, auth_user.id).await?;
     Ok(HttpResponse::Ok().json(formations))
 }

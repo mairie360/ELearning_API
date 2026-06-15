@@ -1,4 +1,5 @@
 use crate::endpoints::v1::formations::formation_id::doc::FormationIdDoc;
+use crate::endpoints::v1::formations::get::endpoint::__path_get_my_formations;
 use crate::endpoints::v1::formations::get::view::GetFormationsResultView;
 
 use utoipa::OpenApi;
@@ -11,5 +12,5 @@ use utoipa::OpenApi;
 pub struct FormationsDoc;
 
 #[derive(OpenApi)]
-#[openapi(paths(), components(schemas(GetFormationsResultView)))]
+#[openapi(paths(get_my_formations), components(schemas(GetFormationsResultView)))]
 struct Doc;

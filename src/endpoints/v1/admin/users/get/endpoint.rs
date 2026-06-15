@@ -3,28 +3,27 @@ use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::pool::AppState;
 use mairie360_api_lib::security::AuthenticatedUser;
 
-use crate::endpoints::v1::admin::formations::get::view::GetFormationsResultView;
-use crate::endpoints::v1::admin::AdminUserDetailsQuery;
+use crate::endpoints::v1::admin::users::get::view::GetUsersResultView;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum GetFormationsError {
+pub enum GetUsersError {
     DatabaseError,
 }
 
-impl std::fmt::Display for GetFormationsError {
+impl std::fmt::Display for GetUsersError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GetFormationsError::DatabaseError => {
+            GetUsersError::DatabaseError => {
                 write!(f, "An error occurred while accessing the database.")
             }
         }
     }
 }
 
-impl ResponseError for GetFormationsError {
+impl ResponseError for GetUsersError {
     fn status_code(&self) -> StatusCode {
         match self {
-            GetFormationsError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
+            GetUsersError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -33,44 +32,40 @@ impl ResponseError for GetFormationsError {
     }
 }
 
-async fn trigger_get_formations(
+async fn trigger_get_users(
     state: web::Data<AppState>,
-) -> Result<GetFormationsResultView, GetFormationsError> {
+) -> Result<GetUsersResultView, GetUsersError> {
     //get_cache
 
     let pool = match state.db_pool.clone() {
         Some(pool) => pool,
-        None => return Err(GetFormationsError::DatabaseError),
+        None => return Err(GetUsersError::DatabaseError),
     };
 
     //query
 
     // update cache
 
-    Ok(GetFormationsResultView { formations: vec![] })
+    Ok(GetUsersResultView { users: vec![] })
 }
 
 #[utoipa::path(
     get,
-    params(
-        AdminUserDetailsQuery,
-    ),
     path = "",
     responses(
-        (status = 200, description = "Formations retrieved successfully", body = GetFormationsResultView),
+        (status = 200, description = "Users with formations retrieved successfully", body = GetUsersResultView),
         (status = 500, description = "Internal server error")
     ),
-    tag = "Admin - Formations",
+    tag = "Admin - Users",
     security(
         ("jwt" = [])
     )
 )]
 #[get("/")]
-pub async fn get_formations(
+pub async fn get_users(
     state: web::Data<AppState>,
     _: AuthenticatedUser,
-    _: web::Query<AdminUserDetailsQuery>,
-) -> Result<impl Responder, GetFormationsError> {
-    let formations = trigger_get_formations(state).await?;
+) -> Result<impl Responder, GetUsersError> {
+    let formations = trigger_get_users(state).await?;
     Ok(HttpResponse::Ok().json(formations))
 }

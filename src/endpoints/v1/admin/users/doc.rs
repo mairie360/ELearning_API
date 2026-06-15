@@ -1,4 +1,6 @@
-use crate::endpoints::v1::admin::users::id::doc::UsersIdDoc;
+use crate::endpoints::v1::admin::users::get::endpoint::__path_get_users;
+use crate::endpoints::v1::admin::users::get::view::GetUsersResultView;
+use crate::endpoints::v1::admin::users::user_id::doc::UsersIdDoc;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -9,5 +11,5 @@ use utoipa::OpenApi;
 pub struct UsersDoc;
 
 #[derive(OpenApi)]
-#[openapi(paths(), components(schemas()))]
+#[openapi(paths(get_users), components(schemas(GetUsersResultView)))]
 struct Doc;

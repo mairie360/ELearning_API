@@ -5,5 +5,9 @@ pub mod formations;
 use actix_web::web;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::scope("/v1"));
+    cfg.service(
+        web::scope("/v1")
+            .configure(formations::config)
+            .configure(admin::config),
+    );
 }

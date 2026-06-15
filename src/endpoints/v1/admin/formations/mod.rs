@@ -1,6 +1,6 @@
 pub mod doc;
+pub mod formation_id;
 pub mod get;
-pub mod id;
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminFormation {
@@ -109,4 +109,12 @@ impl AdminModuleContent {
     pub fn file_type(&self) -> &str {
         &self.file_type
     }
+}
+
+pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
+    cfg.service(
+        actix_web::web::scope("/formations")
+            .service(get::endpoint::get_formations)
+            .configure(formation_id::config),
+    );
 }

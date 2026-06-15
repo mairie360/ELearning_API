@@ -18,3 +18,11 @@ impl AdminUserFormationIdParams {
         self.formation_id
     }
 }
+
+pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
+    cfg.service(
+        actix_web::web::scope("/{formation_id}")
+            .service(get::endpoint::get_user_formation)
+            .service(delete::endpoint::unsub_formation),
+    );
+}
