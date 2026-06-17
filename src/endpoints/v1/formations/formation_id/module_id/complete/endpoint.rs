@@ -1,0 +1,79 @@
+use actix_web::http::StatusCode;
+use actix_web::{patch, web, HttpResponse, Responder, ResponseError};
+use mairie360_api_lib::pool::AppState;
+use mairie360_api_lib::security::AuthenticatedUser;
+
+use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompleteModuleError {
+    BadRequest,
+    DatabaseError,
+}
+
+impl std::fmt::Display for CompleteModuleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompleteModuleError::BadRequest => {
+                write!(f, "Bad request")
+            }
+            CompleteModuleError::DatabaseError => {
+                write!(f, "An error occurred while accessing the database.")
+            }
+        }
+    }
+}
+
+impl ResponseError for CompleteModuleError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            CompleteModuleError::BadRequest => StatusCode::BAD_REQUEST,
+            CompleteModuleError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        HttpResponse::build(self.status_code()).body(self.to_string())
+    }
+}
+
+async fn trigger_complete_module(
+    state: web::Data<AppState>,
+    user_id: u64,
+    module_id: u64,
+) -> Result<(), CompleteModuleError> {
+    let pool = match state.db_pool.clone() {
+        Some(pool) => pool,
+        None => return Err(CompleteModuleError::DatabaseError),
+    };
+
+    //query
+
+    Ok(())
+}
+
+#[utoipa::path(
+    params(
+        ModuleIdParams,
+    ),
+    patch,
+    path = "",
+    responses(
+        (status = 200, description = "Module completed successfully"),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("jwt" = [])
+    ),
+    tag = "Formations",
+)]
+#[patch("/")]
+pub async fn complete_module(
+    state: web::Data<AppState>,
+    auth_user: AuthenticatedUser,
+    params: web::Path<ModuleIdParams>,
+) -> Result<impl Responder, CompleteModuleError> {
+    trigger_complete_module(state, auth_user.id, params.module_id).await?;
+    Ok(HttpResponse::Ok())
+}

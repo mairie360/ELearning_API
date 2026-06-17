@@ -1,11 +1,11 @@
 use actix_web::{middleware, web, App, HttpServer};
 
-use elearning_api::auth_middleware::JwtMiddleware;
 use elearning_api::endpoints::swagger::ApiDoc;
 use elearning_api::endpoints::{config, health, hello};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
 use mairie360_api_lib::pool::AppState;
+use mairie360_api_lib::security::JwtMiddleware;
 
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
