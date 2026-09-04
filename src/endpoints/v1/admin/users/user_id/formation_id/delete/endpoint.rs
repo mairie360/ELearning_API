@@ -1,7 +1,7 @@
 use actix_web::http::StatusCode;
 use actix_web::{delete, web, HttpResponse, Responder, ResponseError};
-use mairie360_api_lib::pool::AppState;
 use mairie360_api_lib::security::AuthenticatedUser;
+use mairie360_api_lib::state::AppState;
 
 use crate::endpoints::v1::admin::users::user_id::formation_id::AdminUserFormationIdParams;
 
@@ -42,10 +42,7 @@ async fn trigger_unsub_formation(
     formation_id: u64,
     user_id: u64,
 ) -> Result<(), UnsubFormationError> {
-    let pool = match state.db_pool.clone() {
-        Some(pool) => pool,
-        None => return Err(UnsubFormationError::DatabaseError),
-    };
+    let _smart_db = state.get_smart_db();
 
     //query
 
