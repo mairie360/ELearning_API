@@ -1,7 +1,7 @@
 use actix_web::http::StatusCode;
 use actix_web::{get, web, HttpResponse, Responder, ResponseError};
-use mairie360_api_lib::pool::AppState;
 use mairie360_api_lib::security::AuthenticatedUser;
+use mairie360_api_lib::state::AppState;
 
 use crate::endpoints::v1::admin::users::user_id::formation_id::get::view::GetUserFormation;
 use crate::endpoints::v1::admin::users::user_id::formation_id::AdminUserFormationIdParams;
@@ -46,10 +46,7 @@ async fn trigger_get_user_formation(
 ) -> Result<GetUserFormation, GetUserFormationError> {
     //get_cache
 
-    let pool = match state.db_pool.clone() {
-        Some(pool) => pool,
-        None => return Err(GetUserFormationError::DatabaseError),
-    };
+    let _smart_db = state.get_smart_db();
 
     //query
 
