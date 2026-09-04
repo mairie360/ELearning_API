@@ -3,7 +3,10 @@ use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
-use crate::endpoints::v1::formations::get::view::GetFormationsResultView;
+use crate::database::formations::get_my_formations::view::{
+    FormationSummaryRow, GetMyFormationsQueryView,
+};
+use crate::endpoints::v1::formations::get::view::{Formation, GetFormationsResultView, Status};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetFormationsError {
@@ -36,15 +39,26 @@ async fn trigger_get_my_formations(
     state: web::Data<AppState>,
     user_id: u64,
 ) -> Result<GetFormationsResultView, GetFormationsError> {
-    //get_cache
+    let view = GetMyFormationsQueryView::new(user_id);
+    let rows: Vec<FormationSummaryRow> = state
+        .get_smart_db()
+        .fetch_all(&view)
+        .await
+        .map_err(|_| GetFormationsError::DatabaseError)?;
 
-    let _smart_db = state.get_smart_db();
+    let formations = rows
+        .into_iter()
+        .map(|row| {
+            Formation::new(
+                row.id() as u64,
+                row.name(),
+                row.description().unwrap_or_default(),
+                Status::from(row.status().to_string()),
+            )
+        })
+        .collect();
 
-    //query
-
-    // update cache
-
-    Ok(GetFormationsResultView::new(vec![]))
+    Ok(GetFormationsResultView::new(formations))
 }
 
 #[utoipa::path(

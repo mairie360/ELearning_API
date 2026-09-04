@@ -3,7 +3,12 @@ use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
-use crate::endpoints::v1::formations::formation_id::module_id::get::view::GetModuleResponseView;
+use crate::database::formations::get_module_attachments::view::{
+    GetModuleAttachmentsQueryView, ModuleAttachmentRow,
+};
+use crate::endpoints::v1::formations::formation_id::module_id::get::view::{
+    File, FileType, GetModuleResponseView,
+};
 use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -40,18 +45,29 @@ impl ResponseError for GetModuleError {
 
 async fn trigger_get_module(
     state: web::Data<AppState>,
+    formation_id: u64,
     module_id: u64,
-    user_id: u64,
+    _user_id: u64,
 ) -> Result<GetModuleResponseView, GetModuleError> {
-    //get_cache
+    let view = GetModuleAttachmentsQueryView::new(formation_id, module_id);
+    let rows: Vec<ModuleAttachmentRow> = state
+        .get_smart_db()
+        .fetch_all(&view)
+        .await
+        .map_err(|_| GetModuleError::DatabaseError)?;
 
-    let _smart_db = state.get_smart_db();
+    let files = rows
+        .into_iter()
+        .map(|row| File {
+            id: row.id() as u64,
+            file_name: row.file_name().to_string(),
+            file_type: FileType::from(row.file_type().to_string()),
+            file_url: row.file_url().to_string(),
+            file_size_bytes: row.file_size_bytes(),
+        })
+        .collect();
 
-    //query
-
-    // update cache
-
-    Ok(GetModuleResponseView { files: vec![] })
+    Ok(GetModuleResponseView { files })
 }
 
 #[utoipa::path(
@@ -77,6 +93,7 @@ pub async fn get_module(
     params: web::Path<ModuleIdParams>,
 ) -> Result<impl Responder, GetModuleError> {
     let params = params.into_inner();
-    let formation = trigger_get_module(state, params.module_id, auth_user.id).await?;
+    let formation =
+        trigger_get_module(state, params.formation_id, params.module_id, auth_user.id).await?;
     Ok(HttpResponse::Ok().json(formation))
 }

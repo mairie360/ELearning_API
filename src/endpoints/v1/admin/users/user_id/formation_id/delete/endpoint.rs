@@ -3,6 +3,8 @@ use actix_web::{delete, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
+use crate::database::admin::users::unsub_user_formation::view::UnsubUserFormationQueryView;
+use crate::database::formations::does_course_exist::view::DoesCourseExistQueryView;
 use crate::endpoints::v1::admin::users::user_id::formation_id::AdminUserFormationIdParams;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,11 +44,22 @@ async fn trigger_unsub_formation(
     formation_id: u64,
     user_id: u64,
 ) -> Result<(), UnsubFormationError> {
-    let _smart_db = state.get_smart_db();
+    let smart_db = state.get_smart_db();
 
-    //query
+    let exists_view = DoesCourseExistQueryView::new(formation_id);
+    let exists: bool = smart_db
+        .fetch_scalar(&exists_view)
+        .await
+        .map_err(|_| UnsubFormationError::DatabaseError)?;
+    if !exists {
+        return Err(UnsubFormationError::UnknownFormations);
+    }
 
-    // update cache
+    let view = UnsubUserFormationQueryView::new(user_id, formation_id);
+    smart_db
+        .execute(view)
+        .await
+        .map_err(|_| UnsubFormationError::DatabaseError)?;
 
     Ok(())
 }
