@@ -3,7 +3,8 @@ use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
-use crate::endpoints::v1::admin::users::get::view::GetUsersResultView;
+use crate::database::admin::users::get_users::view::{GetUsersQueryView, UserRow};
+use crate::endpoints::v1::admin::users::get::view::{GetUsersResultView, User};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetUsersError {
@@ -35,15 +36,22 @@ impl ResponseError for GetUsersError {
 async fn trigger_get_users(
     state: web::Data<AppState>,
 ) -> Result<GetUsersResultView, GetUsersError> {
-    //get_cache
+    let view = GetUsersQueryView::new();
+    let rows: Vec<UserRow> = state
+        .get_smart_db()
+        .fetch_all(&view)
+        .await
+        .map_err(|_| GetUsersError::DatabaseError)?;
 
-    let _smart_db = state.get_smart_db();
+    let users = rows
+        .into_iter()
+        .map(|row| User {
+            id: row.id() as u64,
+            name: row.name().to_string(),
+        })
+        .collect();
 
-    //query
-
-    // update cache
-
-    Ok(GetUsersResultView { users: vec![] })
+    Ok(GetUsersResultView { users })
 }
 
 #[utoipa::path(

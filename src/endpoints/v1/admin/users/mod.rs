@@ -10,15 +10,29 @@ pub enum ProgressStatus {
     Error,
 }
 
+impl From<String> for ProgressStatus {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "not_started" => ProgressStatus::NotStarted,
+            "in_progress" => ProgressStatus::InProgress,
+            "completed" => ProgressStatus::Completed,
+            _ => ProgressStatus::Error,
+        }
+    }
+}
+
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UsersFormation {
     id: u64,
     name: String,
     description: String,
     modules: Option<Vec<UsersFormationModule>>,
-    #[schema(value_type = String, format = DateTime)]
-    started_at: chrono::DateTime<chrono::Utc>,
-    #[schema(value_type = String, format = DateTime)]
+    // `user_courses.started_at` has no default and is only set by the
+    // `fn_update_user_course_progress` trigger once the user completes their
+    // first module, so a freshly-registered formation has none yet.
+    #[schema(value_type = Option<String>, format = DateTime)]
+    started_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[schema(value_type = Option<String>, format = DateTime)]
     completed_at: Option<chrono::DateTime<chrono::Utc>>,
     progress_status: ProgressStatus,
 }
@@ -29,7 +43,7 @@ impl UsersFormation {
         name: &str,
         description: &str,
         modules: Option<Vec<UsersFormationModule>>,
-        started_at: chrono::DateTime<chrono::Utc>,
+        started_at: Option<chrono::DateTime<chrono::Utc>>,
         completed_at: Option<chrono::DateTime<chrono::Utc>>,
         progress_status: ProgressStatus,
     ) -> Self {
@@ -60,7 +74,7 @@ impl UsersFormation {
         &self.modules
     }
 
-    pub fn started_at(&self) -> &chrono::DateTime<chrono::Utc> {
+    pub fn started_at(&self) -> &Option<chrono::DateTime<chrono::Utc>> {
         &self.started_at
     }
 

@@ -1,8 +1,11 @@
 use actix_web::http::StatusCode;
 use actix_web::{post, web, HttpResponse, Responder, ResponseError};
+use mairie360_api_lib::database::query_views::DoesUserExistByIdQueryView;
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
+use crate::database::admin::formations::register_user_to_formation::view::RegisterUserToFormationQueryView;
+use crate::database::formations::does_course_exist::view::DoesCourseExistQueryView;
 use crate::endpoints::v1::admin::formations::formation_id::register::view::RegisterUserView;
 use crate::endpoints::v1::admin::formations::formation_id::AdminFormationIdParams;
 
@@ -50,15 +53,36 @@ impl ResponseError for RegisterUserToFormationError {
 
 async fn trigger_register_user_to_formation(
     state: web::Data<AppState>,
-    user_id: u64,
+    _user_id: u64,
     view: RegisterUserView,
     formation_id: u64,
 ) -> Result<(), RegisterUserToFormationError> {
-    let _smart_db = state.get_smart_db();
+    let smart_db = state.get_smart_db();
+    let registered_user_id = view.user_id();
 
-    //query
+    let user_exists_view = DoesUserExistByIdQueryView::new(registered_user_id);
+    let user_exists: bool = smart_db
+        .fetch_scalar(&user_exists_view)
+        .await
+        .map_err(|_| RegisterUserToFormationError::DatabaseError)?;
+    if !user_exists {
+        return Err(RegisterUserToFormationError::UnknownUser);
+    }
 
-    // cache
+    let course_exists_view = DoesCourseExistQueryView::new(formation_id);
+    let course_exists: bool = smart_db
+        .fetch_scalar(&course_exists_view)
+        .await
+        .map_err(|_| RegisterUserToFormationError::DatabaseError)?;
+    if !course_exists {
+        return Err(RegisterUserToFormationError::UnknownFormation);
+    }
+
+    let register_view = RegisterUserToFormationQueryView::new(registered_user_id, formation_id);
+    smart_db
+        .execute(register_view)
+        .await
+        .map_err(|_| RegisterUserToFormationError::DatabaseError)?;
 
     Ok(())
 }

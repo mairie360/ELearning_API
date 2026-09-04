@@ -3,9 +3,45 @@ use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
+use crate::database::admin::users::get_user_formations::view::{
+    GetUserFormationsQueryView, UserFormationModuleRow, UserFormationRow, UserModuleContentRow,
+};
 use crate::endpoints::v1::admin::users::user_id::get::view::GetUserByIdResultView;
 use crate::endpoints::v1::admin::users::user_id::AdminUserIdParams;
+use crate::endpoints::v1::admin::users::{
+    ProgressStatus, UsersFormation, UsersFormationModule, UsersModuleContent,
+};
 use crate::endpoints::v1::admin::AdminUserDetailsQuery;
+
+fn map_content(row: UserModuleContentRow) -> UsersModuleContent {
+    // `course_attachments` has no per-user tracking, so files never carry a
+    // `finished_at`; only whole modules do (`user_modules.completed_at`).
+    UsersModuleContent::new(row.id() as u64, row.file_name(), row.file_type(), None)
+}
+
+fn map_module(row: UserFormationModuleRow) -> UsersFormationModule {
+    UsersFormationModule::new(
+        row.id() as u64,
+        row.name(),
+        row.description().unwrap_or_default(),
+        row.content().iter().cloned().map(map_content).collect(),
+        row.is_completed(),
+        row.completed_at().map(|dt| dt.and_utc()),
+    )
+}
+
+fn map_formation(row: UserFormationRow) -> UsersFormation {
+    UsersFormation::new(
+        row.id() as u64,
+        row.name(),
+        row.description().unwrap_or_default(),
+        row.modules()
+            .map(|modules| modules.iter().cloned().map(map_module).collect()),
+        row.started_at().map(|dt| dt.and_utc()),
+        row.completed_at().map(|dt| dt.and_utc()),
+        ProgressStatus::from(row.progress_status().to_string()),
+    )
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetUserFormationsError {
@@ -42,16 +78,18 @@ impl ResponseError for GetUserFormationsError {
 async fn trigger_get_user(
     state: web::Data<AppState>,
     user_id: u64,
+    details: bool,
 ) -> Result<GetUserByIdResultView, GetUserFormationsError> {
-    //get_cache
+    let view = GetUserFormationsQueryView::new(user_id, details);
+    let rows: Vec<UserFormationRow> = state
+        .get_smart_db()
+        .fetch_all(&view)
+        .await
+        .map_err(|_| GetUserFormationsError::DatabaseError)?;
 
-    let _smart_db = state.get_smart_db();
+    let formations = rows.into_iter().map(map_formation).collect();
 
-    //query
-
-    // update cache
-
-    Ok(GetUserByIdResultView { formations: vec![] })
+    Ok(GetUserByIdResultView { formations })
 }
 
 #[utoipa::path(
@@ -71,9 +109,9 @@ async fn trigger_get_user(
 pub async fn get_user_formations(
     state: web::Data<AppState>,
     _: AuthenticatedUser,
-    _: web::Query<AdminUserDetailsQuery>,
+    query: web::Query<AdminUserDetailsQuery>,
     path_params: web::Path<AdminUserIdParams>,
 ) -> Result<impl Responder, GetUserFormationsError> {
-    let formations = trigger_get_user(state, path_params.user_id).await?;
+    let formations = trigger_get_user(state, path_params.user_id, query.details()).await?;
     Ok(HttpResponse::Ok().json(formations))
 }

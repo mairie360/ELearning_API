@@ -3,9 +3,29 @@ use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
+use crate::database::admin::users::get_user_formation::view::{
+    GetUserFormationQueryView, UserFormationModuleRow, UserModuleContentRow,
+};
+use crate::database::formations::does_course_exist::view::DoesCourseExistQueryView;
 use crate::endpoints::v1::admin::users::user_id::formation_id::get::view::GetUserFormation;
 use crate::endpoints::v1::admin::users::user_id::formation_id::AdminUserFormationIdParams;
+use crate::endpoints::v1::admin::users::{UsersFormationModule, UsersModuleContent};
 use crate::endpoints::v1::admin::AdminUserDetailsQuery;
+
+fn map_content(row: UserModuleContentRow) -> UsersModuleContent {
+    UsersModuleContent::new(row.id() as u64, row.file_name(), row.file_type(), None)
+}
+
+fn map_module(row: UserFormationModuleRow) -> UsersFormationModule {
+    UsersFormationModule::new(
+        row.id() as u64,
+        row.name(),
+        row.description().unwrap_or_default(),
+        row.content().iter().cloned().map(map_content).collect(),
+        row.is_completed(),
+        row.completed_at().map(|dt| dt.and_utc()),
+    )
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetUserFormationError {
@@ -41,18 +61,30 @@ impl ResponseError for GetUserFormationError {
 
 async fn trigger_get_user_formation(
     state: web::Data<AppState>,
-    module_id: u64,
+    formation_id: u64,
     user_id: u64,
+    details: bool,
 ) -> Result<GetUserFormation, GetUserFormationError> {
-    //get_cache
+    let smart_db = state.get_smart_db();
 
-    let _smart_db = state.get_smart_db();
+    let exists_view = DoesCourseExistQueryView::new(formation_id);
+    let exists: bool = smart_db
+        .fetch_scalar(&exists_view)
+        .await
+        .map_err(|_| GetUserFormationError::DatabaseError)?;
+    if !exists {
+        return Err(GetUserFormationError::UnknowModule);
+    }
 
-    //query
+    let view = GetUserFormationQueryView::new(formation_id, user_id, details);
+    let rows: Vec<UserFormationModuleRow> = smart_db
+        .fetch_all(&view)
+        .await
+        .map_err(|_| GetUserFormationError::DatabaseError)?;
 
-    // update cache
+    let modules = rows.into_iter().map(map_module).collect();
 
-    Ok(GetUserFormation { modules: vec![] })
+    Ok(GetUserFormation { modules })
 }
 
 #[utoipa::path(
@@ -75,8 +107,10 @@ pub async fn get_user_formation(
     state: web::Data<AppState>,
     _: AuthenticatedUser,
     params: web::Path<AdminUserFormationIdParams>,
-    _: web::Query<AdminUserDetailsQuery>,
+    query: web::Query<AdminUserDetailsQuery>,
 ) -> Result<impl Responder, GetUserFormationError> {
-    let module = trigger_get_user_formation(state, params.formation_id, params.user_id).await?;
+    let module =
+        trigger_get_user_formation(state, params.formation_id, params.user_id, query.details())
+            .await?;
     Ok(HttpResponse::Ok().json(module))
 }
