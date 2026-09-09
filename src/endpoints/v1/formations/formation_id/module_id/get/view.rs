@@ -17,12 +17,12 @@ impl From<String> for FileType {
     }
 }
 
-impl ToString for FileType {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for FileType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FileType::Video => "video".to_string(),
-            FileType::Pdf => "pdf".to_string(),
-            FileType::Error => "error".to_string(),
+            FileType::Video => write!(f, "video"),
+            FileType::Pdf => write!(f, "pdf"),
+            FileType::Error => write!(f, "error"),
         }
     }
 }

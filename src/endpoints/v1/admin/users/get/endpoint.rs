@@ -1,9 +1,17 @@
 use actix_web::http::StatusCode;
 use actix_web::{get, web, HttpResponse, Responder, ResponseError};
-use mairie360_api_lib::pool::AppState;
 use mairie360_api_lib::security::AuthenticatedUser;
+use mairie360_api_lib::state::AppState;
 
-use crate::endpoints::v1::admin::users::get::view::GetUsersResultView;
+use crate::database::admin::users::get_users::view::{GetUsersQueryView, UserRow};
+use crate::endpoints::v1::admin::users::get::view::{GetUsersResultView, User};
+
+fn map_user(row: UserRow) -> User {
+    User {
+        id: row.id() as u64,
+        name: row.name().to_string(),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetUsersError {
@@ -35,18 +43,16 @@ impl ResponseError for GetUsersError {
 async fn trigger_get_users(
     state: web::Data<AppState>,
 ) -> Result<GetUsersResultView, GetUsersError> {
-    //get_cache
+    let view = GetUsersQueryView::new();
+    let rows: Vec<UserRow> = state
+        .get_smart_db()
+        .fetch_all(&view)
+        .await
+        .map_err(|_| GetUsersError::DatabaseError)?;
 
-    let pool = match state.db_pool.clone() {
-        Some(pool) => pool,
-        None => return Err(GetUsersError::DatabaseError),
-    };
+    let users = rows.into_iter().map(map_user).collect();
 
-    //query
-
-    // update cache
-
-    Ok(GetUsersResultView { users: vec![] })
+    Ok(GetUsersResultView { users })
 }
 
 #[utoipa::path(
