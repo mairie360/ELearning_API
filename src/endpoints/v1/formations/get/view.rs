@@ -1,8 +1,9 @@
-#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, serde::Serialize, utoipa::ToSchema)]
 pub enum Status {
     Completed,
     InProgress,
     NotStarted,
+    #[default]
     Error,
 }
 
@@ -17,20 +18,14 @@ impl From<String> for Status {
     }
 }
 
-impl Into<String> for Status {
-    fn into(self) -> String {
-        match self {
+impl From<Status> for String {
+    fn from(status: Status) -> Self {
+        match status {
             Status::Completed => "completed".to_string(),
             Status::InProgress => "in_progress".to_string(),
             Status::NotStarted => "not_started".to_string(),
             Status::Error => "error".to_string(),
         }
-    }
-}
-
-impl Default for Status {
-    fn default() -> Self {
-        Status::Error
     }
 }
 

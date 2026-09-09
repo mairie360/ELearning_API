@@ -3,6 +3,7 @@ use actix_web::{patch, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
+use crate::database::formations::complete_module::view::CompleteModuleQueryView;
 use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
 
 #[derive(Debug, Clone, PartialEq)]

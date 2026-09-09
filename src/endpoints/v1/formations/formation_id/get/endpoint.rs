@@ -3,7 +3,10 @@ use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
-use crate::endpoints::v1::formations::formation_id::get::view::GetFormationResponseView;
+use crate::database::formations::get_my_formation_modules::view::{
+    FormationModuleRow, GetMyFormationModulesQueryView,
+};
+use crate::endpoints::v1::formations::formation_id::get::view::{GetFormationResponseView, Module};
 use crate::endpoints::v1::formations::formation_id::FormationIdParams;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,15 +46,16 @@ async fn trigger_get_my_formation_by_id(
     formation_id: u64,
     user_id: u64,
 ) -> Result<GetFormationResponseView, GetMeFormationByIdError> {
-    //get_cache
+    let view = GetMyFormationModulesQueryView::new(formation_id, user_id);
+    let rows: Vec<FormationModuleRow> = state
+        .get_smart_db()
+        .fetch_all(&view)
+        .await
+        .map_err(|_| GetMeFormationByIdError::DatabaseError)?;
 
     let _smart_db = state.get_smart_db();
 
-    //query
-
-    // update cache
-
-    Ok(GetFormationResponseView { modules: vec![] })
+    Ok(GetFormationResponseView { modules })
 }
 
 #[utoipa::path(
