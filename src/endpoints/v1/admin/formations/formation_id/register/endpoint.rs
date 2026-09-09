@@ -1,8 +1,9 @@
 use actix_web::http::StatusCode;
 use actix_web::{post, web, HttpResponse, Responder, ResponseError};
-use mairie360_api_lib::database::query_views::DoesUserExistByIdQueryView;
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
+
+use mairie360_api_lib::database::query_views::DoesUserExistByIdQueryView;
 
 use crate::database::admin::formations::register_user_to_formation::view::RegisterUserToFormationQueryView;
 use crate::database::formations::does_course_exist::view::DoesCourseExistQueryView;
@@ -58,9 +59,8 @@ async fn trigger_register_user_to_formation(
     formation_id: u64,
 ) -> Result<(), RegisterUserToFormationError> {
     let smart_db = state.get_smart_db();
-    let registered_user_id = view.user_id();
 
-    let user_exists_view = DoesUserExistByIdQueryView::new(registered_user_id);
+    let user_exists_view = DoesUserExistByIdQueryView::new(view.user_id());
     let user_exists: bool = smart_db
         .fetch_scalar(&user_exists_view)
         .await
@@ -78,7 +78,7 @@ async fn trigger_register_user_to_formation(
         return Err(RegisterUserToFormationError::UnknownFormation);
     }
 
-    let register_view = RegisterUserToFormationQueryView::new(registered_user_id, formation_id);
+    let register_view = RegisterUserToFormationQueryView::new(view.user_id(), formation_id);
     smart_db
         .execute(register_view)
         .await

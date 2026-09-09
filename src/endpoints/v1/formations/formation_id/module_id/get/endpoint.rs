@@ -11,6 +11,16 @@ use crate::endpoints::v1::formations::formation_id::module_id::get::view::{
 };
 use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
 
+fn map_file(row: ModuleAttachmentRow) -> File {
+    File {
+        id: row.id() as u64,
+        file_name: row.file_name().to_string(),
+        file_type: FileType::from(row.file_type().to_string()),
+        file_url: row.file_url().to_string(),
+        file_size_bytes: row.file_size_bytes(),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetModuleError {
     BadRequest,
@@ -56,16 +66,7 @@ async fn trigger_get_module(
         .await
         .map_err(|_| GetModuleError::DatabaseError)?;
 
-    let files = rows
-        .into_iter()
-        .map(|row| File {
-            id: row.id() as u64,
-            file_name: row.file_name().to_string(),
-            file_type: FileType::from(row.file_type().to_string()),
-            file_url: row.file_url().to_string(),
-            file_size_bytes: row.file_size_bytes(),
-        })
-        .collect();
+    let files = rows.into_iter().map(map_file).collect();
 
     Ok(GetModuleResponseView { files })
 }

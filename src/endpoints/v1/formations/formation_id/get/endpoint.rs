@@ -9,6 +9,15 @@ use crate::database::formations::get_my_formation_modules::view::{
 use crate::endpoints::v1::formations::formation_id::get::view::{GetFormationResponseView, Module};
 use crate::endpoints::v1::formations::formation_id::FormationIdParams;
 
+fn map_module(row: FormationModuleRow) -> Module {
+    Module {
+        id: row.id() as u64,
+        name: row.name().to_string(),
+        description: row.description().unwrap_or_default().to_string(),
+        completed: row.completed(),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetMeFormationByIdError {
     BadRequest,
@@ -53,15 +62,7 @@ async fn trigger_get_my_formation_by_id(
         .await
         .map_err(|_| GetMeFormationByIdError::DatabaseError)?;
 
-    let modules = rows
-        .into_iter()
-        .map(|row| Module {
-            id: row.id() as u64,
-            name: row.name().to_string(),
-            description: row.description().unwrap_or_default().to_string(),
-            completed: row.completed(),
-        })
-        .collect();
+    let modules = rows.into_iter().map(map_module).collect();
 
     Ok(GetFormationResponseView { modules })
 }

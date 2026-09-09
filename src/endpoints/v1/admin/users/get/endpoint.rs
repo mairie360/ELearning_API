@@ -6,6 +6,13 @@ use mairie360_api_lib::state::AppState;
 use crate::database::admin::users::get_users::view::{GetUsersQueryView, UserRow};
 use crate::endpoints::v1::admin::users::get::view::{GetUsersResultView, User};
 
+fn map_user(row: UserRow) -> User {
+    User {
+        id: row.id() as u64,
+        name: row.name().to_string(),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetUsersError {
     DatabaseError,
@@ -43,13 +50,7 @@ async fn trigger_get_users(
         .await
         .map_err(|_| GetUsersError::DatabaseError)?;
 
-    let users = rows
-        .into_iter()
-        .map(|row| User {
-            id: row.id() as u64,
-            name: row.name().to_string(),
-        })
-        .collect();
+    let users = rows.into_iter().map(map_user).collect();
 
     Ok(GetUsersResultView { users })
 }

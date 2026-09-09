@@ -45,15 +45,15 @@ async fn trigger_complete_module(
     user_id: u64,
     module_id: u64,
 ) -> Result<(), CompleteModuleError> {
+    let smart_db = state.get_smart_db();
+
     let view = CompleteModuleQueryView::new(user_id, module_id);
-    state.get_smart_db().execute(view).await.map_err(|err| {
-        if matches!(err, ApiLibError::Database(DbError::ForeignKeyViolation(_))) {
-            // `module_id` doesn't exist.
-            CompleteModuleError::BadRequest
-        } else {
-            CompleteModuleError::DatabaseError
-        }
-    })
+    smart_db.execute(view).await.map_err(|err| match err {
+        ApiLibError::Database(DbError::ForeignKeyViolation(_)) => CompleteModuleError::BadRequest,
+        _ => CompleteModuleError::DatabaseError,
+    })?;
+
+    Ok(())
 }
 
 #[utoipa::path(
