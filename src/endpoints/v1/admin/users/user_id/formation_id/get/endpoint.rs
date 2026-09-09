@@ -67,7 +67,14 @@ async fn trigger_get_user_formation(
 ) -> Result<GetUserFormation, GetUserFormationError> {
     let smart_db = state.get_smart_db();
 
-    let _smart_db = state.get_smart_db();
+    let exists_view = DoesCourseExistQueryView::new(formation_id);
+    let exists: bool = smart_db
+        .fetch_scalar(&exists_view)
+        .await
+        .map_err(|_| GetUserFormationError::DatabaseError)?;
+    if !exists {
+        return Err(GetUserFormationError::UnknowModule);
+    }
 
     let view = GetUserFormationQueryView::new(formation_id, user_id, details);
     let rows: Vec<UserFormationModuleRow> = smart_db

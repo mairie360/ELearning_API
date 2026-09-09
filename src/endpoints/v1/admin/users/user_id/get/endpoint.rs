@@ -87,7 +87,7 @@ async fn trigger_get_user(
         .await
         .map_err(|_| GetUserFormationsError::DatabaseError)?;
 
-    let _smart_db = state.get_smart_db();
+    let formations = rows.into_iter().map(map_formation).collect();
 
     Ok(GetUserByIdResultView { formations })
 }

@@ -8,6 +8,15 @@ use crate::database::formations::get_my_formations::view::{
 };
 use crate::endpoints::v1::formations::get::view::{Formation, GetFormationsResultView, Status};
 
+fn map_formation(row: FormationSummaryRow) -> Formation {
+    Formation::new(
+        row.id() as u64,
+        row.name(),
+        row.description().unwrap_or_default(),
+        Status::from(row.status().to_string()),
+    )
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetFormationsError {
     DatabaseError,
@@ -46,7 +55,7 @@ async fn trigger_get_my_formations(
         .await
         .map_err(|_| GetFormationsError::DatabaseError)?;
 
-    let _smart_db = state.get_smart_db();
+    let formations = rows.into_iter().map(map_formation).collect();
 
     Ok(GetFormationsResultView::new(formations))
 }

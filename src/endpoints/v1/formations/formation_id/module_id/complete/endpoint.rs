@@ -1,5 +1,7 @@
 use actix_web::http::StatusCode;
 use actix_web::{patch, web, HttpResponse, Responder, ResponseError};
+use mairie360_api_lib::database::error::DbError;
+use mairie360_api_lib::error::ApiLibError;
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
@@ -43,9 +45,13 @@ async fn trigger_complete_module(
     user_id: u64,
     module_id: u64,
 ) -> Result<(), CompleteModuleError> {
-    let _smart_db = state.get_smart_db();
+    let smart_db = state.get_smart_db();
 
-    //query
+    let view = CompleteModuleQueryView::new(user_id, module_id);
+    smart_db.execute(view).await.map_err(|err| match err {
+        ApiLibError::Database(DbError::ForeignKeyViolation(_)) => CompleteModuleError::BadRequest,
+        _ => CompleteModuleError::DatabaseError,
+    })?;
 
     Ok(())
 }

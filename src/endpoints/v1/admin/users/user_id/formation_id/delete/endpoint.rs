@@ -44,7 +44,7 @@ async fn trigger_unsub_formation(
     formation_id: u64,
     user_id: u64,
 ) -> Result<(), UnsubFormationError> {
-    let _smart_db = state.get_smart_db();
+    let smart_db = state.get_smart_db();
 
     let exists_view = DoesCourseExistQueryView::new(formation_id);
     let exists: bool = smart_db

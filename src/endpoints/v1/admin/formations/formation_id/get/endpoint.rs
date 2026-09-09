@@ -70,7 +70,14 @@ async fn trigger_get_formation_by_id(
 ) -> Result<GetFormationByIdResultView, GetFormationByIdError> {
     let smart_db = state.get_smart_db();
 
-    let _smart_db = state.get_smart_db();
+    let exists_view = DoesCourseExistQueryView::new(formation_id);
+    let exists: bool = smart_db
+        .fetch_scalar(&exists_view)
+        .await
+        .map_err(|_| GetFormationByIdError::DatabaseError)?;
+    if !exists {
+        return Err(GetFormationByIdError::NotFound);
+    }
 
     let view = GetFormationModulesQueryView::new(formation_id, details);
     let rows: Vec<AdminFormationModuleRow> = smart_db

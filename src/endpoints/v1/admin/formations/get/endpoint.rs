@@ -74,7 +74,7 @@ async fn trigger_get_formations(
         .await
         .map_err(|_| GetFormationsError::DatabaseError)?;
 
-    let _smart_db = state.get_smart_db();
+    let formations = rows.into_iter().map(map_formation).collect();
 
     Ok(GetFormationsResultView { formations })
 }
