@@ -16,6 +16,13 @@ x-common-env: &common-env
   DB_HOST: postgres
   DB_PASSWORD: password
   DB_PORT: 5432
+  # -- Scaleway Object Storage (S3) : placeholders dev, vraies valeurs en secrets CI --
+  S3_BUCKET: mairie360-elearning
+  S3_REGION: fr-par
+  S3_ENDPOINT: https://s3.fr-par.scw.cloud
+  S3_ACCESS_KEY: ""   # TODO: renseigner (secret CI + local)
+  S3_SECRET_KEY: ""   # TODO: renseigner (secret CI + local)
+  S3_PRESIGN_TTL_SECS: 900
 
 x-depends-on: &depends-on
   postgres:

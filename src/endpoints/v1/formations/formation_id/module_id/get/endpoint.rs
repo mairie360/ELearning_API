@@ -12,11 +12,13 @@ use crate::endpoints::v1::formations::formation_id::module_id::get::view::{
 use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
 
 fn map_file(row: ModuleAttachmentRow) -> File {
+    // `file_url` (the S3 object key) is deliberately not exposed here: clients
+    // fetch a viewable URL for a single file via
+    // `GET /v1/formations/{formation_id}/{module_id}/{attachment_id}`.
     File {
         id: row.id() as u64,
         file_name: row.file_name().to_string(),
         file_type: FileType::from(row.file_type().to_string()),
-        file_url: row.file_url().to_string(),
         file_size_bytes: row.file_size_bytes(),
     }
 }

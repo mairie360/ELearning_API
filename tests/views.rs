@@ -16,6 +16,9 @@ use elearning_api::database::admin::users::get_users::view::GetUsersQueryView;
 use elearning_api::database::admin::users::unsub_user_formation::view::UnsubUserFormationQueryView;
 use elearning_api::database::formations::complete_module::view::CompleteModuleQueryView;
 use elearning_api::database::formations::does_course_exist::view::DoesCourseExistQueryView;
+use elearning_api::database::formations::get_attachment::view::{
+    AttachmentRow, GetAttachmentQueryView,
+};
 use elearning_api::database::formations::get_module_attachments::view::GetModuleAttachmentsQueryView;
 use elearning_api::database::formations::get_my_formation_modules::view::GetMyFormationModulesQueryView;
 use elearning_api::database::formations::get_my_formations::view::GetMyFormationsQueryView;
@@ -49,6 +52,35 @@ fn get_module_attachments_view_accessors() {
     assert_eq!(view.formation_id(), 1);
     assert_eq!(view.module_id(), 2);
     assert!(view.query_sql().contains("course_attachments"));
+}
+
+#[test]
+fn get_attachment_view_accessors() {
+    let view = GetAttachmentQueryView::new(10, 20, 30);
+    assert_eq!(view.formation_id(), 10);
+    assert_eq!(view.module_id(), 20);
+    assert_eq!(view.attachment_id(), 30);
+    // Params are bound in the order the SQL references them: $1 = attachment,
+    // $2 = module, $3 = course.
+    let sql = view.query_sql();
+    assert!(sql.contains("course_attachments"));
+    assert!(sql.contains("course_modules"));
+    assert!(sql.contains("$1") && sql.contains("$2") && sql.contains("$3"));
+}
+
+#[test]
+fn attachment_row_deserializes_from_jsonb() {
+    let row: AttachmentRow = serde_json::from_value(serde_json::json!({
+        "id": 7,
+        "file_name": "guide.pdf",
+        "file_type": "pdf",
+        "file_url": "courses/1/modules/2/guide.pdf",
+    }))
+    .expect("row should decode");
+    assert_eq!(row.id(), 7);
+    assert_eq!(row.file_name(), "guide.pdf");
+    assert_eq!(row.file_type(), "pdf");
+    assert_eq!(row.file_url(), "courses/1/modules/2/guide.pdf");
 }
 
 #[test]
