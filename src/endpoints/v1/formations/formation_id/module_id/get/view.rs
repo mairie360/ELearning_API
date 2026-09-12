@@ -32,7 +32,6 @@ pub struct File {
     pub id: u64,
     pub file_name: String,
     pub file_type: FileType,
-    pub file_url: String,
     pub file_size_bytes: Option<i64>,
 }
 

@@ -22,7 +22,9 @@ that get handed to it.
 docker compose up --watch          # --watch syncs src/ + Cargo.* into the dev container
 
 # Bare cargo run needs env vars set: DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME
-#   REDIS_URL HOST PORT JWT_SECRET JWT_TIMEOUT  (see x-common-env in docker-compose.yml)
+#   REDIS_URL HOST PORT JWT_SECRET JWT_TIMEOUT
+#   S3_BUCKET S3_REGION S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY  (+ optional S3_PRESIGN_TTL_SECS)
+#   (see x-common-env in docker-compose.yml)
 cargo run
 
 cargo lint_check     # alias: fmt --all -- --check          (CI gate)
@@ -41,6 +43,19 @@ cargo cov            # same, plus --codecov --output-path codecov.json          
 cargo open_api > openapi.json     # alias: run --example generate_openapi (prints OpenAPI JSON)
 npx orval                         # regenerate generated/ TS axios client from openapi.json
 ```
+
+```bash
+# Perf & security harnesses (each spins up its OWN full stack, then tears it down)
+./performance_test.sh   # docker-compose-performance.yml: k6 (load-test.js) vs elearning:3006
+                        #   thresholds: p95 < 200ms, http_req_failed < 1%
+./security_test.sh      # docker-compose-security.yml: OWASP ZAP zap-api-scan.py (openapi mode)
+```
+
+`docker-compose-performance.yml` / `docker-compose-security.yml` are standalone copies of the
+base stack plus one extra service (`k6-perf-test` / `security-scan`) — they don't `extends:` the
+main compose file, so env/image changes must be mirrored into all three. Known bug: the ZAP
+service targets `http://elearning:3006/openapi-spec.json`, but the running API serves its spec at
+`/api-docs/openapi.json` (Swagger) — the scan won't find the spec until that path is fixed.
 
 `openapi.json` and `generated/` are gitignored build outputs — never hand-edit them.
 `cargo test --test integration_test` needs Docker: it uses
@@ -61,11 +76,21 @@ Every URL path segment maps to a directory containing a `mod.rs`. Each `mod.rs`:
 - declares its submodules, and
 - exposes `pub fn config(cfg: &mut web::ServiceConfig)` that builds an actix `web::scope("/<segment>")`, registers leaf handlers with `.service(...)`, and `.configure(child::config)` for sub-scopes.
 
-`main.rs` mounts: public `/health` + `POST /` + Swagger UI at `/swagger-ui/`, then everything
-under `/api` wrapped in `JwtMiddleware`. `endpoints::config` → `v1::config` → `/v1` →
-`formations` (end-user) and `admin` (`admin/formations`, `admin/users`).
+`main.rs` mounts: public `/health` + `POST /` (`endpoints::hello` — a stale template stub that
+returns `"Hello, world!"`) + Swagger UI at `/swagger-ui/` (spec served at
+`/api-docs/openapi.json`), then everything under `/api` wrapped in `JwtMiddleware`.
+`endpoints::config` → `v1::config` → `/v1` → `formations` (end-user) and `admin`
+(`admin/formations`, `admin/users`). Note `main.rs` registers `health`/`hello` directly (not via
+`endpoints::config`), so the real route tree under `/api` is just `v1`.
 
-### A leaf endpoint = a `get/` (or verb-named) directory with three files
+Runtime code, log lines, and comments are a French/English mix (`main.rs` prints
+"Serveur démarré…"). Match the surrounding file rather than normalizing.
+
+### A leaf endpoint = a `get/` (or verb-named) directory with two or three files
+
+(`view.rs` is omitted for a pure mutation that returns no body — e.g.
+`formations/formation_id/module_id/complete/` has only `mod.rs` + `endpoint.rs`, its handler
+returns `HttpResponse::Ok()`.)
 
 - **`endpoint.rs`** — contains, in order:
   1. a per-endpoint error enum (`Debug, Clone, PartialEq`) with hand-written `Display` and
@@ -131,6 +156,24 @@ an empty list (`formations::does_course_exist`, the lib's own
 `database::query_views::DoesUserExistByIdQueryView`) are run first and mapped to the endpoint's
 own error enum.
 
+### File storage — `src/storage/` (Scaleway Object Storage / S3)
+
+Course attachments live in a **private** S3 bucket; `course_attachments.file_url` holds the
+**object key**, not a URL. `src/storage/file_storage.rs` defines the `FileStorage` trait
+(`presigned_view_url(key, content_type)`) and its `S3FileStorage` impl (crate `rust-s3`,
+imported as `s3`). `S3FileStorage::from_env()` reads the `S3_*` vars; `main.rs` wraps it in
+`web::Data::from(Arc<dyn FileStorage>)` and registers it on the `/api` scope, so handlers
+extract `web::Data<dyn FileStorage>`.
+
+Only endpoint using it: `GET /v1/formations/{formation_id}/{module_id}/{attachment_id}` — looks
+the row up scoped to the whole triple (404 on mismatch, query
+`formations::get_attachment`), then returns a short-lived presigned GET URL carrying
+`response-content-disposition=inline` + `response-content-type` so the browser **renders** the
+PDF/video rather than downloading it. Presigning is a local SigV4 computation (no network), so
+it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double for callers).
+The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
+Upload/delete are not implemented — they would be new async methods on `FileStorage`.
+
 ### External library: `mairie360_api_lib` (pinned to 1.2.0)
 
 - `state::AppState` — built in `main.rs` from env vars, passed everywhere as
@@ -154,7 +197,8 @@ own error enum.
 - `development.Dockerfile` + `entrypoint.sh` — `cargo watch` hot-reload (paths still say
   `calendar_api`; `docker-compose.yml` overrides the workdir/sync targets to `elearning`).
 - `docker-compose.yml` — pulls `ghcr.io/mairie360/database` and
-  `ghcr.io/mairie360/liquibase-migrations` (schema applied by the `liquibase` service before
-  the API starts), Redis, and an nginx reverse proxy.
+  `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:dev-<sha>` tag — keep them
+  in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an
+  nginx reverse proxy.
 - CI (`.github/workflows/`) delegates to the shared `mairie360/CICD` workflow and runs a
   Postman collection. Renovate PRs are auto-approved.

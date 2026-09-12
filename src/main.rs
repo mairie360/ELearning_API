@@ -1,7 +1,10 @@
 use actix_web::{middleware, web, App, HttpServer};
 
+use std::sync::Arc;
+
 use elearning_api::endpoints::swagger::ApiDoc;
 use elearning_api::endpoints::{config, health, hello};
+use elearning_api::storage::{FileStorage, S3FileStorage};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
 use mairie360_api_lib::security::JwtMiddleware;
@@ -26,6 +29,11 @@ async fn main() -> std::io::Result<()> {
     );
     let state = AppState::new(redis_url, pg_url).await;
     let data = web::Data::new(state);
+
+    let storage: Arc<dyn FileStorage> =
+        Arc::new(S3FileStorage::from_env().expect("failed to build the S3 file storage client"));
+    let storage_data = web::Data::from(storage);
+
     let host = get_critical_env_var("HOST");
     let port = get_critical_env_var("PORT");
     let bind_address = format!("{}:{}", host, port);
@@ -44,7 +52,10 @@ async fn main() -> std::io::Result<()> {
             .service(hello::hello)
             // 3. Endpoints Protégés par JWT
             .service(
-                web::scope("/api").wrap(JwtMiddleware).configure(config), // Tes routes v1, etc.
+                web::scope("/api")
+                    .app_data(storage_data.clone())
+                    .wrap(JwtMiddleware)
+                    .configure(config), // Tes routes v1, etc.
             )
     })
     .bind(bind_address)?;
