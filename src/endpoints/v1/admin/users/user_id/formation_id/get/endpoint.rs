@@ -91,11 +91,62 @@ async fn trigger_get_user_formation(
     get,
     params(AdminUserDetailsQuery, AdminUserFormationIdParams),
     path = "",
+    summary = "Consulter la progression d'un agent sur une formation",
+    description = "Renvoie les modules d'une formation avec, pour chacun, l'état d'achèvement de \
+                   l'agent visé et la date à laquelle il l'a terminé. Vue la plus fine du suivi : \
+                   elle descend jusqu'à la date de consultation de chaque pièce jointe.\n\n\
+                   `completed_at` et `finished_at` sont `null` tant que l'élément n'a pas été \
+                   terminé.\n\n\
+                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
+                   authentifié peut appeler cette route.",
     responses(
-        (status = 200, description = "Users with formations retrieved successfully", body = GetUserFormation),
-        (status = 400, description = "Bad request"),
-        (status = 404, description = "Module not found"),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Modules de la formation et progression de l'agent sur chacun.",
+            body = GetUserFormation,
+            example = json!({
+                "modules": [
+                    {
+                        "id": 11,
+                        "name": "Les principes du RGPD",
+                        "description": "Licéité, minimisation, durée de conservation",
+                        "content": [
+                            { "id": 31, "file_name": "rgpd-principes.pdf", "file_type": "pdf", "finished_at": "2026-09-03T14:22:00Z" }
+                        ],
+                        "is_completed": true,
+                        "completed_at": "2026-09-03T14:25:00Z"
+                    }
+                ]
+            })
+        ),
+        (
+            status = 400,
+            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Path deserialize error: can not parse `abc` to a u64")
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 404,
+            description = "Aucun module trouvé pour ce couple agent / formation.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Module not found.")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     tag = "Admin - Users",
     security(

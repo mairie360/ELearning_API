@@ -76,8 +76,9 @@ struct CreateAttachment {
 
 impl ApiRequestDto for CreateAttachment {
     fn query_sql(&self) -> &'static str {
-        "INSERT INTO course_attachments (module_id, file_name, file_type, file_url, file_size_bytes) \
-         VALUES ($1, $2, $3::attachment_type, $4, $5) RETURNING id"
+        // `title` est obligatoire depuis Database 1.2.0 : on reprend le nom de fichier.
+        "INSERT INTO course_attachments (module_id, file_name, title, file_type, file_url, file_size_bytes) \
+         VALUES ($1, $2, $2, $3::attachment_type, $4, $5) RETURNING id"
     }
 
     fn query_params(&self) -> &[QueryParam] {

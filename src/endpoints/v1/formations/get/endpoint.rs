@@ -63,9 +63,39 @@ async fn trigger_get_my_formations(
 #[utoipa::path(
     get,
     path = "",
+    summary = "Lister ses formations",
+    description = "Renvoie les formations auxquelles l'utilisateur porté par le JWT est inscrit, \
+                   avec l'avancement de chacune. Seul un administrateur peut l'y inscrire, via \
+                   `POST /api/v1/admin/formations/{formation_id}` : un agent ne peut pas s'inscrire \
+                   lui-même, et cette liste est donc vide tant qu'on ne l'a pas inscrit.\n\n\
+                   Vue de liste : les modules ne sont pas inclus, il faut passer par \
+                   `GET /api/v1/formations/{formation_id}/`.",
     responses(
-        (status = 200, description = "Formations retrieved successfully", body = GetFormationsResultView),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Formations de l'utilisateur connecté et leur avancement.",
+            body = GetFormationsResultView,
+            example = json!({
+                "formations": [
+                    { "id": 4, "name": "RGPD pour les agents territoriaux", "description": "Obligations et bonnes pratiques", "status": "InProgress" },
+                    { "id": 9, "name": "Accueil du public en situation de handicap", "description": "", "status": "NotStarted" }
+                ]
+            })
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     tag = "Formations",
     security(

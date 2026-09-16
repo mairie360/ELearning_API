@@ -4,9 +4,17 @@ pub mod get;
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminFormation {
+    /// Identifiant de la formation.
+    #[schema(example = 4)]
     id: u64,
+    /// Intitulé de la formation.
+    #[schema(example = "RGPD pour les agents territoriaux")]
     name: String,
+    /// Description de la formation.
+    #[schema(example = "Obligations et bonnes pratiques")]
     description: String,
+    /// Modules de la formation, ou `null` si `details` n'a pas été demandé. Un `null` ici veut
+    /// dire « non demandé », pas « aucun module ».
     modules: Option<Vec<AdminFormationModule>>,
 }
 
@@ -44,9 +52,16 @@ impl AdminFormation {
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminFormationModule {
+    /// Identifiant du module.
+    #[schema(example = 11)]
     id: u64,
+    /// Intitulé du module.
+    #[schema(example = "Les principes du RGPD")]
     name: String,
+    /// Description du module.
+    #[schema(example = "Licéité, minimisation, durée de conservation")]
     description: String,
+    /// Pièces jointes du module, ou `null` si `details` n'a pas été demandé.
     content: Option<Vec<AdminModuleContent>>,
 }
 
@@ -84,8 +99,14 @@ impl AdminFormationModule {
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminModuleContent {
+    /// Identifiant de la pièce jointe.
+    #[schema(example = 31)]
     id: u64,
+    /// Nom du fichier.
+    #[schema(example = "rgpd-principes.pdf")]
     file_name: String,
+    /// Type du fichier, tel qu'il est stocké en base : `video` ou `pdf`.
+    #[schema(example = "pdf")]
     file_type: String,
 }
 

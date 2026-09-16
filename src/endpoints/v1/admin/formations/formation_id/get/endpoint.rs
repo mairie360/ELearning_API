@@ -97,11 +97,60 @@ async fn trigger_get_formation_by_id(
         AdminFormationIdParams,
     ),
     path = "",
+    summary = "Lister les modules d'une formation du catalogue",
+    description = "Renvoie les modules d'une formation, sans rapport avec la progression de qui \
+                   que ce soit : c'est la structure du cours, pas son suivi. Pour la progression \
+                   d'un agent donné, voir `GET /api/v1/admin/users/{user_id}/{formation_id}`.\n\n\
+                   `details=true` fait descendre la réponse jusqu'aux pièces jointes de chaque \
+                   module. Sans ce paramètre, `content` est `null` et non un tableau vide.\n\n\
+                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
+                   authentifié peut appeler cette route.",
     responses(
-        (status = 200, description = "Formation retrieved successfully", body = GetFormationByIdResultView),
-        (status = 400, description = "Bad request"),
-        (status = 404, description = "Formation not found"),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Modules de la formation.",
+            body = GetFormationByIdResultView,
+            example = json!({
+                "modules": [
+                    {
+                        "id": 11,
+                        "name": "Les principes du RGPD",
+                        "description": "Licéité, minimisation, durée de conservation",
+                        "content": [
+                            { "id": 31, "file_name": "rgpd-principes.pdf", "file_type": "pdf" }
+                        ]
+                    }
+                ]
+            })
+        ),
+        (
+            status = 400,
+            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Path deserialize error: can not parse `abc` to a u64")
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 404,
+            description = "Aucune formation ne porte cet identifiant.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("The formation was not found.")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     tag = "Admin - Formations",
     security(

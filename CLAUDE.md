@@ -174,7 +174,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 1.2.0)
+### External library: `mairie360_api_lib` (pinned to 1.2.2)
 
 - `state::AppState` — built in `main.rs` from env vars, passed everywhere as
   `web::Data<AppState>`. Exposes `get_smart_db() -> &SmartDatabase` and `get_redis() -> &Redis`;
@@ -197,7 +197,7 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 - `development.Dockerfile` + `entrypoint.sh` — `cargo watch` hot-reload (paths still say
   `calendar_api`; `docker-compose.yml` overrides the workdir/sync targets to `elearning`).
 - `docker-compose.yml` — pulls `ghcr.io/mairie360/database` and
-  `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:dev-<sha>` tag — keep them
+  `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:1.2.1` tag — keep them
   in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an
   nginx reverse proxy.
 - CI (`.github/workflows/`) delegates to the shared `mairie360/CICD` workflow and runs a

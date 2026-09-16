@@ -96,9 +96,60 @@ async fn trigger_get_user(
     get,
     params(AdminUserDetailsQuery, AdminUserIdParams),
     path = "",
+    summary = "Consulter la progression d'un agent",
+    description = "Renvoie les formations auxquelles un agent est inscrit, avec ses dates de début \
+                   et de fin et son statut d'avancement. C'est l'équivalent de \
+                   `GET /api/v1/formations/` mais pour un agent quelconque, pas pour \
+                   l'appelant.\n\n\
+                   `started_at` reste `null` tant que l'agent n'a terminé aucun module : la date \
+                   est posée par un déclencheur en base au premier module achevé, pas à \
+                   l'inscription. `completed_at` reste `null` tant que la formation n'est pas \
+                   entièrement terminée.\n\n\
+                   `details=true` fait descendre la réponse jusqu'aux modules et à leurs pièces \
+                   jointes ; sans ce paramètre, `modules` est `null`.\n\n\
+                   Un agent inconnu ou sans inscription renvoie une liste vide, pas une erreur.\n\n\
+                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
+                   authentifié peut appeler cette route.",
     responses(
-        (status = 200, description = "User formations retrieved successfully", body = GetUserByIdResultView),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Formations de l'agent et son avancement sur chacune.",
+            body = GetUserByIdResultView,
+            example = json!({
+                "formations": [
+                    {
+                        "id": 4,
+                        "name": "RGPD pour les agents territoriaux",
+                        "description": "Obligations et bonnes pratiques",
+                        "modules": null,
+                        "started_at": "2026-09-02T08:30:00Z",
+                        "completed_at": null,
+                        "progress_status": "InProgress"
+                    }
+                ]
+            })
+        ),
+        (
+            status = 400,
+            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Path deserialize error: can not parse `abc` to a u64")
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     tag = "Admin - Users",
     security(
