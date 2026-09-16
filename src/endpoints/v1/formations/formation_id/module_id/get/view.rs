@@ -1,5 +1,7 @@
 use utoipa::ToSchema;
 
+/// Type d'une pièce jointe : `Video` ou `Pdf`.
+/// `Error` couvre tout autre type stocké en base (`document`, `link`, `quiz`, `audio`, `other`), que l'API n'expose pas encore.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub enum FileType {
     Video,
@@ -27,6 +29,7 @@ impl std::fmt::Display for FileType {
     }
 }
 
+/// Pièce jointe d'un module.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct File {
     /// Identifiant de la pièce jointe, à passer à
@@ -43,7 +46,9 @@ pub struct File {
     pub file_size_bytes: Option<i64>,
 }
 
+/// Pièces jointes d'un module.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetModuleResponseView {
+    /// Pièces jointes du module. Vide si le module n'en a aucune.
     pub files: Vec<File>,
 }

@@ -2,9 +2,12 @@ pub mod doc;
 pub mod get;
 pub mod register;
 
+/// Paramètres de chemin des routes d'administration d'une formation.
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Path)]
 pub struct AdminFormationIdParams {
+    /// Identifiant de la formation.
+    #[param(example = 4)]
     formation_id: u64,
 }
 
