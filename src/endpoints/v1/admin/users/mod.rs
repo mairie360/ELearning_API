@@ -2,6 +2,8 @@ pub mod doc;
 pub mod get;
 pub mod user_id;
 
+/// Avancement d'un agent dans une formation : `NotStarted`, `InProgress` ou `Completed`.
+/// `Error` signale une valeur en base que l'API ne sait pas interpréter.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub enum ProgressStatus {
     NotStarted,
@@ -21,6 +23,7 @@ impl From<String> for ProgressStatus {
     }
 }
 
+/// Formation à laquelle un agent est inscrit, avec son avancement.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UsersFormation {
     /// Identifiant de la formation.
@@ -42,7 +45,7 @@ pub struct UsersFormation {
     #[schema(value_type = Option<String>, format = DateTime, example = "2026-09-02T08:30:00Z")]
     started_at: Option<chrono::DateTime<chrono::Utc>>,
     /// Date d'achèvement de la formation entière, ou `null` si elle n'est pas terminée.
-    #[schema(value_type = Option<String>, format = DateTime)]
+    #[schema(value_type = Option<String>, format = DateTime, example = "2026-09-20T16:45:00Z")]
     completed_at: Option<chrono::DateTime<chrono::Utc>>,
     /// Avancement de l'agent sur cette formation, recalculé automatiquement en base.
     progress_status: ProgressStatus,
@@ -98,6 +101,7 @@ impl UsersFormation {
     }
 }
 
+/// Module d'une formation et son avancement pour l'agent.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UsersFormationModule {
     /// Identifiant du module.
@@ -159,6 +163,7 @@ impl UsersFormationModule {
     }
 }
 
+/// Pièce jointe d'un module et sa date de consultation par l'agent.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UsersModuleContent {
     /// Identifiant de la pièce jointe.

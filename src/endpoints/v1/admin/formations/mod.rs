@@ -2,6 +2,7 @@ pub mod doc;
 pub mod formation_id;
 pub mod get;
 
+/// Formation du catalogue, vue administrateur.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminFormation {
     /// Identifiant de la formation.
@@ -50,6 +51,7 @@ impl AdminFormation {
     }
 }
 
+/// Module d'une formation, vue administrateur.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminFormationModule {
     /// Identifiant du module.
@@ -97,6 +99,7 @@ impl AdminFormationModule {
     }
 }
 
+/// Pièce jointe d'un module, vue administrateur.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminModuleContent {
     /// Identifiant de la pièce jointe.

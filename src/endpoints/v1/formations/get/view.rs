@@ -1,3 +1,5 @@
+/// Avancement de l'utilisateur connecté dans une formation : `NotStarted`, `InProgress` ou `Completed`.
+/// `Error` signale une valeur en base que l'API ne sait pas interpréter.
 #[derive(Debug, Default, serde::Serialize, utoipa::ToSchema)]
 pub enum Status {
     Completed,
@@ -29,6 +31,7 @@ impl From<Status> for String {
     }
 }
 
+/// Formation à laquelle l'utilisateur connecté est inscrit.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct Formation {
     /// Identifiant de la formation, à réutiliser dans `/api/v1/formations/{formation_id}/`.
@@ -56,6 +59,7 @@ impl Formation {
     }
 }
 
+/// Formations de l'utilisateur connecté.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GetFormationsResultView {
     /// Formations auxquelles l'utilisateur connecté est inscrit. Vide s'il n'en suit aucune.

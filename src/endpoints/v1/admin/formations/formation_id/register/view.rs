@@ -2,6 +2,7 @@ use actix_web::web;
 
 use crate::endpoints::v1::admin::formations::formation_id::register::endpoint::RegisterUserToFormationError;
 
+/// Utilisateur à inscrire à la formation du chemin.
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct RegisterUserView {
     /// Identifiant Core API de l'agent à inscrire, tel que le renvoie `GET /api/v1/user/`
