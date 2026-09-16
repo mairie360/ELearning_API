@@ -1,5 +1,6 @@
 use utoipa::ToSchema;
 
+/// Module d'une formation de l'utilisateur connecté, avec son état d'achèvement.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct Module {
     /// Identifiant du module, à réutiliser dans `/api/v1/formations/{formation_id}/{module_id}/`.
@@ -16,6 +17,7 @@ pub struct Module {
     pub completed: bool,
 }
 
+/// Modules d'une formation de l'utilisateur connecté.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetFormationResponseView {
     /// Modules de la formation. Vide si l'appelant n'est pas inscrit à cette formation.

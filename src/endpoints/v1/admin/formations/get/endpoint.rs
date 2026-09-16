@@ -108,6 +108,13 @@ async fn trigger_get_formations(
             })
         ),
         (
+            status = 400,
+            description = "Paramètre `details` qui n'est pas un booléen.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Query deserialize error: invalid type: string \"oui\", expected a boolean")
+        ),
+        (
             status = 401,
             description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
             body = String,
