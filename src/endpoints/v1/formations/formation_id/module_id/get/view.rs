@@ -29,9 +29,17 @@ impl std::fmt::Display for FileType {
 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct File {
+    /// Identifiant de la pièce jointe, à passer à
+    /// `/api/v1/formations/{formation_id}/{module_id}/{attachment_id}/` pour obtenir son URL.
+    #[schema(example = 31)]
     pub id: u64,
+    /// Nom du fichier tel qu'il sera présenté à l'agent.
+    #[schema(example = "rgpd-principes.pdf")]
     pub file_name: String,
+    /// Type du fichier. `Error` signale un type stocké en base que l'API ne sait pas interpréter.
     pub file_type: FileType,
+    /// Taille en octets, ou `null` si elle n'a pas été enregistrée.
+    #[schema(example = 482913)]
     pub file_size_bytes: Option<i64>,
 }
 

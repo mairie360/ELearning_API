@@ -76,11 +76,61 @@ async fn trigger_get_attachment_url(
         AttachmentIdParams,
     ),
     path = "",
+    summary = "Obtenir l'URL d'une pièce jointe",
+    description = "Renvoie une URL signée, à durée de vie limitée, permettant d'afficher la pièce \
+                   jointe directement dans le navigateur. Le fichier lui-même ne transite jamais \
+                   par l'API.\n\n\
+                   L'URL est à usage immédiat : la redemander à chaque ouverture plutôt que de la \
+                   stocker, car elle expire. Le client n'a pas à savoir qu'elle pointe vers un \
+                   stockage objet.\n\n\
+                   Noter le `502`, propre à cet endpoint : il signale que le stockage de fichiers \
+                   est injoignable ou refuse de signer l'URL, alors que la pièce jointe existe \
+                   bien en base. À distinguer du `404`, qui veut dire que la pièce jointe n'existe \
+                   pas dans ce module de cette formation.",
     responses(
-        (status = 200, description = "Attachment URL generated successfully", body = GetAttachmentUrlView),
-        (status = 404, description = "Attachment not found"),
-        (status = 500, description = "Internal server error"),
-        (status = 502, description = "File storage error")
+        (
+            status = 200,
+            description = "URL signée de la pièce jointe.",
+            body = GetAttachmentUrlView,
+            example = json!({
+                "url": "https://storage.mairie360.fr/elearning/rgpd-principes.pdf?X-Amz-Expires=900&X-Amz-Signature=..."
+            })
+        ),
+        (
+            status = 400,
+            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Path deserialize error: can not parse `abc` to a u64")
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 404,
+            description = "Aucune pièce jointe avec cet identifiant dans ce module de cette formation.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("The attachment was not found.")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
+        (
+            status = 502,
+            description = "Le stockage de fichiers est injoignable ou a refusé de signer l'URL. La pièce jointe existe, mais son URL n'a pas pu être produite : l'appel peut être retenté.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the file storage.")
+        ),
     ),
     security(
         ("jwt" = [])

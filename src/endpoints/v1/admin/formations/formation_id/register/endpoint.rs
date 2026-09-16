@@ -93,13 +93,56 @@ async fn trigger_register_user_to_formation(
         AdminFormationIdParams,
     ),
     path = "",
+    summary = "Inscrire un agent à une formation",
+    description = "Rattache un utilisateur à une formation. C'est le seul moyen d'inscrire \
+                   quelqu'un : un agent ne peut pas s'inscrire lui-même. La formation apparaît \
+                   ensuite dans son `GET /api/v1/formations/`, au statut `NotStarted`.\n\n\
+                   L'identifiant attendu est celui du compte dans Core API. La réponse a un corps \
+                   vide.\n\n\
+                   Pour l'opération inverse, voir \
+                   `DELETE /api/v1/admin/users/{user_id}/{formation_id}`.\n\n\
+                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
+                   authentifié peut appeler cette route.",
     responses(
-        (status = 200, description = "User registered to formation successfully"),
-        (status = 400, description = "Bad request"),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Agent inscrit à la formation. Corps vide.",
+        ),
+        (
+            status = 400,
+            description = "Corps JSON malformé, `formation_id` non entier, ou champ `user_id` absent.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Json deserialize error: missing field `user_id`")
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 404,
+            description = "La formation ou l'utilisateur n'existe pas, ou l'agent est déjà inscrit à cette formation.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Unknown formation")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     tag = "Admin - Formations",
-    request_body = RegisterUserView,
+    request_body(
+        content = RegisterUserView,
+        description = "Identifiant Core API de l'agent à inscrire.",
+        example = json!({ "user_id": 42 })
+    ),
     security(
         ("jwt" = [])
     )

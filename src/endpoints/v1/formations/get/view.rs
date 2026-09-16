@@ -31,9 +31,17 @@ impl From<Status> for String {
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct Formation {
+    /// Identifiant de la formation, à réutiliser dans `/api/v1/formations/{formation_id}/`.
+    #[schema(example = 4)]
     id: u64,
+    /// Intitulé de la formation.
+    #[schema(example = "RGPD pour les agents territoriaux")]
     name: String,
+    /// Description de la formation. Chaîne vide s'il n'y en a pas — jamais `null`.
+    #[schema(example = "Obligations et bonnes pratiques")]
     description: String,
+    /// Avancement de l'utilisateur connecté. `Error` signale une valeur en base que l'API ne
+    /// sait pas interpréter.
     status: Status,
 }
 
@@ -50,6 +58,7 @@ impl Formation {
 
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GetFormationsResultView {
+    /// Formations auxquelles l'utilisateur connecté est inscrit. Vide s'il n'en suit aucune.
     formations: Vec<Formation>,
 }
 

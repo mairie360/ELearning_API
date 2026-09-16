@@ -4,6 +4,9 @@ use crate::endpoints::v1::admin::formations::formation_id::register::endpoint::R
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct RegisterUserView {
+    /// Identifiant Core API de l'agent à inscrire, tel que le renvoie `GET /api/v1/user/`
+    /// de Core API.
+    #[schema(example = 42)]
     user_id: u64,
 }
 

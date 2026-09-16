@@ -58,9 +58,40 @@ async fn trigger_get_users(
 #[utoipa::path(
     get,
     path = "",
+    summary = "Lister les agents inscrits à au moins une formation",
+    description = "Renvoie les utilisateurs suivis par ce module, c'est-à-dire ceux qui ont au \
+                   moins une inscription. Ce n'est **pas** l'annuaire complet de la plateforme : \
+                   pour celui-ci, voir `GET /api/v1/user/` de Core API.\n\n\
+                   Vue de liste : la progression n'est pas incluse, il faut passer par \
+                   `GET /api/v1/admin/users/{user_id}/`.\n\n\
+                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
+                   authentifié peut appeler cette route.",
     responses(
-        (status = 200, description = "Users with formations retrieved successfully", body = GetUsersResultView),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Agents ayant au moins une inscription.",
+            body = GetUsersResultView,
+            example = json!({
+                "users": [
+                    { "id": 42, "name": "Jean Dupont" },
+                    { "id": 51, "name": "Amina Bensaïd" }
+                ]
+            })
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     tag = "Admin - Users",
     security(

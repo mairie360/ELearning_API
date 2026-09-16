@@ -79,10 +79,47 @@ async fn trigger_get_module(
         ModuleIdParams,
     ),
     path = "",
+    summary = "Lister les pièces jointes d'un module",
+    description = "Renvoie les fichiers pédagogiques d'un module : nom, type et taille.\n\n\
+                   Le contenu des fichiers n'est **pas** renvoyé ici : pour l'ouvrir, demander une \
+                   URL signée à \
+                   `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`.\n\n\
+                   `file_size_bytes` peut être `null` pour un fichier dont la taille n'a pas été \
+                   enregistrée. Un `file_type` valant `Error` signale un type stocké en base que \
+                   l'API ne sait pas interpréter.",
     responses(
-        (status = 200, description = "Formation retrieved successfully", body = GetModuleResponseView),
-        (status = 400, description = "Bad request"),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Pièces jointes du module.",
+            body = GetModuleResponseView,
+            example = json!({
+                "files": [
+                    { "id": 31, "file_name": "rgpd-principes.pdf", "file_type": "Pdf", "file_size_bytes": 482913 },
+                    { "id": 32, "file_name": "rgpd-introduction.mp4", "file_type": "Video", "file_size_bytes": null }
+                ]
+            })
+        ),
+        (
+            status = 400,
+            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Path deserialize error: can not parse `abc` to a u64")
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     security(
         ("jwt" = [])

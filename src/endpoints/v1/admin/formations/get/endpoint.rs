@@ -85,9 +85,42 @@ async fn trigger_get_formations(
         AdminUserDetailsQuery,
     ),
     path = "",
+    summary = "Lister le catalogue des formations",
+    description = "Renvoie toutes les formations de la plateforme, indépendamment des inscriptions \
+                   de l'appelant — contrairement à `GET /api/v1/formations/`, qui ne montre que \
+                   les siennes.\n\n\
+                   `details=true` fait descendre la réponse jusqu'aux modules et à leurs pièces \
+                   jointes en une seule requête. Sans ce paramètre, `modules` est `null` et non un \
+                   tableau vide : l'information n'a pas été demandée, ce n'est pas une formation \
+                   sans module.\n\n\
+                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
+                   authentifié peut appeler cette route.",
     responses(
-        (status = 200, description = "Formations retrieved successfully", body = GetFormationsResultView),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Catalogue complet des formations.",
+            body = GetFormationsResultView,
+            example = json!({
+                "formations": [
+                    { "id": 4, "name": "RGPD pour les agents territoriaux", "description": "Obligations et bonnes pratiques", "modules": null },
+                    { "id": 9, "name": "Accueil du public en situation de handicap", "description": "", "modules": null }
+                ]
+            })
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     tag = "Admin - Formations",
     security(

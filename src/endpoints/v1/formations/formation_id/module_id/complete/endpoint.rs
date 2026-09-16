@@ -62,10 +62,42 @@ async fn trigger_complete_module(
     ),
     patch,
     path = "",
+    summary = "Marquer un module comme terminé",
+    description = "Enregistre l'achèvement d'un module pour l'utilisateur porté par le JWT. C'est \
+                   la seule opération d'écriture qu'un agent peut faire sur sa propre \
+                   progression.\n\n\
+                   Le statut de la formation est recalculé automatiquement en base : elle passe à \
+                   `InProgress` au premier module terminé, puis à `Completed` une fois tous ses \
+                   modules achevés. Il n'y a pas d'opération inverse pour « dé-terminer » un \
+                   module.\n\n\
+                   Opération idempotente : un module déjà terminé répond également `200`. La \
+                   réponse a un corps vide.",
     responses(
-        (status = 200, description = "Module completed successfully"),
-        (status = 400, description = "Bad request"),
-        (status = 500, description = "Internal server error")
+        (
+            status = 200,
+            description = "Module marqué comme terminé, ou déjà terminé. Corps vide.",
+        ),
+        (
+            status = 400,
+            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Path deserialize error: can not parse `abc` to a u64")
+        ),
+        (
+            status = 401,
+            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Jeton expiré")
+        ),
+        (
+            status = 500,
+            description = "Erreur de base de données.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("An error occurred while accessing the database.")
+        ),
     ),
     security(
         ("jwt" = [])
