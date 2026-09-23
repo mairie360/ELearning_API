@@ -65,9 +65,14 @@ that file are placeholders: presigning is local, the bucket is never contacted.
 `docker-compose-performance.yml` / `docker-compose-security.yml` / `docker-compose-integration.yml` are
 standalone copies of the base stack plus one extra service (`k6-perf-test` / `security-scan` / `newman`, the
 last one also adds a `seeder`) — they don't `extends:` the
-main compose file, so env/image changes must be mirrored into all three. Known bug: the ZAP
-service targets `http://elearning:3006/openapi-spec.json`, but the running API serves its spec at
-`/api-docs/openapi.json` (Swagger) — the scan won't find the spec until that path is fixed.
+main compose file, so env/image changes must be mirrored into all of them.
+
+The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `security-scan` injects a static admin JWT
+(`sub=1`, signed with `JWT_SECRET=b"secret"`, see the comment in `docker-compose-security.yml`) on every request,
+waits for the `seeder` service (the same `init-test.sql`, which also makes user 2 a plain `User` account; user 1 is
+the Admin created by liquibase) and fails on any alert not set to `IGNORE` / `OUTOFSCOPE` in `.zap/rules.tsv` (no
+`-I`, file shared by every API). `-O http://elearning:3006` is required: the spec's `servers` are unreachable from
+the ZAP container.
 
 `openapi.json` and `generated/` are gitignored build outputs — never hand-edit them.
 `cargo test --test integration_test` needs Docker: it uses
