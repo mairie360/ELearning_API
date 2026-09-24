@@ -66,7 +66,7 @@ async fn trigger_get_my_formations(
     summary = "Lister ses formations",
     description = "Renvoie les formations auxquelles l'utilisateur porté par le JWT est inscrit, \
                    avec l'avancement de chacune. Seul un administrateur peut l'y inscrire, via \
-                   `POST /api/v1/admin/formations/{formation_id}` : un agent ne peut pas s'inscrire \
+                   `POST /api/v1/admin/formations/{formation_id}/` : un agent ne peut pas s'inscrire \
                    lui-même, et cette liste est donc vide tant qu'on ne l'a pas inscrit.\n\n\
                    Vue de liste : les modules ne sont pas inclus, il faut passer par \
                    `GET /api/v1/formations/{formation_id}/`.",

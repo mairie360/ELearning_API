@@ -96,11 +96,11 @@ async fn trigger_get_formation_by_id(
         AdminUserDetailsQuery,
         AdminFormationIdParams,
     ),
-    path = "",
+    path = "/",
     summary = "Lister les modules d'une formation du catalogue",
     description = "Renvoie les modules d'une formation, sans rapport avec la progression de qui \
                    que ce soit : c'est la structure du cours, pas son suivi. Pour la progression \
-                   d'un agent donné, voir `GET /api/v1/admin/users/{user_id}/{formation_id}`.\n\n\
+                   d'un agent donné, voir `GET /api/v1/admin/users/{user_id}/{formation_id}/`.\n\n\
                    `details=true` fait descendre la réponse jusqu'aux pièces jointes de chaque \
                    module. Sans ce paramètre, `content` est `null` et non un tableau vide.\n\n\
                    Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \

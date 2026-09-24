@@ -76,7 +76,7 @@ async fn trigger_get_my_formation_by_id(
                    `completed` propre à l'utilisateur porté par le JWT.\n\n\
                    La progression renvoyée est toujours celle de l'appelant. Pour consulter celle \
                    d'un autre agent, passer par \
-                   `GET /api/v1/admin/users/{user_id}/{formation_id}`.\n\n\
+                   `GET /api/v1/admin/users/{user_id}/{formation_id}/`.\n\n\
                    Une formation à laquelle l'appelant n'est pas inscrit renvoie une liste de \
                    modules vide, et non une erreur.",
     responses(
