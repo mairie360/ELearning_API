@@ -1,3 +1,4 @@
+pub mod check_module_access;
 pub mod complete_module;
 pub mod does_course_exist;
 pub mod get_attachment;

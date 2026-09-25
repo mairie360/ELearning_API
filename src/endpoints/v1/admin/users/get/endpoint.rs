@@ -64,8 +64,7 @@ async fn trigger_get_users(
                    pour celui-ci, voir `GET /api/v1/user/` de Core API.\n\n\
                    Vue de liste : la progression n'est pas incluse, il faut passer par \
                    `GET /api/v1/admin/users/{user_id}/`.\n\n\
-                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
-                   authentifié peut appeler cette route.",
+                   Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
@@ -80,10 +79,17 @@ async fn trigger_get_users(
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "`Authorization` header missing, or JWT invalid or expired.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
+        ),
+        (
+            status = 403,
+            description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Forbidden: User is not an admin.")
         ),
         (
             status = 500,

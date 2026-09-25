@@ -14,6 +14,9 @@ use elearning_api::database::admin::users::get_user_formation::view::GetUserForm
 use elearning_api::database::admin::users::get_user_formations::view::GetUserFormationsQueryView;
 use elearning_api::database::admin::users::get_users::view::GetUsersQueryView;
 use elearning_api::database::admin::users::unsub_user_formation::view::UnsubUserFormationQueryView;
+use elearning_api::database::formations::check_module_access::view::{
+    CheckModuleAccessQueryView, ModuleAccessRow,
+};
 use elearning_api::database::formations::complete_module::view::CompleteModuleQueryView;
 use elearning_api::database::formations::does_course_exist::view::DoesCourseExistQueryView;
 use elearning_api::database::formations::get_attachment::view::{
@@ -52,6 +55,30 @@ fn get_module_attachments_view_accessors() {
     assert_eq!(view.formation_id(), 1);
     assert_eq!(view.module_id(), 2);
     assert!(view.query_sql().contains("course_attachments"));
+}
+
+#[test]
+fn check_module_access_view_accessors() {
+    let view = CheckModuleAccessQueryView::new(1, 2, 3);
+    assert_eq!(view.user_id(), 1);
+    assert_eq!(view.formation_id(), 2);
+    assert_eq!(view.module_id(), 3);
+    // Never cached: an unenrolment must take effect on the next request.
+    assert!(view.cache_key().is_none());
+    let sql = view.query_sql();
+    assert!(sql.contains("user_courses"));
+    assert!(sql.contains("course_modules"));
+}
+
+#[test]
+fn module_access_row_deserializes_from_jsonb() {
+    let row: ModuleAccessRow = serde_json::from_value(serde_json::json!({
+        "enrolled": true,
+        "module_in_formation": false,
+    }))
+    .expect("row decodes");
+    assert!(row.enrolled());
+    assert!(!row.module_in_formation());
 }
 
 #[test]
