@@ -202,3 +202,7 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
   nginx reverse proxy.
 - CI (`.github/workflows/`) delegates to the shared `mairie360/CICD` workflow and runs a
   Postman collection. Renovate PRs are auto-approved.
+
+## Pull request reviewers
+
+Every PR requests a review from the whole team, minus its author: `CarolinHugo`, `LAURETbenjamin`, `MathTek` and `Quentintnrl` (`gh pr create … --reviewer CarolinHugo,LAURETbenjamin,MathTek`). `.github/CODEOWNERS` makes GitHub request them automatically as well.
