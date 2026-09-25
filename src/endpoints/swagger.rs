@@ -49,10 +49,10 @@ Statuses returned across the board, before the handler is even reached:
 
 | Status | Meaning |
 | --- | --- |
-| `400 Bad Request` | A path segment is not an integer, or the JSON body is malformed. |
-| `401 Unauthorized` | `Authorization` header missing or malformed, or JWT invalid or expired. |
-| `403 Forbidden` | `/api/v1/admin/…` only: the caller is not an admin. |
-| `500 Internal Server Error` | Database or Redis failure. |
+| `400` | A path segment is not an integer, or the JSON body is malformed. |
+| `401` | `Authorization` header missing or malformed, or JWT invalid or expired. |
+| `403` | `/api/v1/admin/…` only: the caller is not an admin. |
+| `500` | Database or Redis failure. |
 ",
         contact(
             name = "Équipe Mairie 360",
