@@ -63,3 +63,12 @@ ON CONFLICT DO NOTHING;
 INSERT INTO user_modules (user_id, module_id, is_completed, completed_at)
 VALUES (42, 11, TRUE, '2026-09-03 14:25:00')
 ON CONFLICT DO NOTHING;
+
+-- The Admin (user 1) is the scanning user of ZAP and k6. Since MAIR-223 the routes under
+-- /api/v1/formations/{formation_id}/ answer 403 to a caller who is not enrolled in the
+-- formation, admins included. Enrol the Admin in every formation the stacks hit (4 from the
+-- spec examples, 1000 from load-test.js) so those routes return 2xx and the coverage gate does
+-- not see only 403 responses. k6's teardown() unenrols the Admin from 1000; the next seeding
+-- enrols it again.
+INSERT INTO user_courses (user_id, course_id) VALUES (1, 4), (1, 1000)
+ON CONFLICT DO NOTHING;

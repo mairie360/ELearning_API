@@ -89,7 +89,10 @@ methods in the `writes` scenario (2 VUs; enroll/unenroll user 2 and completing a
 `p(95)` threshold per `op` tag and `http_req_failed < 1%`. The spec k6 reads is the one served by the image under
 test, saved into the `openapi-spec` volume by `elearning-ready`. **Adding an endpoint = adding its handler in
 `load-test.js`** (k6 aborts at init otherwise), nothing to do for ZAP. `init-test.sql` also seeds the rows of the
-spec's path examples (course 4, module 11, attachment 27, user 42) so ZAP reaches real rows.
+spec's path examples (course 4, module 11, attachment 27, user 42) so ZAP reaches real rows. It enrols the Admin
+(user 1, the scanning user) in courses 4 and `1000`: since MAIR-223 the `/api/v1/formations/{formation_id}/…`
+routes answer `403` to a caller who is not enrolled, admins included. A new formation id used by
+either stack must be added to that enrolment.
 
 Every leaf handler is mounted as `#[get("/")]` (etc.) inside its segment scope, so its URL ends with `/`: its
 `#[utoipa::path]` must say `path = "/"` when the parent `doc.rs` nests it without a trailing slash, otherwise the
