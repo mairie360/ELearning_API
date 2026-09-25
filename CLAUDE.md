@@ -208,7 +208,9 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 
 ### Deployment
 
-- `Dockerfile` — multi-stage release build → `gcr.io/distroless/cc-debian12`.
+- `Dockerfile` — multi-stage release build → `gcr.io/distroless/cc-debian12:nonroot`, running as
+  uid/gid `65532` (`USER 65532:65532`, numeric so Kubernetes can enforce `runAsNonRoot`). The API
+  must keep needing neither root nor a writable filesystem.
 - `development.Dockerfile` + `entrypoint.sh` — `cargo watch` hot-reload (paths still say
   `calendar_api`; `docker-compose.yml` overrides the workdir/sync targets to `elearning`).
 - `docker-compose.yml` — pulls `ghcr.io/mairie360/database` and
