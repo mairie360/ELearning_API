@@ -3,6 +3,7 @@
 //! against the shared test database, with forged JWTs and a mock file storage.
 
 pub mod admin_guard;
+pub mod formation_access;
 pub mod module_access;
 
 use std::sync::{Arc, Mutex, Once};

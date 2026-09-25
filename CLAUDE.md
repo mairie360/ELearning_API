@@ -88,11 +88,13 @@ returns `"Hello, world!"`) + Swagger UI at `/swagger-ui/` (spec served at
 `endpoints::config` → `v1::config` → `/v1` → `formations` (end-user) and `admin`
 (`admin/formations`, `admin/users`). The `/admin` scope is wrapped in the lib's
 `AdminMiddleware` (`403` for a non-admin, like Core_API). Every route under
-`/v1/formations/{formation_id}/{module_id}` first calls
-`module_id::access::check_module_access` (query `formations::check_module_access`): `403` when
-the caller is not enrolled in the formation (admins included — they enrol themselves through the
-admin route), then `404` when the module does not belong to the formation. A new route under that
-segment must call it too. Note `main.rs` registers `health`/`hello` directly (not via
+`/v1/formations/{formation_id}` requires the caller to be enrolled in the formation (admins
+included — they enrol themselves through the admin route), otherwise `403`; an unknown formation
+also gets `403`, never `404`, so these routes do not reveal which formation ids exist.
+`formation_id/get` checks it with the query `formations::is_enrolled`; every route under
+`{module_id}` calls `module_id::access::check_module_access` (query
+`formations::check_module_access`), which then answers `404` when the module does not belong to
+the formation. A new route under either segment must run the same check. Note `main.rs` registers `health`/`hello` directly (not via
 `endpoints::config`), so the real route tree under `/api` is just `v1`.
 
 Runtime code, log lines, and comments are a French/English mix (`main.rs` prints

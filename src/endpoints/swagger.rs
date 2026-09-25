@@ -23,9 +23,11 @@ agent enrolled in a formation progresses module by module; the formation goes fr
 ## Two families of routes
 
 The `/api/v1/formations/…` routes are the view **of the signed-in agent**: they only show the \
-agent's own enrolments and progress, derived from the JWT. The routes of a module \
-(`/api/v1/formations/{formation_id}/{module_id}/…`) answer `403` when the caller is not enrolled \
-in the formation and `404` when the module does not belong to it.
+agent's own enrolments and progress, derived from the JWT. The routes of a formation \
+(`/api/v1/formations/{formation_id}/…`) answer `403` when the caller is not enrolled in it, \
+admins included. An unknown formation answers `403` too, so these routes never reveal which \
+formation ids exist. The routes of a module answer `404` when the module does not belong to the \
+formation.
 
 The `/api/v1/admin/…` routes are the **management** view: full catalogue, enrolling and \
 unenrolling an agent, reading anyone's progress. Like in Core API, they are restricted to admins: \

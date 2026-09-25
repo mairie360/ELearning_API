@@ -25,6 +25,7 @@ use elearning_api::database::formations::get_attachment::view::{
 use elearning_api::database::formations::get_module_attachments::view::GetModuleAttachmentsQueryView;
 use elearning_api::database::formations::get_my_formation_modules::view::GetMyFormationModulesQueryView;
 use elearning_api::database::formations::get_my_formations::view::GetMyFormationsQueryView;
+use elearning_api::database::formations::is_enrolled::view::IsEnrolledQueryView;
 
 use elearning_api::endpoints::v1::admin::users::ProgressStatus;
 use elearning_api::endpoints::v1::formations::formation_id::module_id::get::view::FileType;
@@ -55,6 +56,15 @@ fn get_module_attachments_view_accessors() {
     assert_eq!(view.formation_id(), 1);
     assert_eq!(view.module_id(), 2);
     assert!(view.query_sql().contains("course_attachments"));
+}
+
+#[test]
+fn is_enrolled_view_accessors() {
+    let view = IsEnrolledQueryView::new(1, 2);
+    assert_eq!(view.user_id(), 1);
+    assert_eq!(view.formation_id(), 2);
+    assert!(view.cache_key().is_none());
+    assert!(view.query_sql().contains("user_courses"));
 }
 
 #[test]
