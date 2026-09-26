@@ -53,6 +53,11 @@ npx orval                         # regenerate generated/ TS axios client from o
                         #   (this is the CICD `integration_tests` job; no Postman account involved)
 ```
 
+The service under test in these three stacks is `image: ${IMAGE_REF}` (no `build:` block). CI sets `IMAGE_REF` to the
+published `ghcr.io/mairie360/elearning-api:dev-<sha>` image; when it is empty the scripts build `elearning-api:local` from
+`development.Dockerfile` first. That image is distroless (no shell, no curl), so readiness is an `elearning-ready` sidecar
+polling `/health`, and dependent services wait for it with `service_completed_successfully`.
+
 `tests/postman/collection.json` is a Postman v2.1 collection (importable in the app) and
 `tests/postman/environment.json` its variables; the compose file overrides `baseUrl` with `--env-var` so the
 committed default (`http://localhost:3006`) stays usable from a host shell. There is no login route here, so the
@@ -237,7 +242,7 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
   in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an
   nginx reverse proxy.
 - CI (`.github/workflows/`) delegates to the shared `mairie360/CICD` workflow, which runs
-  `./integration_test.sh` (newman) on `main`. Renovate PRs are auto-approved.
+  the three `*_test.sh` stacks on `main` with `IMAGE_REF` set to the `dev-<sha>` image it just published. Renovate PRs are auto-approved.
 
 ## Pull request reviewers
 
