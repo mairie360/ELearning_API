@@ -2,7 +2,7 @@ use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 
 /// Lists a single course's modules. Mirrors
 /// `admin::formations::get_formations`'s module shape but scoped to one
-/// `course_id`, for `GET /admin/formations/{formation_id}`.
+/// `course_id`, for `GET /admin/formations/{formation_id}/`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GetFormationModulesQueryView {
     params: Vec<QueryParam>,

@@ -92,7 +92,7 @@ async fn trigger_register_user_to_formation(
     params(
         AdminFormationIdParams,
     ),
-    path = "",
+    path = "/",
     summary = "Inscrire un agent à une formation",
     description = "Rattache un utilisateur à une formation. C'est le seul moyen d'inscrire \
                    quelqu'un : un agent ne peut pas s'inscrire lui-même. La formation apparaît \
@@ -100,7 +100,7 @@ async fn trigger_register_user_to_formation(
                    L'identifiant attendu est celui du compte dans Core API. La réponse a un corps \
                    vide.\n\n\
                    Pour l'opération inverse, voir \
-                   `DELETE /api/v1/admin/users/{user_id}/{formation_id}`.\n\n\
+                   `DELETE /api/v1/admin/users/{user_id}/{formation_id}/`.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",
     responses(
         (

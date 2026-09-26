@@ -1,14 +1,16 @@
+# Integration test stack (MAIR-117): the same services as docker-compose.yml plus a `newman`
+# runner that replays the committed Postman collection against the API over the compose network.
+# Run it with ./integration_test.sh (this is what the CICD `integration_tests` job executes).
 volumes:
   postgres-data:
   redis-data:
-  openapi-spec:
 
 networks:
   backend:
 
 x-common-env: &common-env
   HOST: "0.0.0.0"
-  PORT: 3006 #change port
+  PORT: 3006
   REDIS_URL: redis://redis:6379
   DB_TYPE: postgres
   DB_NAME: mairie_360_database
@@ -16,42 +18,20 @@ x-common-env: &common-env
   DB_HOST: postgres
   DB_PASSWORD: password
   DB_PORT: 5432
-  # -- Scaleway Object Storage (S3) : placeholders dev, vraies valeurs en secrets CI --
+  # Presigning is a local SigV4 computation (no network call), so placeholder credentials are
+  # enough for the attachment URL route; the bucket is never contacted by the tests.
   S3_BUCKET: mairie360-elearning
   S3_REGION: fr-par
   S3_ENDPOINT: https://s3.fr-par.scw.cloud
-  S3_ACCESS_KEY: ""   # TODO: renseigner (secret CI + local)
-  S3_SECRET_KEY: ""   # TODO: renseigner (secret CI + local)
+  S3_ACCESS_KEY: newman-access-key
+  S3_SECRET_KEY: newman-secret-key
   S3_PRESIGN_TTL_SECS: 900
-
-x-depends-on: &depends-on
-  postgres:
-    condition: service_healthy
-  redis:
-    condition: service_healthy
-
-x-healthcheck: &healthcheck
-  test: ["CMD", "curl", "-f", "http://localhost:3006"] #change port
-  interval: 10s
-  timeout: 5s
-  retries: 5
-
-x-service: &service-template
-  image: ghcr.io/mairie360/service_name:latest
-  pull_policy: always
-  restart: always
-  expose:
-    - "3006"
-  networks:
-    - backend
-  healthcheck:
-    <<: *healthcheck
 
 services:
   postgres:
     image: ghcr.io/mairie360/database:1.3.0
     restart: always
-    container_name: mairie360-db-elearning-api
+    container_name: mairie360-db-elearning-api-integration
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
@@ -70,7 +50,7 @@ services:
 
   liquibase:
     image: ghcr.io/mairie360/liquibase-migrations:1.3.0
-    container_name: mairie360-liquibase-elearning-api
+    container_name: mairie360-liquibase-elearning-api-integration
     depends_on:
       postgres:
         condition: service_healthy
@@ -88,7 +68,7 @@ services:
 
   redis:
     image: redis:8.4.0-bookworm
-    container_name: mairie360-redis-elearning-api #change api name
+    container_name: mairie360-redis-elearning-api-integration
     restart: always
     expose:
       - "6379"
@@ -102,29 +82,32 @@ services:
       timeout: 5s
       retries: 5
 
+  # Seeds the test user (id 2) and a catalogue course with modules and an attachment (the API has
+  # no route to create them), and resets user 2's progress so the collection is replayable.
   seeder:
     image: postgres:18-alpine
+    container_name: mairie360-seeder-elearning-api-integration
     depends_on:
       liquibase:
         condition: service_completed_successfully
     volumes:
-      - ./init-test.sql:/init-test.sql:ro
-    # ON_ERROR_STOP: a failing fixture must fail the stack, not leave k6 running without its users.
+      - ./init-test.sql:/init-test.sql
     command: >
-      psql -h postgres -U postgres -d mairie_360_database -v ON_ERROR_STOP=1 -f /init-test.sql
+      sh -c "psql -h postgres -U postgres -d mairie_360_database -f /init-test.sql"
     environment:
       PGPASSWORD: ${DB_PASSWORD:-password}
     networks:
       - backend
 
-  elearning: # change api name
-    container_name: elearning_api-developpement # change api name
+  elearning:
+    container_name: elearning-api-integration
     # The API under test: the published ghcr.io/mairie360/elearning-api:dev-<sha> image in CI, or
     # elearning-api:local built by the *_test.sh script from development.Dockerfile. No build: block,
     # so CI tests the artifact that gets promoted instead of recompiling the sources.
     image: ${IMAGE_REF:?IMAGE_REF must name the API image under test, run the matching *_test.sh script}
-    ports:
-      - "3006:3006" #change port
+    restart: always
+    expose:
+      - "3006"
     networks:
       - backend
     dns:
@@ -136,7 +119,7 @@ services:
       JWT_SECRET: b"secret"
       JWT_TIMEOUT: 3600
     depends_on:
-      liquibase:
+      seeder:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
@@ -144,43 +127,32 @@ services:
   # The published image is distroless (no shell, no curl), so the API cannot carry its own
   # healthcheck: this sidecar polls /health and the services that need the API wait for it to
   # complete instead.
-  # It also saves the spec served by the image under test into the `openapi-spec` volume: that
-  # is the coverage reference of load-test.js (openapi.json is gitignored, so the CI checkout has
-  # none, and the served spec is the one of the exact image being tested).
   elearning-ready:
     image: curlimages/curl:latest
-    # Root, to write into the freshly created `openapi-spec` volume.
-    user: "0"
     depends_on:
       elearning:
         condition: service_started
-    volumes:
-      - openapi-spec:/spec
     command: >
       sh -c 'until curl -fsS http://elearning:3006/health >/dev/null; do
-      echo "waiting for elearning..."; sleep 2; done;
-      curl -fsS -o /spec/openapi.json http://elearning:3006/api-docs/openapi.json && echo "elearning ready"'
+      echo "waiting for elearning..."; sleep 2; done; echo "elearning ready"'
     networks:
       - backend
 
-  k6-perf-test:
-    image: grafana/k6:latest
+  # Replays tests/postman/collection.json against the `elearning` service. `baseUrl` is injected
+  # here so the committed environment stays usable from a host shell (http://localhost:3006).
+  # `--bail` stops at the first failing request; the exit code is what integration_test.sh returns.
+  newman:
+    image: postman/newman:6.1.3-alpine
+    container_name: mairie360-newman-elearning-api
     networks:
       - backend
-    # load-test.js declares one handler per operation of the spec through the shared OpenAPI
-    # coverage module (MAIR-194, mairie360/CICD tests/k6, see performance_test.sh): k6 aborts at
-    # init when an operation has no handler, and fails its thresholds when one is not exercised.
     volumes:
-      - ./load-test.js:/load-test.js:ro
-      - ./cicd-repo/tests/k6/coverage.js:/coverage.js:ro
-      - openapi-spec:/spec:ro
-    command: ["run", "/load-test.js"]
-    environment:
-      - BASE_URL=http://elearning:3006
-      - OPENAPI_SPEC=/spec/openapi.json
+      - ./tests/postman:/etc/newman:ro
     depends_on:
       elearning-ready:
         condition: service_completed_successfully
-      # The fixtures load-test.js relies on (init-test.sql).
-      seeder:
-        condition: service_completed_successfully
+    command: >
+      run /etc/newman/collection.json
+      --environment /etc/newman/environment.json
+      --env-var baseUrl=http://elearning:3006
+      --bail

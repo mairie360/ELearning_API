@@ -3,6 +3,7 @@ name: API CI/CD
 on:
   workflow_dispatch:
   push:
+  pull_request:
 
 permissions:
   contents: read
@@ -16,8 +17,6 @@ jobs:
           packages: write
           id-token: write
     with:
-      postman_collection: ${{ vars.POSTMAN_ELEARNING_API_COLLECTION_ID }}
-      postman_environment: ${{ vars.POSTMAN_ELEARNING_API_ENV_ID }}
       package_name: elearning-api
       cicd_version: v3.1.1
     secrets: inherit

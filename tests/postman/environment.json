@@ -1,0 +1,18 @@
+{
+  "name": "ELearning API integration",
+  "_postman_variable_scope": "environment",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:3006", "type": "default", "enabled": true },
+    { "key": "jwt_secret", "value": "b\"secret\"", "type": "default", "enabled": true },
+    { "key": "admin_user_id", "value": "1", "type": "default", "enabled": true },
+    { "key": "agent_user_id", "value": "2", "type": "default", "enabled": true },
+    { "key": "course_id", "value": "1000", "type": "default", "enabled": true },
+    { "key": "module_1_id", "value": "1001", "type": "default", "enabled": true },
+    { "key": "module_2_id", "value": "1002", "type": "default", "enabled": true },
+    { "key": "attachment_id", "value": "1003", "type": "default", "enabled": true },
+    { "key": "jwt_admin", "value": "", "type": "default", "enabled": true },
+    { "key": "jwt_agent", "value": "", "type": "default", "enabled": true },
+    { "key": "jwt_forged", "value": "", "type": "default", "enabled": true },
+    { "key": "jwt_expired", "value": "", "type": "default", "enabled": true }
+  ]
+}
