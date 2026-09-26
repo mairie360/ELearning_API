@@ -72,8 +72,7 @@ async fn trigger_unsub_formation(
                    `POST /api/v1/admin/formations/{formation_id}`.\n\n\
                    Attention : la progression déjà enregistrée est perdue avec l'inscription. \
                    Réinscrire l'agent ensuite le ramène au statut `NotStarted`.\n\n\
-                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
-                   authentifié peut appeler cette route.",
+                   Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 204,
@@ -88,10 +87,17 @@ async fn trigger_unsub_formation(
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "`Authorization` header missing, or JWT invalid or expired.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
+        ),
+        (
+            status = 403,
+            description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Forbidden: User is not an admin.")
         ),
         (
             status = 500,

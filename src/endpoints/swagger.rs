@@ -11,32 +11,34 @@ use utoipa::{Modify, OpenApi};
         title = "ELearning API — Mairie 360",
         version = "1.0.0",
         description = "\
-API de formation en ligne de la plateforme **Mairie 360** : catalogue de formations, modules, \
-pièces jointes et suivi de progression des agents. Les comptes et les rôles vivent dans Core API.
+E-learning API of the **Mairie 360** platform: course catalogue, modules, attachments and agent \
+progress tracking. Accounts and roles live in Core API.
 
-## Vocabulaire
+## Vocabulary
 
-Une **formation** regroupe des **modules**, chacun portant des **pièces jointes** (vidéo ou PDF). \
-Un agent inscrit à une formation progresse module par module ; la formation passe de \
-`NotStarted` à `InProgress` puis `Completed` au fil des modules qu'il termine.
+A **formation** (course) groups **modules**, each carrying **attachments** (video or PDF). An \
+agent enrolled in a formation progresses module by module; the formation goes from \
+`NotStarted` to `InProgress` then `Completed` as the agent completes its modules.
 
-## Deux familles de routes
+## Two families of routes
 
-Les routes `/api/v1/formations/…` sont la vue **de l'agent connecté** : elles ne montrent que ses \
-propres inscriptions et sa propre progression, déduites du JWT.
+The `/api/v1/formations/…` routes are the view **of the signed-in agent**: they only show the \
+agent's own enrolments and progress, derived from the JWT. The routes of a formation \
+(`/api/v1/formations/{formation_id}/…`) answer `403` when the caller is not enrolled in it, \
+admins included. An unknown formation answers `403` too, so these routes never reveal which \
+formation ids exist. The routes of a module answer `404` when the module does not belong to the \
+formation.
 
-Les routes `/api/v1/admin/…` sont la vue **de gestion** : catalogue complet, inscription et \
-désinscription d'un agent, consultation de la progression de n'importe qui.
+The `/api/v1/admin/…` routes are the **management** view: full catalogue, enrolling and \
+unenrolling an agent, reading anyone's progress. Like in Core API, they are restricted to admins: \
+a non-admin caller gets `403` before the handler runs.
 
-Attention : contrairement à Core API, le préfixe `/admin` n'est **pas** protégé par un contrôle de \
-rôle. Tout utilisateur authentifié peut appeler ces routes ; elles ne renvoient donc jamais `403`.
+## Attachments
 
-## Pièces jointes
-
-Les fichiers ne transitent pas par l'API. \
-`GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/` renvoie une URL signée à \
-durée de vie limitée, que le client utilise ensuite directement. Un `502` sur cette route signale \
-que le stockage de fichiers est injoignable, pas que la pièce jointe est absente.
+Files never go through the API. \
+`GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/` returns a short-lived signed \
+URL that the client then uses directly. A `502` on that route means the file storage is \
+unreachable, not that the attachment is missing.
 
 ## Error format
 
@@ -47,8 +49,9 @@ Statuses returned across the API, before the handler runs:
 
 | Status | Meaning |
 | --- | --- |
-| `400` | URL segment that is not an integer, or malformed JSON body. |
+| `400` | A path segment is not an integer, or the JSON body is malformed. |
 | `401` | `Authorization` header missing or malformed, invalid or expired JWT, or revoked session. |
+| `403` | `/api/v1/admin/…` only: the caller is not an admin. |
 | `500` | Database or Redis failure. |
 ",
         contact(

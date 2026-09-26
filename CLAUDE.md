@@ -35,7 +35,7 @@ cargo test                        # dev-deps: serial_test (#[serial]), once_cell
 cargo test <name>                 # single test by substring
 cargo test <name> -- --exact      # single test, exact match
 cargo test --test views           # fast: view/QueryView unit tests, no Docker needed
-cargo test --test integration_test  # DB-backed query tests (needs Docker, see below)
+cargo test --test integration_test  # DB-backed query + handler tests (needs Docker, see below)
 
 cargo cov_test       # alias: llvm-cov --workspace --ignore-filename-regex 'endpoints|main\.rs|lib\.rs' --fail-under-lines 60
 cargo cov            # same, plus --codecov --output-path codecov.json               (CI gate)
@@ -90,6 +90,12 @@ its own course/module/attachment rows (see `tests/queries/fixtures.rs`) instead 
 clean table. `cargo cov_test` excludes `endpoints/`, `main.rs`, and `lib.rs` from the coverage
 count — it's meant to grade the `src/database/` query layer, not the actix wiring around it.
 
+The same binary holds handler-level tests in `tests/endpoints/`: `init_app!` mounts `/api` exactly
+like `main.rs` (`JwtMiddleware` + `endpoints::config` + a `MockFileStorage`) over an `AppState`
+built on the shared test DB (no Redis needed), and `jwt_for(user_id)` signs a JWT with a test
+secret. Use `fixtures::create_user` for a plain agent: the lib's seeded Alice holds the Admin
+role and Bob is archived; `ADMIN_ID` is the admin. `fixtures::enrol` enrols a user in a course.
+
 ## Architecture
 
 ### Routing = module tree mirrors URL tree
@@ -102,7 +108,15 @@ Every URL path segment maps to a directory containing a `mod.rs`. Each `mod.rs`:
 returns `"Hello, world!"`) + Swagger UI at `/swagger-ui/` (spec served at
 `/api-docs/openapi.json`), then everything under `/api` wrapped in `JwtMiddleware`.
 `endpoints::config` → `v1::config` → `/v1` → `formations` (end-user) and `admin`
-(`admin/formations`, `admin/users`). Note `main.rs` registers `health`/`hello` directly (not via
+(`admin/formations`, `admin/users`). The `/admin` scope is wrapped in the lib's
+`AdminMiddleware` (`403` for a non-admin, like Core_API). Every route under
+`/v1/formations/{formation_id}` requires the caller to be enrolled in the formation (admins
+included — they enrol themselves through the admin route), otherwise `403`; an unknown formation
+also gets `403`, never `404`, so these routes do not reveal which formation ids exist.
+`formation_id/get` checks it with the query `formations::is_enrolled`; every route under
+`{module_id}` calls `module_id::access::check_module_access` (query
+`formations::check_module_access`), which then answers `404` when the module does not belong to
+the formation. A new route under either segment must run the same check. Note `main.rs` registers `health`/`hello` directly (not via
 `endpoints::config`), so the real route tree under `/api` is just `v1`.
 
 Runtime code, log lines, and comments are a French/English mix (`main.rs` prints
@@ -198,7 +212,9 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 
 ### External library: `mairie360_api_lib` (pinned to 1.2.2)
 
-- `state::AppState` — built in `main.rs` from env vars, passed everywhere as
+- `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
+  `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
+  `DB_PASSWORD` may contain any character), passed everywhere as
   `web::Data<AppState>`. Exposes `get_smart_db() -> &SmartDatabase` and `get_redis() -> &Redis`;
   the raw pools are private.
 - `SmartDatabase` — cache-aside wrapper over Postgres + Redis. Query DTOs implement
@@ -207,15 +223,18 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
   `error::ApiLibError`, which implements actix `ResponseError`.
 - `security::JwtMiddleware` — validates the JWT and inserts `AuthenticatedUser { id: u64 }`
   into request extensions; `AuthenticatedUser` is then an actix `FromRequest` extractor.
-- `security` also provides `AdminMiddleware` / `access_guard_middleware` — **not yet wired**;
-  admin routes currently only require a valid JWT, not an admin role.
+- `security::AdminMiddleware` — wraps the `/admin` scope (`src/endpoints/v1/admin/mod.rs`); it
+  re-reads the JWT and runs the DB function `is_admin(user_id)`, answering `403` otherwise.
+  `access_guard_middleware` (per-resource ACL) is not used here.
 - `env_manager::get_critical_env_var` — panics on missing env var (used for all config).
 - The API depends on the lib only; it carries no `sqlx` / `tokio-postgres` dependency of its
   own (those are transitive, used inside the lib).
 
 ### Deployment
 
-- `Dockerfile` — multi-stage release build → `gcr.io/distroless/cc-debian12`.
+- `Dockerfile` — multi-stage release build → `gcr.io/distroless/cc-debian12:nonroot`, running as
+  uid/gid `65532` (`USER 65532:65532`, numeric so Kubernetes can enforce `runAsNonRoot`). The API
+  must keep needing neither root nor a writable filesystem.
 - `development.Dockerfile` + `entrypoint.sh` — `cargo watch` hot-reload (paths still say
   `calendar_api`; `docker-compose.yml` overrides the workdir/sync targets to `elearning`).
 - `docker-compose.yml` — pulls `ghcr.io/mairie360/database` and
@@ -224,3 +243,7 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
   nginx reverse proxy.
 - CI (`.github/workflows/`) delegates to the shared `mairie360/CICD` workflow, which runs
   the three `*_test.sh` stacks on `main` with `IMAGE_REF` set to the `dev-<sha>` image it just published. Renovate PRs are auto-approved.
+
+## Pull request reviewers
+
+Every PR requests a review from the whole team, minus its author: `CarolinHugo`, `LAURETbenjamin`, `MathTek` and `Quentintnrl` (`gh pr create … --reviewer CarolinHugo,LAURETbenjamin,MathTek`). `.github/CODEOWNERS` makes GitHub request them automatically as well.
