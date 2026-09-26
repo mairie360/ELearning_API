@@ -2,6 +2,7 @@ use actix_web::{middleware, web, App, HttpServer};
 
 use std::sync::Arc;
 
+use elearning_api::database::pg_url::build_pg_url;
 use elearning_api::endpoints::swagger::ApiDoc;
 use elearning_api::endpoints::{config, health, hello};
 use elearning_api::storage::{FileStorage, S3FileStorage};
@@ -23,10 +24,7 @@ async fn main() -> std::io::Result<()> {
     let db_host = get_critical_env_var("DB_HOST");
     let db_port = get_critical_env_var("DB_PORT");
     let db_name = get_critical_env_var("DB_NAME");
-    let pg_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        db_user, db_password, db_host, db_port, db_name
-    );
+    let pg_url = build_pg_url(&db_user, &db_password, &db_host, &db_port, &db_name);
     let state = AppState::new(redis_url, pg_url).await;
     let data = web::Data::new(state);
 

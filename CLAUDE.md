@@ -190,7 +190,9 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 
 ### External library: `mairie360_api_lib` (pinned to 1.2.2)
 
-- `state::AppState` — built in `main.rs` from env vars, passed everywhere as
+- `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
+  `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
+  `DB_PASSWORD` may contain any character), passed everywhere as
   `web::Data<AppState>`. Exposes `get_smart_db() -> &SmartDatabase` and `get_redis() -> &Redis`;
   the raw pools are private.
 - `SmartDatabase` — cache-aside wrapper over Postgres + Redis. Query DTOs implement
