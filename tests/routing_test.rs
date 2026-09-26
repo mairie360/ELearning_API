@@ -1,15 +1,25 @@
 use actix_web::{http::Method, test, web, App, HttpResponse};
 use elearning_api::endpoints::config;
 use elearning_api::endpoints::swagger::ApiDoc;
+use mairie360_api_lib::state::AppState;
 use utoipa::OpenApi;
 
 // Every operation published in the OpenAPI contract (the one @mairie360/elearning-api-openapi is generated
 // from) must hit an actix route that is really mounted. No database nor JWT is needed: a missing route
 // falls through to the default service (418), a routed one fails further on (data, JWT, body).
+// The lib's `AdminMiddleware` needs an `AppState` in the app data; it is built on an unreachable
+// database (the connection failure is tolerated) since a request without JWT never reaches SQL.
 #[actix_web::test]
 async fn every_published_operation_is_routed() {
+    let state = AppState::with_keycloak(
+        "redis://127.0.0.1:1".to_string(),
+        "postgres://user:password@127.0.0.1:1/db".to_string(),
+        None,
+    )
+    .await;
     let app = test::init_service(
         App::new()
+            .app_data(web::Data::new(state))
             .service(web::scope("/api").configure(config))
             .default_service(web::to(HttpResponse::ImATeapot)),
     )
@@ -45,9 +55,13 @@ async fn every_published_operation_is_routed() {
                 .method(method.clone())
                 .uri(&uri)
                 .to_request();
-            let response = test::call_service(&app, request).await;
+            // A middleware rejection (401/403) comes back as an `Err`: the route exists.
+            let status = match test::try_call_service(&app, request).await {
+                Ok(response) => response.status(),
+                Err(error) => error.as_response_error().status_code(),
+            };
             checked += 1;
-            if response.status().as_u16() == 418 {
+            if status.as_u16() == 418 {
                 unrouted.push(format!("{method} {template}"));
             }
         }
