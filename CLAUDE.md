@@ -47,7 +47,7 @@ npx orval                         # regenerate generated/ TS axios client from o
 ```bash
 # Perf & security harnesses (each spins up its OWN full stack, then tears it down)
 ./performance_test.sh   # docker-compose-performance.yml: k6 (load-test.js) vs elearning:3006
-                        #   thresholds: p95 < 200ms, http_req_failed < 1%
+                        #   thresholds: p95 per operation < 200ms reads / 500ms writes, http_req_failed < 1%
 ./security_test.sh      # docker-compose-security.yml: OWASP ZAP zap-api-scan.py (openapi mode)
 ./integration_test.sh   # docker-compose-integration.yml: newman replays tests/postman/collection.json
                         #   (this is the CICD `integration_tests` job; no Postman account involved)
@@ -68,8 +68,8 @@ so `init-test.sql` (run by the `seeder` service of that compose file) seeds user
 that file are placeholders: presigning is local, the bucket is never contacted.
 
 `docker-compose-performance.yml` / `docker-compose-security.yml` / `docker-compose-integration.yml` are
-standalone copies of the base stack plus one extra service (`k6-perf-test` / `security-scan` / `newman`, the
-last one also adds a `seeder`) — they don't `extends:` the
+standalone copies of the base stack plus a `seeder` (`init-test.sql`) and one extra service (`k6-perf-test` /
+`security-scan` / `newman`) — they don't `extends:` the
 main compose file, so env/image changes must be mirrored into all of them.
 
 The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `security-scan` injects a static admin JWT
@@ -78,6 +78,26 @@ waits for the `seeder` service (the same `init-test.sql`, which also makes user 
 the Admin created by liquibase) and fails on any alert not set to `IGNORE` / `OUTOFSCOPE` in `.zap/rules.tsv` (no
 `-I`, file shared by every API). `-O http://elearning:3006` is required: the spec's `servers` are unreachable from
 the ZAP container.
+
+Both the ZAP and k6 stacks carry the OpenAPI coverage gate (MAIR-194) from mairie360/CICD `tests/`, available as
+`cicd-repo/` (checked out by CI, cloned by the scripts at the pinned `cicd_version` otherwise, override with
+`CICD_VERSION`; gitignored). ZAP runs with `--hook zap_hooks.py` and fails when an operation of the served spec was
+never reached, or when an operation declaring `security(("jwt" = []))` only got 401/403. `load-test.js` is built on
+`coverage.js` and covers every operation (MAIR-195) as the Admin: GET handlers run in the `reads` scenario (20 VUs)
+on the `init-test.sql` course `1000` (the Admin is enrolled in `setup()`, unenrolled in `teardown()`), the other
+methods in the `writes` scenario (2 VUs; enroll/unenroll user 2 and completing a module are idempotent). One
+`p(95)` threshold per `op` tag and `http_req_failed < 1%`. The spec k6 reads is the one served by the image under
+test, saved into the `openapi-spec` volume by `elearning-ready`. **Adding an endpoint = adding its handler in
+`load-test.js`** (k6 aborts at init otherwise), nothing to do for ZAP. `init-test.sql` also seeds the rows of the
+spec's path examples (course 4, module 11, attachment 27, user 42) so ZAP reaches real rows. It enrols the Admin
+(user 1, the scanning user) in courses 4 and `1000`: since MAIR-223 the `/api/v1/formations/{formation_id}/…`
+routes answer `403` to a caller who is not enrolled, admins included. A new formation id used by
+either stack must be added to that enrolment.
+
+Every leaf handler is mounted as `#[get("/")]` (etc.) inside its segment scope, so its URL ends with `/`: its
+`#[utoipa::path]` must say `path = "/"` when the parent `doc.rs` nests it without a trailing slash, otherwise the
+spec documents a URL actix answers `404` to (k6 caught it on `/admin/formations/{formation_id}/` and
+`/admin/users/{user_id}/{formation_id}/`).
 
 `openapi.json` and `generated/` are gitignored build outputs — never hand-edit them.
 `cargo test --test integration_test` needs Docker: it uses

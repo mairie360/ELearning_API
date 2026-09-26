@@ -90,7 +90,7 @@ async fn trigger_get_user_formation(
 #[utoipa::path(
     get,
     params(AdminUserDetailsQuery, AdminUserFormationIdParams),
-    path = "",
+    path = "/",
     summary = "Consulter la progression d'un agent sur une formation",
     description = "Renvoie les modules d'une formation avec, pour chacun, l'état d'achèvement de \
                    l'agent visé et la date à laquelle il l'a terminé. Vue la plus fine du suivi : \

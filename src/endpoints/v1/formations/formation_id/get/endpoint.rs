@@ -93,7 +93,7 @@ async fn trigger_get_my_formation_by_id(
     description = "Returns the modules of a formation with, for each one, the `completed` flag \
                    of the user carried by the JWT.\n\n\
                    The progress returned is always the caller's. To read another agent's \
-                   progress, use `GET /api/v1/admin/users/{user_id}/{formation_id}`.\n\n\
+                   progress, use `GET /api/v1/admin/users/{user_id}/{formation_id}/`.\n\n\
                    Only available to a caller enrolled in the formation: `403` otherwise, admins \
                    included (an admin enrols through \
                    `POST /api/v1/admin/formations/{formation_id}/`). An unknown formation also \

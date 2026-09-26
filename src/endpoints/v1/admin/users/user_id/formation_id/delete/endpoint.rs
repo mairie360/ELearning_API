@@ -66,10 +66,10 @@ async fn trigger_unsub_formation(
 
 #[utoipa::path(
     delete,
-    path = "",
+    path = "/",
     summary = "Désinscrire un agent d'une formation",
     description = "Retire l'inscription d'un agent à une formation. Opération inverse de \
-                   `POST /api/v1/admin/formations/{formation_id}`.\n\n\
+                   `POST /api/v1/admin/formations/{formation_id}/`.\n\n\
                    Attention : la progression déjà enregistrée est perdue avec l'inscription. \
                    Réinscrire l'agent ensuite le ramène au statut `NotStarted`.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",

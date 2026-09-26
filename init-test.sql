@@ -1,5 +1,5 @@
--- Fixtures run by the `seeder` service of docker-compose-integration.yml (newman) and
--- docker-compose-security.yml (ZAP). The API has no route to create courses, modules or
+-- Fixtures run by the `seeder` service of docker-compose-integration.yml (newman),
+-- docker-compose-security.yml (ZAP) and docker-compose-performance.yml (k6). The API has no route to create courses, modules or
 -- attachments, so they are seeded here with fixed ids. User 1 (Admin) is created by the
 -- `create_admin` changeset of the liquibase-migrations image and is the `sub` of the JWT ZAP
 -- injects; user 2 is the plain agent the collection registers and progresses. Everything is
@@ -9,15 +9,17 @@
 -- accepts argon2id PHC strings since database 1.3.0 (chk_users_password_hashed).
 
 INSERT INTO users (id, first_name, last_name, email, password, status, is_archived)
-VALUES (
-    2, 'Test', 'User', 'test2@mairie360.fr',
-    '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw',
-    'active', FALSE
-)
+VALUES
+    (2, 'Test', 'User', 'test2@mairie360.fr',
+     '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw',
+     'active', FALSE),
+    (42, 'Jean', 'Dupont', 'jean.dupont@mairie360.fr',
+     '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw',
+     'active', FALSE)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO user_roles (user_id, role_id)
-SELECT 2, id FROM roles WHERE name = 'User'
+SELECT u.id, r.id FROM roles r CROSS JOIN (VALUES (2), (42)) AS u(id) WHERE r.name = 'User'
 ON CONFLICT DO NOTHING;
 
 -- Explicit ids do not advance the SERIAL sequence: move it past the fixtures so users created
@@ -39,3 +41,34 @@ ON CONFLICT (id) DO NOTHING;
 
 DELETE FROM user_modules WHERE user_id = 2 AND module_id IN (1001, 1002);
 DELETE FROM user_courses WHERE user_id = 2 AND course_id = 1000;
+
+-- Formation 4, module 11, attachment 27 and user 42 (enrolled, first module done) are the ids of
+-- the path parameter examples of the spec: ZAP builds its requests from these examples, so
+-- seeding them makes it scan the handlers on real rows instead of stopping at a 404.
+INSERT INTO courses (id, title, description)
+VALUES (4, 'RGPD pour les agents territoriaux', 'Obligations et bonnes pratiques')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO course_modules (id, course_id, title, content, sort_order)
+VALUES (11, 4, 'Les principes du RGPD', 'Licéité, minimisation, durée de conservation', 1)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO course_attachments (id, module_id, title, file_name, file_type, file_url, file_size_bytes)
+VALUES (27, 11, 'Principes du RGPD', 'rgpd-principes.pdf', 'pdf', 'elearning/rgpd-principes.pdf', 482913)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO user_courses (user_id, course_id) VALUES (42, 4)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO user_modules (user_id, module_id, is_completed, completed_at)
+VALUES (42, 11, TRUE, '2026-09-03 14:25:00')
+ON CONFLICT DO NOTHING;
+
+-- The Admin (user 1) is the scanning user of ZAP and k6. Since MAIR-223 the routes under
+-- /api/v1/formations/{formation_id}/ answer 403 to a caller who is not enrolled in the
+-- formation, admins included. Enrol the Admin in every formation the stacks hit (4 from the
+-- spec examples, 1000 from load-test.js) so those routes return 2xx and the coverage gate does
+-- not see only 403 responses. k6's teardown() unenrols the Admin from 1000; the next seeding
+-- enrols it again.
+INSERT INTO user_courses (user_id, course_id) VALUES (1, 4), (1, 1000)
+ON CONFLICT DO NOTHING;
