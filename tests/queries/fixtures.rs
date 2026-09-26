@@ -116,7 +116,7 @@ struct CreateUser {
 impl ApiRequestDto for CreateUser {
     fn query_sql(&self) -> &'static str {
         "INSERT INTO users (first_name, last_name, email, password, status) \
-         VALUES ('Agent', 'Test', $1, 'hash', 'active') RETURNING id"
+         VALUES ('Agent', 'Test', $1, '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw', 'active') RETURNING id"
     }
 
     fn query_params(&self) -> &[QueryParam] {
