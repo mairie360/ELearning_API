@@ -49,10 +49,22 @@ npx orval                         # regenerate generated/ TS axios client from o
 ./performance_test.sh   # docker-compose-performance.yml: k6 (load-test.js) vs elearning:3006
                         #   thresholds: p95 < 200ms, http_req_failed < 1%
 ./security_test.sh      # docker-compose-security.yml: OWASP ZAP zap-api-scan.py (openapi mode)
+./integration_test.sh   # docker-compose-integration.yml: newman replays tests/postman/collection.json
+                        #   (this is the CICD `integration_tests` job; no Postman account involved)
 ```
 
-`docker-compose-performance.yml` / `docker-compose-security.yml` are standalone copies of the
-base stack plus one extra service (`k6-perf-test` / `security-scan`) — they don't `extends:` the
+`tests/postman/collection.json` is a Postman v2.1 collection (importable in the app) and
+`tests/postman/environment.json` its variables; the compose file overrides `baseUrl` with `--env-var` so the
+committed default (`http://localhost:3006`) stays usable from a host shell. There is no login route here, so the
+collection pre-request script forges the HS256 JWTs itself (claims `sub`/`role`/`exp`, signed with the stack's
+`JWT_SECRET`) for the seeded Admin (user 1) and a plain agent (user 2). The API has no route to create courses,
+so `init-test.sql` (run by the `seeder` service of that compose file) seeds user 2, course `1000` with modules
+`1001`/`1002` and attachment `1003`, and resets user 2's progress so the scenario replays. The S3 credentials in
+that file are placeholders: presigning is local, the bucket is never contacted.
+
+`docker-compose-performance.yml` / `docker-compose-security.yml` / `docker-compose-integration.yml` are
+standalone copies of the base stack plus one extra service (`k6-perf-test` / `security-scan` / `newman`, the
+last one also adds a `seeder`) — they don't `extends:` the
 main compose file, so env/image changes must be mirrored into all three. Known bug: the ZAP
 service targets `http://elearning:3006/openapi-spec.json`, but the running API serves its spec at
 `/api-docs/openapi.json` (Swagger) — the scan won't find the spec until that path is fixed.
@@ -219,8 +231,8 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
   `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:1.2.1` tag — keep them
   in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an
   nginx reverse proxy.
-- CI (`.github/workflows/`) delegates to the shared `mairie360/CICD` workflow and runs a
-  Postman collection. Renovate PRs are auto-approved.
+- CI (`.github/workflows/`) delegates to the shared `mairie360/CICD` workflow, which runs
+  `./integration_test.sh` (newman) on `main`. Renovate PRs are auto-approved.
 
 ## Pull request reviewers
 
