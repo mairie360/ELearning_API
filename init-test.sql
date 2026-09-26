@@ -1,11 +1,28 @@
--- Fixtures for the newman integration tests (docker-compose-integration.yml `seeder` service).
--- The API has no route to create courses, modules or attachments, so they are seeded here with
--- fixed ids; user 2 is the plain agent the collection registers and progresses. Everything is
+-- Fixtures run by the `seeder` service of docker-compose-integration.yml (newman) and
+-- docker-compose-security.yml (ZAP). The API has no route to create courses, modules or
+-- attachments, so they are seeded here with fixed ids. User 1 (Admin) is created by the
+-- `create_admin` changeset of the liquibase-migrations image and is the `sub` of the JWT ZAP
+-- injects; user 2 is the plain agent the collection registers and progresses. Everything is
 -- idempotent and user 2's progress is reset so the scenario replays on a persistent database.
+--
+-- The password is the public argon2id hash of the template admin account: `users.password` only
+-- accepts argon2id PHC strings since database 1.3.0 (chk_users_password_hashed).
 
-INSERT INTO users (id, first_name, last_name, email, password, status)
-VALUES (2, 'Test', 'User', 'test2@mairie360.fr', 'dummy', 'active')
+INSERT INTO users (id, first_name, last_name, email, password, status, is_archived)
+VALUES (
+    2, 'Test', 'User', 'test2@mairie360.fr',
+    '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw',
+    'active', FALSE
+)
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO user_roles (user_id, role_id)
+SELECT 2, id FROM roles WHERE name = 'User'
+ON CONFLICT DO NOTHING;
+
+-- Explicit ids do not advance the SERIAL sequence: move it past the fixtures so users created
+-- later do not collide with them.
+SELECT setval(pg_get_serial_sequence('users', 'id'), GREATEST((SELECT MAX(id) FROM users), 1));
 
 INSERT INTO courses (id, title, description)
 VALUES (1000, 'Formation RGPD Collectivités (newman)', 'Comprendre les enjeux du RGPD en mairie.')

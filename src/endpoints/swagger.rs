@@ -43,14 +43,14 @@ unreachable, not that the attachment is missing.
 ## Error format
 
 Error responses (`4xx` and `5xx`) have a **`text/plain`** body holding the error message, not a \
-JSON object.
+JSON object. Every response carries `X-Content-Type-Options: nosniff`.
 
-Statuses returned across the board, before the handler is even reached:
+Statuses returned across the API, before the handler runs:
 
 | Status | Meaning |
 | --- | --- |
 | `400` | A path segment is not an integer, or the JSON body is malformed. |
-| `401` | `Authorization` header missing or malformed, or JWT invalid or expired. |
+| `401` | `Authorization` header missing or malformed, invalid or expired JWT, or revoked session. |
 | `403` | `/api/v1/admin/…` only: the caller is not an admin. |
 | `500` | Database or Redis failure. |
 ",
