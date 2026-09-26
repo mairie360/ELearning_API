@@ -6,6 +6,9 @@ use mairie360_api_lib::state::AppState;
 use crate::database::formations::get_module_attachments::view::{
     GetModuleAttachmentsQueryView, ModuleAttachmentRow,
 };
+use crate::endpoints::v1::formations::formation_id::module_id::access::{
+    check_module_access, ModuleAccessError,
+};
 use crate::endpoints::v1::formations::formation_id::module_id::get::view::{
     File, FileType, GetModuleResponseView,
 };
@@ -26,7 +29,19 @@ fn map_file(row: ModuleAttachmentRow) -> File {
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetModuleError {
     BadRequest,
+    Forbidden,
+    NotFound,
     DatabaseError,
+}
+
+impl From<ModuleAccessError> for GetModuleError {
+    fn from(err: ModuleAccessError) -> Self {
+        match err {
+            ModuleAccessError::NotEnrolled => GetModuleError::Forbidden,
+            ModuleAccessError::ModuleNotFound => GetModuleError::NotFound,
+            ModuleAccessError::DatabaseError => GetModuleError::DatabaseError,
+        }
+    }
 }
 
 impl std::fmt::Display for GetModuleError {
@@ -34,6 +49,12 @@ impl std::fmt::Display for GetModuleError {
         match self {
             GetModuleError::BadRequest => {
                 write!(f, "Bad request.")
+            }
+            GetModuleError::Forbidden => {
+                write!(f, "You are not enrolled in this formation.")
+            }
+            GetModuleError::NotFound => {
+                write!(f, "The module was not found in this formation.")
             }
             GetModuleError::DatabaseError => {
                 write!(f, "An error occurred while accessing the database.")
@@ -46,6 +67,8 @@ impl ResponseError for GetModuleError {
     fn status_code(&self) -> StatusCode {
         match self {
             GetModuleError::BadRequest => StatusCode::BAD_REQUEST,
+            GetModuleError::Forbidden => StatusCode::FORBIDDEN,
+            GetModuleError::NotFound => StatusCode::NOT_FOUND,
             GetModuleError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -59,8 +82,10 @@ async fn trigger_get_module(
     state: web::Data<AppState>,
     formation_id: u64,
     module_id: u64,
-    _user_id: u64,
+    user_id: u64,
 ) -> Result<GetModuleResponseView, GetModuleError> {
+    check_module_access(state.get_smart_db(), user_id, formation_id, module_id).await?;
+
     let view = GetModuleAttachmentsQueryView::new(formation_id, module_id);
     let rows: Vec<ModuleAttachmentRow> = state
         .get_smart_db()
@@ -79,18 +104,21 @@ async fn trigger_get_module(
         ModuleIdParams,
     ),
     path = "",
-    summary = "Lister les pièces jointes d'un module",
-    description = "Renvoie les fichiers pédagogiques d'un module : nom, type et taille.\n\n\
-                   Le contenu des fichiers n'est **pas** renvoyé ici : pour l'ouvrir, demander une \
-                   URL signée à \
-                   `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`.\n\n\
-                   `file_size_bytes` peut être `null` pour un fichier dont la taille n'a pas été \
-                   enregistrée. Un `file_type` valant `Error` signale un type stocké en base que \
-                   l'API ne sait pas interpréter.",
+    summary = "List the attachments of a module",
+    description = "Returns the learning files of a module: name, type and size.\n\n\
+                   The file contents are **not** returned here: to open one, request a signed \
+                   URL from `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`.\n\n\
+                   Only available to a caller enrolled in the formation (`403` otherwise, admins \
+                   included: an admin enrols through \
+                   `POST /api/v1/admin/formations/{formation_id}/`). The module must belong to \
+                   the formation of the path (`404` otherwise).\n\n\
+                   `file_size_bytes` can be `null` for a file whose size was not recorded. A \
+                   `file_type` of `Error` flags a type stored in the database that the API cannot \
+                   interpret. A module without files returns an empty `files` list.",
     responses(
         (
             status = 200,
-            description = "Pièces jointes du module.",
+            description = "Attachments of the module.",
             body = GetModuleResponseView,
             example = json!({
                 "files": [
@@ -101,21 +129,35 @@ async fn trigger_get_module(
         ),
         (
             status = 400,
-            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            description = "A path segment is not an integer.",
             body = String,
             content_type = "text/plain",
             example = json!("Path deserialize error: can not parse `abc` to a u64")
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "`Authorization` header missing, or JWT invalid or expired.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
         ),
         (
+            status = 403,
+            description = "The caller is not enrolled in this formation (or the formation does not exist).",
+            body = String,
+            content_type = "text/plain",
+            example = json!("You are not enrolled in this formation.")
+        ),
+        (
+            status = 404,
+            description = "The module does not exist or belongs to another formation.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("The module was not found in this formation.")
+        ),
+        (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")

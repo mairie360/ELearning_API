@@ -107,3 +107,53 @@ pub async fn create_attachment(
         .await
         .expect("failed to create test attachment")
 }
+
+#[derive(serde::Deserialize)]
+struct CreateUser {
+    params: Vec<QueryParam>,
+}
+
+impl ApiRequestDto for CreateUser {
+    fn query_sql(&self) -> &'static str {
+        "INSERT INTO users (first_name, last_name, email, password, status) \
+         VALUES ('Agent', 'Test', $1, 'hash', 'active') RETURNING id"
+    }
+
+    fn query_params(&self) -> &[QueryParam] {
+        &self.params
+    }
+}
+
+/// Creates a plain agent (no role, hence not an admin). The seeded users of
+/// the lib are unsuitable: Alice holds the Admin role and Bob is archived.
+pub async fn create_user(db: &SmartDatabase) -> i32 {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    let email = format!(
+        "agent-{nanos}-{}@elearning.test",
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
+    let view = CreateUser {
+        params: vec![QueryParam::Text(email)],
+    };
+    db.fetch_scalar::<i32, _>(&view)
+        .await
+        .expect("failed to create test user")
+}
+
+/// Enrols `user_id` in `course_id` through the API's own query.
+pub async fn enrol(db: &SmartDatabase, user_id: i32, course_id: i32) {
+    use elearning_api::database::admin::formations::register_user_to_formation::view::RegisterUserToFormationQueryView;
+
+    db.execute(RegisterUserToFormationQueryView::new(
+        user_id as u64,
+        course_id as u64,
+    ))
+    .await
+    .expect("failed to enrol test user");
+}

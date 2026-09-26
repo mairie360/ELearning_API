@@ -101,8 +101,7 @@ async fn trigger_register_user_to_formation(
                    vide.\n\n\
                    Pour l'opération inverse, voir \
                    `DELETE /api/v1/admin/users/{user_id}/{formation_id}`.\n\n\
-                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
-                   authentifié peut appeler cette route.",
+                   Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
@@ -117,10 +116,17 @@ async fn trigger_register_user_to_formation(
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "`Authorization` header missing, or JWT invalid or expired.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
+        ),
+        (
+            status = 403,
+            description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Forbidden: User is not an admin.")
         ),
         (
             status = 404,

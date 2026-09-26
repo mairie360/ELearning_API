@@ -103,8 +103,7 @@ async fn trigger_get_formation_by_id(
                    d'un agent donné, voir `GET /api/v1/admin/users/{user_id}/{formation_id}`.\n\n\
                    `details=true` fait descendre la réponse jusqu'aux pièces jointes de chaque \
                    module. Sans ce paramètre, `content` est `null` et non un tableau vide.\n\n\
-                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
-                   authentifié peut appeler cette route.",
+                   Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
@@ -132,10 +131,17 @@ async fn trigger_get_formation_by_id(
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "`Authorization` header missing, or JWT invalid or expired.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
+        ),
+        (
+            status = 403,
+            description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Forbidden: User is not an admin.")
         ),
         (
             status = 404,

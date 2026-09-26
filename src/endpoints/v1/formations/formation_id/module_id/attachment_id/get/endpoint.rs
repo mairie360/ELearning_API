@@ -4,20 +4,37 @@ use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
 use crate::database::formations::get_attachment::view::{AttachmentRow, GetAttachmentQueryView};
+use crate::endpoints::v1::formations::formation_id::module_id::access::{
+    check_module_access, ModuleAccessError,
+};
 use crate::endpoints::v1::formations::formation_id::module_id::attachment_id::get::view::GetAttachmentUrlView;
 use crate::endpoints::v1::formations::formation_id::module_id::attachment_id::AttachmentIdParams;
 use crate::storage::{mime_for, FileStorage};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetAttachmentUrlError {
+    Forbidden,
     NotFound,
     DatabaseError,
     StorageError,
 }
 
+impl From<ModuleAccessError> for GetAttachmentUrlError {
+    fn from(err: ModuleAccessError) -> Self {
+        match err {
+            ModuleAccessError::NotEnrolled => GetAttachmentUrlError::Forbidden,
+            ModuleAccessError::ModuleNotFound => GetAttachmentUrlError::NotFound,
+            ModuleAccessError::DatabaseError => GetAttachmentUrlError::DatabaseError,
+        }
+    }
+}
+
 impl std::fmt::Display for GetAttachmentUrlError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            GetAttachmentUrlError::Forbidden => {
+                write!(f, "You are not enrolled in this formation.")
+            }
             GetAttachmentUrlError::NotFound => write!(f, "The attachment was not found."),
             GetAttachmentUrlError::DatabaseError => {
                 write!(f, "An error occurred while accessing the database.")
@@ -32,6 +49,7 @@ impl std::fmt::Display for GetAttachmentUrlError {
 impl ResponseError for GetAttachmentUrlError {
     fn status_code(&self) -> StatusCode {
         match self {
+            GetAttachmentUrlError::Forbidden => StatusCode::FORBIDDEN,
             GetAttachmentUrlError::NotFound => StatusCode::NOT_FOUND,
             GetAttachmentUrlError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
             GetAttachmentUrlError::StorageError => StatusCode::BAD_GATEWAY,
@@ -46,10 +64,13 @@ impl ResponseError for GetAttachmentUrlError {
 async fn trigger_get_attachment_url(
     state: web::Data<AppState>,
     storage: &dyn FileStorage,
+    user_id: u64,
     formation_id: u64,
     module_id: u64,
     attachment_id: u64,
 ) -> Result<GetAttachmentUrlView, GetAttachmentUrlError> {
+    check_module_access(state.get_smart_db(), user_id, formation_id, module_id).await?;
+
     let view = GetAttachmentQueryView::new(formation_id, module_id, attachment_id);
     let rows: Vec<AttachmentRow> = state
         .get_smart_db()
@@ -76,21 +97,23 @@ async fn trigger_get_attachment_url(
         AttachmentIdParams,
     ),
     path = "",
-    summary = "Obtenir l'URL d'une pièce jointe",
-    description = "Renvoie une URL signée, à durée de vie limitée, permettant d'afficher la pièce \
-                   jointe directement dans le navigateur. Le fichier lui-même ne transite jamais \
-                   par l'API.\n\n\
-                   L'URL est à usage immédiat : la redemander à chaque ouverture plutôt que de la \
-                   stocker, car elle expire. Le client n'a pas à savoir qu'elle pointe vers un \
-                   stockage objet.\n\n\
-                   Noter le `502`, propre à cet endpoint : il signale que le stockage de fichiers \
-                   est injoignable ou refuse de signer l'URL, alors que la pièce jointe existe \
-                   bien en base. À distinguer du `404`, qui veut dire que la pièce jointe n'existe \
-                   pas dans ce module de cette formation.",
+    summary = "Get the URL of an attachment",
+    description = "Returns a short-lived signed URL that displays the attachment directly in the \
+                   browser. The file itself never goes through the API.\n\n\
+                   The URL is meant for immediate use: request it again on every opening rather \
+                   than storing it, since it expires. The client does not need to know that it \
+                   points to an object storage.\n\n\
+                   Only available to a caller enrolled in the formation (`403` otherwise, admins \
+                   included: an admin enrols through \
+                   `POST /api/v1/admin/formations/{formation_id}/`).\n\n\
+                   Note the `502`, specific to this endpoint: the file storage is unreachable or \
+                   refuses to sign the URL although the attachment exists in the database. Not to \
+                   be confused with the `404`, which means the attachment does not exist in this \
+                   module of this formation.",
     responses(
         (
             status = 200,
-            description = "URL signée de la pièce jointe.",
+            description = "Signed URL of the attachment.",
             body = GetAttachmentUrlView,
             example = json!({
                 "url": "https://storage.mairie360.fr/elearning/rgpd-principes.pdf?X-Amz-Expires=900&X-Amz-Signature=..."
@@ -98,35 +121,42 @@ async fn trigger_get_attachment_url(
         ),
         (
             status = 400,
-            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            description = "A path segment is not an integer.",
             body = String,
             content_type = "text/plain",
             example = json!("Path deserialize error: can not parse `abc` to a u64")
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "`Authorization` header missing, or JWT invalid or expired.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
         ),
         (
+            status = 403,
+            description = "The caller is not enrolled in this formation (or the formation does not exist). No URL is signed.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("You are not enrolled in this formation.")
+        ),
+        (
             status = 404,
-            description = "Aucune pièce jointe avec cet identifiant dans ce module de cette formation.",
+            description = "The module does not belong to this formation, or no attachment with this id exists in this module.",
             body = String,
             content_type = "text/plain",
             example = json!("The attachment was not found.")
         ),
         (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")
         ),
         (
             status = 502,
-            description = "Le stockage de fichiers est injoignable ou a refusé de signer l'URL. La pièce jointe existe, mais son URL n'a pas pu être produite : l'appel peut être retenté.",
+            description = "The file storage is unreachable or refused to sign the URL. The attachment exists but its URL could not be produced: the call can be retried.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the file storage.")
@@ -141,13 +171,14 @@ async fn trigger_get_attachment_url(
 pub async fn get_attachment_url(
     state: web::Data<AppState>,
     storage: web::Data<dyn FileStorage>,
-    _: AuthenticatedUser,
+    auth_user: AuthenticatedUser,
     params: web::Path<AttachmentIdParams>,
 ) -> Result<impl Responder, GetAttachmentUrlError> {
     let params = params.into_inner();
     let attachment = trigger_get_attachment_url(
         state,
         storage.get_ref(),
+        auth_user.id,
         params.formation_id,
         params.module_id,
         params.attachment_id,
