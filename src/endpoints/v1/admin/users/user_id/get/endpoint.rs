@@ -108,8 +108,7 @@ async fn trigger_get_user(
                    `details=true` fait descendre la réponse jusqu'aux modules et à leurs pièces \
                    jointes ; sans ce paramètre, `modules` est `null`.\n\n\
                    Un agent inconnu ou sans inscription renvoie une liste vide, pas une erreur.\n\n\
-                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
-                   authentifié peut appeler cette route.",
+                   Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
@@ -138,10 +137,17 @@ async fn trigger_get_user(
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "`Authorization` header missing, or JWT invalid or expired.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
+        ),
+        (
+            status = 403,
+            description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Forbidden: User is not an admin.")
         ),
         (
             status = 500,

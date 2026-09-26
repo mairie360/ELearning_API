@@ -1,2 +1,3 @@
-mod common; // Accès à la base de test partagée
+mod common; // Shared test database access
+mod endpoints;
 mod queries;

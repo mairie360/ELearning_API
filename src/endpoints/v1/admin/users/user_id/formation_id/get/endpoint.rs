@@ -97,8 +97,7 @@ async fn trigger_get_user_formation(
                    elle descend jusqu'à la date de consultation de chaque pièce jointe.\n\n\
                    `completed_at` et `finished_at` sont `null` tant que l'élément n'a pas été \
                    terminé.\n\n\
-                   Aucun contrôle de rôle n'est appliqué sur le préfixe `/admin` : tout utilisateur \
-                   authentifié peut appeler cette route.",
+                   Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
@@ -128,10 +127,17 @@ async fn trigger_get_user_formation(
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "`Authorization` header missing, or JWT invalid or expired.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
+        ),
+        (
+            status = 403,
+            description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Forbidden: User is not an admin.")
         ),
         (
             status = 404,
