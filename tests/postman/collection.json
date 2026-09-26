@@ -1287,8 +1287,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status is 400\", function () {",
-                  "    pm.response.to.have.status(400);",
+                  "pm.test(\"Status is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
                   "});"
                 ]
               }
