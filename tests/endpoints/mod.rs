@@ -2,7 +2,9 @@
 //! (`/api` + `JwtMiddleware` + `endpoints::config`) served by `actix_web::test`
 //! against the shared test database, with forged JWTs and a mock file storage.
 
+pub mod access_denials;
 pub mod admin_guard;
+pub mod admin_reads;
 pub mod enrolment;
 pub mod formation_access;
 pub mod module_access;
