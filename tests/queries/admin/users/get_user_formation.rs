@@ -1,5 +1,5 @@
 use crate::common::get_smart_db;
-use crate::queries::fixtures::{create_attachment, create_course, create_module};
+use crate::queries::fixtures::{create_attachment, create_course, create_module, enrol};
 use elearning_api::database::admin::users::get_user_formation::view::{
     GetUserFormationQueryView, UserFormationModuleRow,
 };
@@ -33,7 +33,9 @@ async fn test_get_user_formation_content_is_always_an_array() {
     assert!(rows[0].content().is_empty());
     assert!(!rows[0].is_completed());
 
-    let complete_view = CompleteModuleQueryView::new(alice_id as u64, module_id as u64);
+    enrol(&db, alice_id, course_id).await;
+    let complete_view =
+        CompleteModuleQueryView::new(alice_id as u64, course_id as u64, module_id as u64);
     db.execute(complete_view)
         .await
         .expect("failed to complete module");

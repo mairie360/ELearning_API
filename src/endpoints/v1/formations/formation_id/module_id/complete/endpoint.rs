@@ -8,9 +8,6 @@ use mairie360_api_lib::state::AppState;
 use crate::database::formations::complete_module::view::{
     CompleteModuleQueryView, CompleteModuleRow,
 };
-use crate::endpoints::v1::formations::formation_id::module_id::access::{
-    check_module_access, ModuleAccessError,
-};
 use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
 use crate::logging::log_error;
 
@@ -20,16 +17,6 @@ pub enum CompleteModuleError {
     NotFound,
     PreviousModulesPending,
     DatabaseError,
-}
-
-impl From<ModuleAccessError> for CompleteModuleError {
-    fn from(err: ModuleAccessError) -> Self {
-        match err {
-            ModuleAccessError::NotEnrolled => CompleteModuleError::Forbidden,
-            ModuleAccessError::ModuleNotFound => CompleteModuleError::NotFound,
-            ModuleAccessError::DatabaseError => CompleteModuleError::DatabaseError,
-        }
-    }
 }
 
 impl std::fmt::Display for CompleteModuleError {
@@ -72,20 +59,33 @@ async fn trigger_complete_module(
     formation_id: u64,
     module_id: u64,
 ) -> Result<(), CompleteModuleError> {
-    let smart_db = state.get_smart_db();
+    // Access check and write in one statement (MAIR-420): the enrolment
+    // cannot be revoked between the check and the upsert.
+    let view = CompleteModuleQueryView::new(user_id, formation_id, module_id);
+    let outcome: CompleteModuleRow =
+        state
+            .get_smart_db()
+            .fetch_one(&view)
+            .await
+            .map_err(|err| match err {
+                // The module was deleted between the check and the insert.
+                ApiLibError::Database(DbError::ForeignKeyViolation(_)) => {
+                    CompleteModuleError::NotFound
+                }
+                err => log_error(
+                    "trigger_complete_module",
+                    CompleteModuleError::DatabaseError,
+                )(err),
+            })?;
 
-    check_module_access(smart_db, user_id, formation_id, module_id).await?;
-
-    let view = CompleteModuleQueryView::new(user_id, module_id);
-    let outcome: CompleteModuleRow = smart_db.fetch_one(&view).await.map_err(|err| match err {
-        // The module was deleted between the access check and the insert.
-        ApiLibError::Database(DbError::ForeignKeyViolation(_)) => CompleteModuleError::NotFound,
-        err => log_error(
-            "trigger_complete_module",
-            CompleteModuleError::DatabaseError,
-        )(err),
-    })?;
-
+    // Same precedence as `check_module_access`: a caller who is not enrolled
+    // cannot probe which module ids exist in the formation.
+    if !outcome.enrolled() {
+        return Err(CompleteModuleError::Forbidden);
+    }
+    if !outcome.module_in_formation() {
+        return Err(CompleteModuleError::NotFound);
+    }
     if !outcome.completed() {
         return Err(CompleteModuleError::PreviousModulesPending);
     }

@@ -1,5 +1,5 @@
 use crate::common::get_smart_db;
-use crate::queries::fixtures::{create_course, create_module};
+use crate::queries::fixtures::{create_course, create_module, enrol};
 use elearning_api::database::formations::complete_module::view::CompleteModuleQueryView;
 use elearning_api::database::formations::get_my_formation_modules::view::{
     FormationModuleRow, GetMyFormationModulesQueryView,
@@ -24,7 +24,9 @@ async fn test_get_my_formation_modules_reflects_completion() {
     assert_eq!(module.name(), "Module 1");
     assert!(!module.completed());
 
-    let complete_view = CompleteModuleQueryView::new(alice_id as u64, module_id as u64);
+    enrol(&db, alice_id, course_id).await;
+    let complete_view =
+        CompleteModuleQueryView::new(alice_id as u64, course_id as u64, module_id as u64);
     db.execute(complete_view)
         .await
         .expect("failed to complete module");
