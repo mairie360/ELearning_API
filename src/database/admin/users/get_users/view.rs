@@ -1,15 +1,20 @@
 use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 
-/// Lists active (non-archived) users, for the admin "assign to a formation"
-/// picker.
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+/// Lists one page of the active (non-archived) users in `id` order, for the
+/// admin "assign to a formation" picker. The caller bounds `limit`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GetUsersQueryView {
     params: Vec<QueryParam>,
 }
 
 impl GetUsersQueryView {
-    pub fn new() -> Self {
-        Self { params: vec![] }
+    pub fn new(limit: u32, offset: u32) -> Self {
+        Self {
+            params: vec![
+                QueryParam::I64(i64::from(limit)),
+                QueryParam::I64(i64::from(offset)),
+            ],
+        }
     }
 }
 
@@ -20,6 +25,7 @@ impl ApiRequestDto for GetUsersQueryView {
             FROM users \
             WHERE is_archived = FALSE \
             ORDER BY id \
+            LIMIT $1 OFFSET $2 \
          ) t"
     }
 

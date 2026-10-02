@@ -12,6 +12,7 @@ use crate::endpoints::v1::admin::users::{
     ProgressStatus, UsersFormation, UsersFormationModule, UsersModuleContent,
 };
 use crate::endpoints::v1::admin::AdminUserDetailsQuery;
+use crate::logging::log_error;
 
 fn map_content(row: UserModuleContentRow) -> UsersModuleContent {
     // `course_attachments` has no per-user tracking, so files never carry a
@@ -81,11 +82,15 @@ async fn trigger_get_user(
     details: bool,
 ) -> Result<GetUserByIdResultView, GetUserFormationsError> {
     let view = GetUserFormationsQueryView::new(user_id, details);
-    let rows: Vec<UserFormationRow> = state
-        .get_smart_db()
-        .fetch_all(&view)
-        .await
-        .map_err(|_| GetUserFormationsError::DatabaseError)?;
+    let rows: Vec<UserFormationRow> =
+        state
+            .get_smart_db()
+            .fetch_all(&view)
+            .await
+            .map_err(log_error(
+                "trigger_get_user",
+                GetUserFormationsError::DatabaseError,
+            ))?;
 
     let formations = rows.into_iter().map(map_formation).collect();
 

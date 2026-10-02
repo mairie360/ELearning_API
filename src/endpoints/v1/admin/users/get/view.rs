@@ -1,19 +1,19 @@
 use utoipa::ToSchema;
 
-/// Agent inscrit à au moins une formation.
+/// Active user of the platform.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct User {
-    /// Identifiant Core API de l'agent.
+    /// Core API id of the user.
     #[schema(example = 42)]
     pub id: u64,
-    /// Prénom et nom de l'agent.
+    /// First and last name of the user.
     #[schema(example = "Jean Dupont")]
     pub name: String,
 }
 
-/// Agents inscrits à au moins une formation.
+/// One page of the active users.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetUsersResultView {
-    /// Agents ayant au moins une inscription. Ce n'est pas l'annuaire complet de la plateforme.
+    /// Active users of the page, in `id` order. Empty past the last page.
     pub users: Vec<User>,
 }

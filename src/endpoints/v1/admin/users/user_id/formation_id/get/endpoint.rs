@@ -11,6 +11,7 @@ use crate::endpoints::v1::admin::users::user_id::formation_id::get::view::GetUse
 use crate::endpoints::v1::admin::users::user_id::formation_id::AdminUserFormationIdParams;
 use crate::endpoints::v1::admin::users::{UsersFormationModule, UsersModuleContent};
 use crate::endpoints::v1::admin::AdminUserDetailsQuery;
+use crate::logging::log_error;
 
 fn map_content(row: UserModuleContentRow) -> UsersModuleContent {
     UsersModuleContent::new(row.id() as u64, row.file_name(), row.file_type(), None)
@@ -71,16 +72,19 @@ async fn trigger_get_user_formation(
     let exists: bool = smart_db
         .fetch_scalar(&exists_view)
         .await
-        .map_err(|_| GetUserFormationError::DatabaseError)?;
+        .map_err(log_error(
+            "trigger_get_user_formation",
+            GetUserFormationError::DatabaseError,
+        ))?;
     if !exists {
         return Err(GetUserFormationError::UnknowModule);
     }
 
     let view = GetUserFormationQueryView::new(formation_id, user_id, details);
-    let rows: Vec<UserFormationModuleRow> = smart_db
-        .fetch_all(&view)
-        .await
-        .map_err(|_| GetUserFormationError::DatabaseError)?;
+    let rows: Vec<UserFormationModuleRow> = smart_db.fetch_all(&view).await.map_err(log_error(
+        "trigger_get_user_formation",
+        GetUserFormationError::DatabaseError,
+    ))?;
 
     let modules = rows.into_iter().map(map_module).collect();
 

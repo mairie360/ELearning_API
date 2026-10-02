@@ -7,6 +7,7 @@ use crate::database::formations::get_my_formations::view::{
     FormationSummaryRow, GetMyFormationsQueryView,
 };
 use crate::endpoints::v1::formations::get::view::{Formation, GetFormationsResultView, Status};
+use crate::logging::log_error;
 
 fn map_formation(row: FormationSummaryRow) -> Formation {
     Formation::new(
@@ -49,11 +50,15 @@ async fn trigger_get_my_formations(
     user_id: u64,
 ) -> Result<GetFormationsResultView, GetFormationsError> {
     let view = GetMyFormationsQueryView::new(user_id);
-    let rows: Vec<FormationSummaryRow> = state
-        .get_smart_db()
-        .fetch_all(&view)
-        .await
-        .map_err(|_| GetFormationsError::DatabaseError)?;
+    let rows: Vec<FormationSummaryRow> =
+        state
+            .get_smart_db()
+            .fetch_all(&view)
+            .await
+            .map_err(log_error(
+                "trigger_get_my_formations",
+                GetFormationsError::DatabaseError,
+            ))?;
 
     let formations = rows.into_iter().map(map_formation).collect();
 

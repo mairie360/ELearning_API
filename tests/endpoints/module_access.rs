@@ -230,3 +230,34 @@ async fn complete_module_of_another_formation_is_404() {
         .insert_header(("Authorization", jwt_for(agent_id)));
     assert_eq!(status_of!(app, req), StatusCode::NOT_FOUND);
 }
+
+#[actix_web::test]
+async fn complete_module_out_of_order_is_409() {
+    let ctx = TestContext::new().await;
+    let app = init_app!(ctx);
+    let course = seed_course(&ctx).await;
+    let next_module_id = create_module(ctx.db(), course.id, "Module 2", "Contenu 2", 2).await;
+    let agent_id = create_user(ctx.db()).await;
+    enrol(ctx.db(), agent_id, course.id).await;
+    let next_uri = format!("/api/v1/formations/{}/{}/", course.id, next_module_id);
+
+    let req = TestRequest::patch()
+        .uri(&next_uri)
+        .insert_header(("Authorization", jwt_for(agent_id)));
+    assert_eq!(status_of!(app, req), StatusCode::CONFLICT);
+    assert!(!is_completed(&ctx, agent_id, course.id, next_module_id).await);
+
+    let req = TestRequest::patch()
+        .uri(&format!(
+            "/api/v1/formations/{}/{}/",
+            course.id, course.module_id
+        ))
+        .insert_header(("Authorization", jwt_for(agent_id)));
+    assert_eq!(status_of!(app, req), StatusCode::OK);
+
+    let req = TestRequest::patch()
+        .uri(&next_uri)
+        .insert_header(("Authorization", jwt_for(agent_id)));
+    assert_eq!(status_of!(app, req), StatusCode::OK);
+    assert!(is_completed(&ctx, agent_id, course.id, next_module_id).await);
+}

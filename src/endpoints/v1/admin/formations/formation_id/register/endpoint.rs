@@ -3,12 +3,15 @@ use actix_web::{post, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
-use mairie360_api_lib::database::query_views::DoesUserExistByIdQueryView;
+use mairie360_api_lib::database::error::DbError;
+use mairie360_api_lib::error::ApiLibError;
 
-use crate::database::admin::formations::register_user_to_formation::view::RegisterUserToFormationQueryView;
-use crate::database::formations::does_course_exist::view::DoesCourseExistQueryView;
+use crate::database::admin::formations::register_user_to_formation::view::{
+    RegisterUserToFormationQueryView, RegisterUserToFormationRow,
+};
 use crate::endpoints::v1::admin::formations::formation_id::register::view::RegisterUserView;
 use crate::endpoints::v1::admin::formations::formation_id::AdminFormationIdParams;
+use crate::logging::log_error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RegisterUserToFormationError {
@@ -58,32 +61,28 @@ async fn trigger_register_user_to_formation(
     view: RegisterUserView,
     formation_id: u64,
 ) -> Result<(), RegisterUserToFormationError> {
-    let smart_db = state.get_smart_db();
-
-    let user_exists_view = DoesUserExistByIdQueryView::new(view.user_id());
-    let user_exists: bool = smart_db
-        .fetch_scalar(&user_exists_view)
+    let register_view = RegisterUserToFormationQueryView::new(view.user_id(), formation_id);
+    let outcome: RegisterUserToFormationRow = state
+        .get_smart_db()
+        .fetch_one(&register_view)
         .await
-        .map_err(|_| RegisterUserToFormationError::DatabaseError)?;
-    if !user_exists {
+        .map_err(|err| match err {
+            // The user or the course was deleted by a concurrent transaction.
+            ApiLibError::Database(DbError::ForeignKeyViolation(_)) => {
+                RegisterUserToFormationError::UnknownFormation
+            }
+            err => log_error(
+                "trigger_register_user_to_formation",
+                RegisterUserToFormationError::DatabaseError,
+            )(err),
+        })?;
+
+    if !outcome.user_exists() {
         return Err(RegisterUserToFormationError::UnknownUser);
     }
-
-    let course_exists_view = DoesCourseExistQueryView::new(formation_id);
-    let course_exists: bool = smart_db
-        .fetch_scalar(&course_exists_view)
-        .await
-        .map_err(|_| RegisterUserToFormationError::DatabaseError)?;
-    if !course_exists {
+    if !outcome.course_exists() {
         return Err(RegisterUserToFormationError::UnknownFormation);
     }
-
-    let register_view = RegisterUserToFormationQueryView::new(view.user_id(), formation_id);
-    smart_db
-        .execute(register_view)
-        .await
-        .map_err(|_| RegisterUserToFormationError::DatabaseError)?;
-
     Ok(())
 }
 
@@ -93,23 +92,25 @@ async fn trigger_register_user_to_formation(
         AdminFormationIdParams,
     ),
     path = "/",
-    summary = "Inscrire un agent à une formation",
-    description = "Rattache un utilisateur à une formation. C'est le seul moyen d'inscrire \
-                   quelqu'un : un agent ne peut pas s'inscrire lui-même. La formation apparaît \
-                   ensuite dans son `GET /api/v1/formations/`, au statut `NotStarted`.\n\n\
-                   L'identifiant attendu est celui du compte dans Core API. La réponse a un corps \
-                   vide.\n\n\
-                   Pour l'opération inverse, voir \
+    summary = "Enrol an agent in a formation",
+    description = "Enrols a user in a formation. It is the only way to enrol someone: an \
+                   agent cannot enrol themselves. The formation then shows up in their \
+                   `GET /api/v1/formations/`, with the `NotStarted` status.\n\n\
+                   The expected id is the one of the account in Core API. The existence checks \
+                   and the enrolment run as a single statement.\n\n\
+                   Idempotent: enrolling an agent who is already enrolled answers `200` and \
+                   keeps their progress. The response has an empty body.\n\n\
+                   For the inverse operation, see \
                    `DELETE /api/v1/admin/users/{user_id}/{formation_id}/`.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
-            description = "Agent inscrit à la formation. Corps vide.",
+            description = "Agent enrolled in the formation, or already enrolled. Empty body.",
         ),
         (
             status = 400,
-            description = "Corps JSON malformé, `formation_id` non entier, ou champ `user_id` absent.",
+            description = "Malformed JSON body, non-integer `formation_id`, or missing `user_id` field.",
             body = String,
             content_type = "text/plain",
             example = json!("Json deserialize error: missing field `user_id`")
@@ -130,14 +131,14 @@ async fn trigger_register_user_to_formation(
         ),
         (
             status = 404,
-            description = "La formation ou l'utilisateur n'existe pas, ou l'agent est déjà inscrit à cette formation.",
+            description = "The formation or the user does not exist.",
             body = String,
             content_type = "text/plain",
             example = json!("Unknown formation")
         ),
         (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")
@@ -146,7 +147,7 @@ async fn trigger_register_user_to_formation(
     tag = "Admin - Formations",
     request_body(
         content = RegisterUserView,
-        description = "Identifiant Core API de l'agent à inscrire.",
+        description = "Core API id of the agent to enrol.",
         example = json!({ "user_id": 42 })
     ),
     security(

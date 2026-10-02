@@ -18,8 +18,19 @@ VALUES
      'active', FALSE)
 ON CONFLICT (id) DO NOTHING;
 
+-- Users 3001-3064 are the agents of the k6 write VUs (load-test.js, `AGENT_BASE_ID + VU id`): each
+-- write VU enrols and unenrols its own agent, since unenrolling an agent twice answers 404.
+INSERT INTO users (id, first_name, last_name, email, password, status, is_archived)
+SELECT n, 'Agent', 'K6 ' || n, 'k6-agent-' || n || '@mairie360.fr',
+       '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw',
+       'active', FALSE
+FROM generate_series(3001, 3064) AS n
+ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO user_roles (user_id, role_id)
-SELECT u.id, r.id FROM roles r CROSS JOIN (VALUES (2), (42)) AS u(id) WHERE r.name = 'User'
+SELECT u.id, r.id FROM roles r
+CROSS JOIN (SELECT 2 UNION ALL SELECT 42 UNION ALL SELECT generate_series(3001, 3064)) AS u(id)
+WHERE r.name = 'User'
 ON CONFLICT DO NOTHING;
 
 -- Explicit ids do not advance the SERIAL sequence: move it past the fixtures so users created
@@ -39,8 +50,10 @@ INSERT INTO course_attachments (id, module_id, title, file_name, file_type, file
 VALUES (1003, 1001, 'Guide RGPD', 'guide_rgpd_mairie.pdf', 'pdf', 'elearning/guides/guide_rgpd_mairie.pdf', 482913)
 ON CONFLICT (id) DO NOTHING;
 
-DELETE FROM user_modules WHERE user_id = 2 AND module_id IN (1001, 1002);
-DELETE FROM user_courses WHERE user_id = 2 AND course_id = 1000;
+DELETE FROM user_modules WHERE (user_id = 2 OR user_id BETWEEN 3001 AND 3064)
+    AND module_id IN (1001, 1002);
+DELETE FROM user_courses WHERE (user_id = 2 OR user_id BETWEEN 3001 AND 3064)
+    AND course_id = 1000;
 
 -- Formation 4, module 11, attachment 27 and user 42 (enrolled, first module done) are the ids of
 -- the path parameter examples of the spec: ZAP builds its requests from these examples, so

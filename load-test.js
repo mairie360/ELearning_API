@@ -14,9 +14,15 @@
 // The API cannot create formations, modules or attachments: they come from init-test.sql
 // (formation 1000, modules 1001-1002, attachment 1003 of module 1001). setup() enrolls the Admin
 // in formation 1000 so the "my formations" routes have something to return; teardown()
-// unenrolls it. Completing a module has no inverse route: the Admin's completion of module 1002
-// stays (the write is an idempotent upsert, so the table does not grow).
+// unenrolls it, which also deletes its progress. Modules are completed in order, so setup() also
+// completes module 1001 for the Admin before the writes complete module 1002 (an idempotent
+// upsert, so the table does not grow).
+//
+// Unenrolling an agent who is not enrolled answers 404, so the two write VUs must never share an
+// agent: each one enrolls and unenrolls its own agent (`AGENT_BASE_ID + VU id`, seeded by
+// init-test.sql for VU ids 1 to 64).
 import http from 'k6/http';
+import exec from 'k6/execution';
 import { check, fail, sleep } from 'k6';
 import { createCoverage, loadSpec } from '/coverage.js';
 
@@ -30,12 +36,15 @@ const TOKEN =
 const AUTH = { Authorization: `Bearer ${TOKEN}` };
 
 const ADMIN_ID = 1;
-// Plain `User` account seeded by init-test.sql, enrolled and unenrolled by the writes.
-const AGENT_ID = 2;
+// Plain `User` accounts seeded by init-test.sql (ids 3001-3064), one per write VU, enrolled and
+// unenrolled by the writes.
+const AGENT_BASE_ID = 3000;
+const agentId = () => AGENT_BASE_ID + exec.vu.idInTest;
 // Fixtures of init-test.sql.
 const FORMATION_ID = 1000;
 const MODULE_ID = 1001;
 const ATTACHMENT_ID = 1003;
+// Second module of formation 1000: completing it needs MODULE_ID completed first (setup()).
 const MODULE_TO_COMPLETE_ID = 1002;
 
 // p(95) latency budget of each family of operations, in ms (reference machine).
@@ -127,16 +136,16 @@ const readHandlers = {
 const writeHandlers = {
   'POST /': ({ request }) => check(request(), { 'hello 200': (r) => r.status === 200 }),
 
-  // Enrollment: enroll → unenroll (both idempotent, so the two VUs never conflict).
+  // Enrollment: enroll → unenroll, each VU on its own agent (see the header).
   'POST /api/v1/admin/formations/{formation_id}/': ({ request }) => {
-    check(request({ path: { formation_id: FORMATION_ID }, body: { user_id: AGENT_ID } }), {
+    check(request({ path: { formation_id: FORMATION_ID }, body: { user_id: agentId() } }), {
       'enroll 200': (r) => r.status === 200,
     });
-    unenroll(AGENT_ID, FORMATION_ID);
+    unenroll(agentId(), FORMATION_ID);
   },
   'DELETE /api/v1/admin/users/{user_id}/{formation_id}/': ({ request }) => {
-    enroll(AGENT_ID, FORMATION_ID);
-    check(request({ path: { user_id: AGENT_ID, formation_id: FORMATION_ID } }), {
+    enroll(agentId(), FORMATION_ID);
+    check(request({ path: { user_id: agentId(), formation_id: FORMATION_ID } }), {
       'unenroll 204': (r) => r.status === 204,
     });
   },
@@ -192,6 +201,7 @@ export const options = {
 
 export function setup() {
   enroll(ADMIN_ID, FORMATION_ID);
+  fixture('PATCH', `/api/v1/formations/${FORMATION_ID}/${MODULE_ID}/`);
 }
 
 export function teardown() {

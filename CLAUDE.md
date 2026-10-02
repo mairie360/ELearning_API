@@ -6,8 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `elearning_api` — an Actix-web JSON API for e-learning "formations" (courses), part of the
 **mairie360** microservices ecosystem. It was scaffolded from an internal "Rust API Template",
-so stale template markers remain throughout (`#change api name`, `#change port`, and paths
-still referencing `calendar_api` in `development.Dockerfile` / `entrypoint.sh`). The service
+so stale template markers remain throughout (`#change api name`, `#change port`). The service
 port is **3006**.
 
 Every endpoint's `trigger_*` function is wired to a real query under `src/database/` (see
@@ -85,7 +84,9 @@ Both the ZAP and k6 stacks carry the OpenAPI coverage gate (MAIR-194) from mairi
 never reached, or when an operation declaring `security(("jwt" = []))` only got 401/403. `load-test.js` is built on
 `coverage.js` and covers every operation (MAIR-195) as the Admin: GET handlers run in the `reads` scenario (20 VUs)
 on the `init-test.sql` course `1000` (the Admin is enrolled in `setup()`, unenrolled in `teardown()`), the other
-methods in the `writes` scenario (2 VUs; enroll/unenroll user 2 and completing a module are idempotent). One
+methods in the `writes` scenario (2 VUs). Unenrolling answers `404` when the user is not enrolled, so each write VU
+enrolls/unenrolls its own agent (`3000 + VU id`, users `3001`-`3064` seeded by `init-test.sql`); modules are completed
+in order, so `setup()` completes module `1001` for the Admin before the writes complete `1002` (idempotent). One
 `p(95)` threshold per `op` tag and `http_req_failed < 1%`. The spec k6 reads is the one served by the image under
 test, saved into the `openapi-spec` volume by `elearning-ready`. **Adding an endpoint = adding its handler in
 `load-test.js`** (k6 aborts at init otherwise), nothing to do for ZAP. `init-test.sql` also seeds the rows of the
@@ -140,7 +141,11 @@ the formation. A new route under either segment must run the same check. Note `m
 `endpoints::config`), so the real route tree under `/api` is just `v1`.
 
 Runtime code, log lines, and comments are a French/English mix (`main.rs` prints
-"Serveur démarré…"). Match the surrounding file rather than normalizing.
+"Serveur démarré…"). Write new text in English and translate the French text you touch.
+
+Never swallow an error with `.map_err(|_| …)`: the endpoint error enums answer a generic body,
+so map through `crate::logging::log_error("<trigger fn>", Error::Variant)`, which logs the cause
+on stderr first (MAIR-395).
 
 ### A leaf endpoint = a `get/` (or verb-named) directory with two or three files
 
@@ -210,7 +215,12 @@ or `.execute(view)` (note: `execute` takes the view **by value**, the `fetch_*` 
 returned directly over HTTP). Existence checks that should 404/400 instead of silently returning
 an empty list (`formations::does_course_exist`, the lib's own
 `database::query_views::DoesUserExistByIdQueryView`) are run first and mapped to the endpoint's
-own error enum.
+own error enum — except before a write: a check-then-write pair is racy, so the writes fold
+their checks into the same statement (a top-level data-modifying `WITH`, read with `fetch_one`
+into an outcome row): `register_user_to_formation` (user/course existence),
+`unsub_user_formation` (enrolment, plus deleting the course's `user_modules`) and
+`complete_module` (every previous module, by `sort_order` then `id`, must be completed, else
+`409`).
 
 ### File storage — `src/storage/` (Scaleway Object Storage / S3)
 
@@ -230,7 +240,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 1.2.2)
+### External library: `mairie360_api_lib` (pinned to 1.4.2)
 
 - `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
   `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
@@ -255,8 +265,8 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 - `Dockerfile` — multi-stage release build → `gcr.io/distroless/cc-debian12:nonroot`, running as
   uid/gid `65532` (`USER 65532:65532`, numeric so Kubernetes can enforce `runAsNonRoot`). The API
   must keep needing neither root nor a writable filesystem.
-- `development.Dockerfile` + `entrypoint.sh` — `cargo watch` hot-reload (paths still say
-  `calendar_api`; `docker-compose.yml` overrides the workdir/sync targets to `elearning`).
+- `development.Dockerfile` + `entrypoint.sh` — `cargo watch` hot-reload in `/usr/src/elearning`,
+  the directory `docker-compose.yml` syncs `src/` and `Cargo.*` into (keep the three in step).
 - `docker-compose.yml` — pulls `ghcr.io/mairie360/database` and
   `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:1.2.1` tag — keep them
   in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an

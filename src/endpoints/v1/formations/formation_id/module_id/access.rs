@@ -6,6 +6,7 @@ use mairie360_api_lib::smart_db::SmartDatabase;
 use crate::database::formations::check_module_access::view::{
     CheckModuleAccessQueryView, ModuleAccessRow,
 };
+use crate::logging::log_error;
 
 /// Why the caller may not reach a module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,10 +34,10 @@ pub async fn check_module_access(
     module_id: u64,
 ) -> Result<(), ModuleAccessError> {
     let view = CheckModuleAccessQueryView::new(user_id, formation_id, module_id);
-    let access: ModuleAccessRow = db
-        .fetch_one(&view)
-        .await
-        .map_err(|_| ModuleAccessError::DatabaseError)?;
+    let access: ModuleAccessRow = db.fetch_one(&view).await.map_err(log_error(
+        "check_module_access",
+        ModuleAccessError::DatabaseError,
+    ))?;
 
     if !access.enrolled() {
         return Err(ModuleAccessError::NotEnrolled);

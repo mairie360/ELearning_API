@@ -9,6 +9,7 @@ use crate::endpoints::v1::formations::formation_id::module_id::access::{
 };
 use crate::endpoints::v1::formations::formation_id::module_id::attachment_id::get::view::GetAttachmentUrlView;
 use crate::endpoints::v1::formations::formation_id::module_id::attachment_id::AttachmentIdParams;
+use crate::logging::log_error;
 use crate::storage::{mime_for, FileStorage};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -72,11 +73,15 @@ async fn trigger_get_attachment_url(
     check_module_access(state.get_smart_db(), user_id, formation_id, module_id).await?;
 
     let view = GetAttachmentQueryView::new(formation_id, module_id, attachment_id);
-    let rows: Vec<AttachmentRow> = state
-        .get_smart_db()
-        .fetch_all(&view)
-        .await
-        .map_err(|_| GetAttachmentUrlError::DatabaseError)?;
+    let rows: Vec<AttachmentRow> =
+        state
+            .get_smart_db()
+            .fetch_all(&view)
+            .await
+            .map_err(log_error(
+                "trigger_get_attachment_url",
+                GetAttachmentUrlError::DatabaseError,
+            ))?;
 
     let attachment = rows
         .into_iter()
@@ -86,7 +91,10 @@ async fn trigger_get_attachment_url(
     let url = storage
         .presigned_view_url(attachment.file_url(), mime_for(attachment.file_type()))
         .await
-        .map_err(|_| GetAttachmentUrlError::StorageError)?;
+        .map_err(log_error(
+            "trigger_get_attachment_url",
+            GetAttachmentUrlError::StorageError,
+        ))?;
 
     Ok(GetAttachmentUrlView::new(url))
 }

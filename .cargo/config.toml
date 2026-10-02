@@ -15,3 +15,15 @@ open_api = "run --example generate_openapi"
 cov_test = ["llvm-cov", "--workspace", "--ignore-filename-regex", "endpoints|main\\.rs|lib\\.rs", "--fail-under-lines", "60"]
 
 cov = ["llvm-cov", "--workspace", "--ignore-filename-regex", "endpoints|main\\.rs|lib\\.rs", "--fail-under-lines", "60", "--codecov", "--output-path", "codecov.json"]
+
+# Version of the ghcr.io/mairie360/database and liquibase-migrations images the tests start
+# (mairie360_api_lib::test_setup), kept equal to the compose files: the latest published
+# dev-<sha> image of Devops/Database. An exported TEST_DB_VERSION still wins.
+#
+# Held on dev-ea0c424, the last image before MAIR-413 (MAIR-395): from dev-fb7c223 on, the migration
+# refuses to seed the admin without credentials or -Dallow_template_admin=true, and the testcontainers
+# of mairie360_api_lib 1.4.x pass neither, so the migration stops half way (no is_admin/check_access).
+# Move back to the image of the compose stacks once the lib release that passes the flag (MAIR-391)
+# is pinned here.
+[env]
+TEST_DB_VERSION = "dev-ea0c424"

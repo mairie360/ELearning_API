@@ -3,14 +3,16 @@ use actix_web::{delete, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
-use crate::database::admin::users::unsub_user_formation::view::UnsubUserFormationQueryView;
-use crate::database::formations::does_course_exist::view::DoesCourseExistQueryView;
+use crate::database::admin::users::unsub_user_formation::view::{
+    UnsubUserFormationQueryView, UnsubUserFormationRow,
+};
 use crate::endpoints::v1::admin::users::user_id::formation_id::AdminUserFormationIdParams;
+use crate::logging::log_error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnsubFormationError {
     DatabaseError,
-    UnknownFormations,
+    NotEnrolled,
 }
 
 impl std::fmt::Display for UnsubFormationError {
@@ -19,8 +21,8 @@ impl std::fmt::Display for UnsubFormationError {
             UnsubFormationError::DatabaseError => {
                 write!(f, "An error occurred while accessing the database.")
             }
-            UnsubFormationError::UnknownFormations => {
-                write!(f, "Unknown formations.")
+            UnsubFormationError::NotEnrolled => {
+                write!(f, "The user is not enrolled in this formation.")
             }
         }
     }
@@ -30,7 +32,7 @@ impl ResponseError for UnsubFormationError {
     fn status_code(&self) -> StatusCode {
         match self {
             UnsubFormationError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
-            UnsubFormationError::UnknownFormations => StatusCode::BAD_REQUEST,
+            UnsubFormationError::NotEnrolled => StatusCode::NOT_FOUND,
         }
     }
 
@@ -44,46 +46,47 @@ async fn trigger_unsub_formation(
     formation_id: u64,
     user_id: u64,
 ) -> Result<(), UnsubFormationError> {
-    let smart_db = state.get_smart_db();
-
-    let exists_view = DoesCourseExistQueryView::new(formation_id);
-    let exists: bool = smart_db
-        .fetch_scalar(&exists_view)
-        .await
-        .map_err(|_| UnsubFormationError::DatabaseError)?;
-    if !exists {
-        return Err(UnsubFormationError::UnknownFormations);
-    }
-
     let view = UnsubUserFormationQueryView::new(user_id, formation_id);
-    smart_db
-        .execute(view)
-        .await
-        .map_err(|_| UnsubFormationError::DatabaseError)?;
+    let outcome: UnsubUserFormationRow =
+        state
+            .get_smart_db()
+            .fetch_one(&view)
+            .await
+            .map_err(log_error(
+                "trigger_unsub_formation",
+                UnsubFormationError::DatabaseError,
+            ))?;
 
+    if !outcome.unregistered() {
+        return Err(UnsubFormationError::NotEnrolled);
+    }
     Ok(())
 }
 
 #[utoipa::path(
     delete,
     path = "/",
-    summary = "Désinscrire un agent d'une formation",
-    description = "Retire l'inscription d'un agent à une formation. Opération inverse de \
+    summary = "Unenrol an agent from a formation",
+    description = "Removes the enrolment of an agent in a formation. Inverse operation of \
                    `POST /api/v1/admin/formations/{formation_id}/`.\n\n\
-                   Attention : la progression déjà enregistrée est perdue avec l'inscription. \
-                   Réinscrire l'agent ensuite le ramène au statut `NotStarted`.\n\n\
+                   The progress of the agent on this formation (completed modules) is deleted \
+                   with the enrolment, in the same statement; their progress on other \
+                   formations is untouched. Enrolling the agent again starts from scratch, with \
+                   the `NotStarted` status.\n\n\
+                   Not idempotent: unenrolling an agent who is not enrolled (or from an unknown \
+                   formation) answers `404`.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 204,
-            description = "Agent désinscrit. Corps vide.",
+            description = "Agent unenrolled and their progress on the formation deleted. Empty body.",
         ),
         (
             status = 400,
-            description = "Un segment de l'URL n'est pas un entier, ou l'agent n'est pas inscrit à cette formation.",
+            description = "A path segment is not an integer.",
             body = String,
             content_type = "text/plain",
-            example = json!("Unknown formations.")
+            example = json!("Path deserialize error: can not parse `abc` to a u64")
         ),
         (
             status = 401,
@@ -100,8 +103,15 @@ async fn trigger_unsub_formation(
             example = json!("Forbidden: User is not an admin.")
         ),
         (
+            status = 404,
+            description = "The agent is not enrolled in this formation, or the formation does not exist. Nothing was deleted.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("The user is not enrolled in this formation.")
+        ),
+        (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")
