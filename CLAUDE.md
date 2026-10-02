@@ -292,15 +292,23 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 
 - `Dockerfile` — multi-stage release build → `gcr.io/distroless/cc-debian12:nonroot`, running as
   uid/gid `65532` (`USER 65532:65532`, numeric so Kubernetes can enforce `runAsNonRoot`). The API
-  must keep needing neither root nor a writable filesystem.
+  must keep needing neither root nor a writable filesystem. Like `API_template` (MAIR-427): both
+  Dockerfiles use the template's Rust toolchain, every base image is pinned by tag **and**
+  digest (Renovate bumps both), every `cargo build` / `cargo install` is `--locked`, and the
+  dependencies are built in their own cached layer before `COPY . .`.
 - `development.Dockerfile` + `entrypoint.sh` — `cargo watch` hot-reload in `/usr/src/elearning`,
   the directory `docker-compose.yml` syncs `src/` and `Cargo.*` into (keep the three in step).
 - `docker-compose.yml` — pulls `ghcr.io/mairie360/database` and
   `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:1.2.1` tag — keep them
   in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an
   nginx reverse proxy.
-- CI (`.github/workflows/`) delegates to the shared `mairie360/CICD` workflow, which runs
-  the three `*_test.sh` stacks on `main` with `IMAGE_REF` set to the `dev-<sha>` image it just published. Renovate PRs are auto-approved.
+- CI (`.github/workflows/cicd.yml`) delegates to the shared `mairie360/CICD` workflow, which runs
+  the three `*_test.sh` stacks on `main` with `IMAGE_REF` set to the `dev-<sha>` image it just
+  published. Same file as `API_template`: triggered by `pull_request` and by `push` on `main`
+  only, passing only the secrets the reusable workflow declares (`CODECOV_TOKEN`,
+  `N8N_WEBHOOK_SECRET`, no `secrets: inherit`). The `uses:` tag and `cicd_version` must stay
+  equal: `renovate.json` groups them (`mairie360 CICD`) so they move in one PR. Renovate PRs are
+  auto-approved.
 
 ## Pull request reviewers
 

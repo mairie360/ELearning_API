@@ -32,3 +32,8 @@ target
 .dockerignore
 Dockerfile
 development.Dockerfile
+
+# Local tooling, never part of the image
+node_modules/
+generated/
+cicd-repo/
