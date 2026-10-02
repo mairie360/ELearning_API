@@ -206,6 +206,11 @@ Every query the API runs lives in its own directory under `src/database/` (mirro
   it through `serde_json` into the row DTO; nested one-to-many data (a course's modules, a
   module's attachments) is aggregated in the same query with `json_agg(json_build_object(...))`
   rather than issued as N+1 queries.
+- Ids are `u64` in the API and `INT4` in Postgres: bind them with the lib's
+  `QueryParam::I32(id_to_sql(id))` and read them back with `id_from_sql`, never with `as`
+  (an `as i32` wraps `2^32 + 1` onto row `1`; `id_to_sql` saturates to `i32::MAX`, a row that
+  does not exist). `src/lib.rs` denies clippy's cast lints so a new `as` fails `check_code`
+  (MAIR-422).
 - Row DTOs use `chrono::NaiveDateTime`, never `chrono::DateTime<Utc>`: Postgres
   `timestamp without time zone` round-trips through `to_jsonb` as a bare (offset-less) string,
   which `DateTime<Utc>`'s `serde` impl rejects. `endpoint.rs` converts with `.and_utc()` when

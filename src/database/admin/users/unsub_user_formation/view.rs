@@ -1,4 +1,6 @@
-use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
+use mairie360_api_lib::database::db_interface::{
+    id_from_sql, id_to_sql, ApiRequestDto, QueryParam,
+};
 
 /// Unregisters a user from a course. Read the result with `fetch_one` into an
 /// [`UnsubUserFormationRow`]: nothing is deleted when the user was not
@@ -20,18 +22,18 @@ impl UnsubUserFormationQueryView {
     pub fn new(user_id: u64, formation_id: u64) -> Self {
         Self {
             params: vec![
-                QueryParam::I32(user_id as i32),
-                QueryParam::I32(formation_id as i32),
+                QueryParam::I32(id_to_sql(user_id)),
+                QueryParam::I32(id_to_sql(formation_id)),
             ],
         }
     }
 
     pub fn user_id(&self) -> u64 {
-        self.params[0].as_i32() as u64
+        id_from_sql(self.params[0].as_i32())
     }
 
     pub fn formation_id(&self) -> u64 {
-        self.params[1].as_i32() as u64
+        id_from_sql(self.params[1].as_i32())
     }
 }
 

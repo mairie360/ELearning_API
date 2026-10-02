@@ -1,4 +1,6 @@
-use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
+use mairie360_api_lib::database::db_interface::{
+    id_from_sql, id_to_sql, ApiRequestDto, QueryParam,
+};
 
 /// Lists the courses a given user is registered to, with their per-course
 /// progress (`user_courses`). When `details` is `true`, each course's
@@ -12,12 +14,15 @@ pub struct GetUserFormationsQueryView {
 impl GetUserFormationsQueryView {
     pub fn new(user_id: u64, details: bool) -> Self {
         Self {
-            params: vec![QueryParam::I32(user_id as i32), QueryParam::Bool(details)],
+            params: vec![
+                QueryParam::I32(id_to_sql(user_id)),
+                QueryParam::Bool(details),
+            ],
         }
     }
 
     pub fn user_id(&self) -> u64 {
-        self.params[0].as_i32() as u64
+        id_from_sql(self.params[0].as_i32())
     }
 
     pub fn details(&self) -> bool {

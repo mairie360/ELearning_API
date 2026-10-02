@@ -57,3 +57,26 @@ async fn get_formation_gives_admins_no_bypass() {
         .insert_header(("Authorization", jwt_for(admin_id)));
     assert_eq!(status_of!(app, req), StatusCode::FORBIDDEN);
 }
+
+/// MAIR-422: an id above `i32::MAX` used to wrap (`as i32`) onto another row:
+/// `2^32 + id` read the formation `id`. It now saturates to a row that does
+/// not exist.
+#[actix_web::test]
+async fn ids_beyond_int4_do_not_alias_another_formation() {
+    let ctx = TestContext::new().await;
+    let app = init_app!(ctx);
+    let course_id = create_course(ctx.db(), "RGPD", "Comprendre le RGPD").await;
+    let agent_id = create_user(ctx.db()).await;
+    enrol(ctx.db(), agent_id, course_id).await;
+    let alias = (1_u64 << 32) + course_id as u64;
+
+    let req = TestRequest::get()
+        .uri(&format!("/api/v1/formations/{course_id}/"))
+        .insert_header(("Authorization", jwt_for(agent_id)));
+    assert_eq!(status_of!(app, req), StatusCode::OK);
+
+    let req = TestRequest::get()
+        .uri(&format!("/api/v1/formations/{alias}/"))
+        .insert_header(("Authorization", jwt_for(agent_id)));
+    assert_eq!(status_of!(app, req), StatusCode::FORBIDDEN);
+}
