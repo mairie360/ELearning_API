@@ -1,9 +1,12 @@
 name: API CI/CD
 
+# Pull requests run lint, build and tests; a push to `main` also runs the releases and the
+# integration, ZAP and k6 stacks (the reusable workflow gates them on `refs/heads/main`).
 on:
   workflow_dispatch:
-  push:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,13 +14,16 @@ permissions:
 
 jobs:
   APIs-cicd:
+    # The tag here and `cicd_version` below are bumped together by one Renovate group.
     uses: mairie360/CICD/.github/workflows/APIs_cicd.yml@v4.0.2
     permissions:
-          contents: write
-          packages: write
-          id-token: write
+      contents: write
+      packages: write
+      id-token: write
     with:
       package_name: elearning-api
       cicd_version: v4.0.2
-    # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit -- the called workflow is our own centralized CICD
-    secrets: inherit
+    # Only the secrets the reusable workflow declares, instead of `secrets: inherit`.
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}
