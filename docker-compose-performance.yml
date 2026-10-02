@@ -137,6 +137,10 @@ services:
       <<: *common-env
       PUBLIC_URL: http://elearning.development.mairie360.fr
       JWT_SECRET: b"secret"
+      # Public test value, known to every reader of this repo: mairie360_api_lib refuses to start
+      # with it unless JWT_ALLOW_WEAK_SECRET is set. Dev/test stacks only, never a deployment, where
+      # JWT_SECRET is a random value of at least 32 bytes, distinct per instance (MAIR-428).
+      JWT_ALLOW_WEAK_SECRET: "true"
       JWT_TIMEOUT: 3600
       # Serves Swagger UI and /api-docs/openapi.json (off in production, MAIR-424).
       SWAGGER_ENABLED: "true"
@@ -186,6 +190,8 @@ services:
     environment:
       - BASE_URL=http://elearning:3006
       - OPENAPI_SPEC=/spec/openapi.json
+      # Signs the admin JWT of load-test.js: must equal the JWT_SECRET of the elearning service.
+      - JWT_SECRET=b"secret"
     depends_on:
       elearning-ready:
         condition: service_completed_successfully

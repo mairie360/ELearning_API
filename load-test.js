@@ -21,6 +21,8 @@
 // Unenrolling an agent who is not enrolled answers 404, so the two write VUs must never share an
 // agent: each one enrolls and unenrolls its own agent (`AGENT_BASE_ID + VU id`, seeded by
 // init-test.sql for VU ids 1 to 64).
+import crypto from 'k6/crypto';
+import encoding from 'k6/encoding';
 import http from 'k6/http';
 import exec from 'k6/execution';
 import { check, fail, sleep } from 'k6';
@@ -28,11 +30,21 @@ import { createCoverage, loadSpec } from '/coverage.js';
 
 const BASE_URL = (__ENV.BASE_URL || 'http://localhost:3006').replace(/\/+$/, '');
 
-// Static HS256 JWT (sub=1, the Admin seeded by liquibase, role=admin, exp=2100, signed with the
-// stack's JWT_SECRET=b"secret"), the same one ZAP injects.
-const TOKEN =
-  __ENV.JWT ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6ImFkbWluIiwiZXhwIjo0MTAyNDQ0ODAwfQ.xCeBe_2QxRlXW8WXr3t6F69wbEHA93HbP_7l4OTJwjA';
+// HS256 admin JWT (sub=1, the Admin seeded by liquibase), signed at init with the stack's
+// JWT_SECRET and valid for 2 hours, like .zap/scan.sh and the Postman collection do. No token is
+// committed (MAIR-428): the repository is public. `JWT` still overrides it.
+function signJwt(sub, role, secret, ttlSeconds) {
+  const segment = (value) => encoding.b64encode(JSON.stringify(value), 'rawurl');
+  const header = segment({ alg: 'HS256', typ: 'JWT' });
+  const payload = segment({ sub: String(sub), role, exp: Math.floor(Date.now() / 1000) + ttlSeconds });
+  const signature = crypto.hmac('sha256', secret, `${header}.${payload}`, 'base64rawurl');
+  return `${header}.${payload}.${signature}`;
+}
+
+if (!__ENV.JWT && !__ENV.JWT_SECRET) {
+  throw new Error('Set JWT_SECRET (the API\'s secret) or JWT (a ready-made admin token)');
+}
+const TOKEN = __ENV.JWT || signJwt(1, 'admin', __ENV.JWT_SECRET, 2 * 3600);
 const AUTH = { Authorization: `Bearer ${TOKEN}` };
 
 const ADMIN_ID = 1;
