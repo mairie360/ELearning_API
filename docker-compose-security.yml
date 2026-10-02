@@ -136,6 +136,10 @@ services:
       <<: *common-env
       PUBLIC_URL: http://elearning.development.mairie360.fr
       JWT_SECRET: b"secret"
+      # Public test value, known to every reader of this repo: mairie360_api_lib refuses to start
+      # with it unless JWT_ALLOW_WEAK_SECRET is set. Dev/test stacks only, never a deployment, where
+      # JWT_SECRET is a random value of at least 32 bytes, distinct per instance (MAIR-428).
+      JWT_ALLOW_WEAK_SECRET: "true"
       JWT_TIMEOUT: 3600
       # Serves Swagger UI and /api-docs/openapi.json (off in production, MAIR-424).
       SWAGGER_ENABLED: "true"
@@ -173,6 +177,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./.zap/rules.tsv:/zap/wrk/rules.tsv:ro
+      - ./.zap/scan.sh:/zap/wrk/scan.sh:ro
       # OpenAPI coverage gate (MAIR-194), from the CICD checkout (see security_test.sh).
       - ./cicd-repo/tests/zap/zap_hooks.py:/zap/wrk/zap_hooks.py:ro
     # -t: the spec the API serves itself (utoipa), so ZAP imports every operation.
@@ -180,18 +185,19 @@ services:
     #   this container; send every imported request to the `elearning` service instead.
     # -c rules.tsv: informational alerts are set to IGNORE; any other alert (WARN/FAIL) makes
     #   zap-api-scan.py exit != 0, which fails the job (no -I).
-    # -z replacer: injects a static HS256 JWT (sub=1, the Admin seeded by liquibase, role=admin,
-    #   exp=2100, signed with JWT_SECRET=b"secret") on every request, so the authenticated routes
-    #   are scanned instead of answering 401.
+    # .zap/scan.sh: signs a 2-hour admin JWT (sub=1, the Admin seeded by liquibase) with
+    #   JWT_SECRET, then runs zap-api-scan.py with the arguments below plus a replacer that injects
+    #   it on every request, so the authenticated routes are scanned instead of answering 401. No
+    #   token is committed (MAIR-428).
     # --hook zap_hooks.py: OpenAPI coverage gate (mairie360/CICD tests/zap). After the scan it maps
     #   every request ZAP sent to an operation of the spec and exits 1 when an operation was never
     #   reached, or when an operation that requires `jwt` only got 401/403.
-    # -silent: no add-on update check or telemetry at daemon start (it can hang the scan with
-    #   "Failed to connect to ZAP after 600 seconds").
-    # -z is split with shlex: 'Bearer <jwt>' must stay quoted, otherwise ZAP only receives
-    #   "Bearer" and the token is read as a file name.
+    environment:
+      # Must equal the JWT_SECRET of the elearning service.
+      JWT_SECRET: b"secret"
     command:
-      - zap-api-scan.py
+      - bash
+      - /zap/wrk/scan.sh
       - -t
       - http://elearning:3006/api-docs/openapi.json
       - -f
@@ -202,5 +208,3 @@ services:
       - rules.tsv
       - --hook
       - /zap/wrk/zap_hooks.py
-      - -z
-      - "-silent -config replacer.full_list(0).description=auth -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=REQ_HEADER -config replacer.full_list(0).matchstr=Authorization -config replacer.full_list(0).regex=false -config replacer.full_list(0).replacement='Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6ImFkbWluIiwiZXhwIjo0MTAyNDQ0ODAwfQ.xCeBe_2QxRlXW8WXr3t6F69wbEHA93HbP_7l4OTJwjA'"

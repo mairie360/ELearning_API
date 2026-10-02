@@ -23,6 +23,7 @@ docker compose up --watch          # --watch syncs src/ + Cargo.* into the dev c
 # Bare cargo run needs env vars set: DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME
 #   REDIS_URL HOST PORT JWT_SECRET JWT_TIMEOUT
 #   S3_BUCKET S3_REGION S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY  (+ optional S3_PRESIGN_TTL_SECS)
+#   optional: SWAGGER_ENABLED RATE_LIMIT_PER_SECOND RATE_LIMIT_BURST RUST_LOG
 #   (see x-common-env in docker-compose.yml)
 cargo run
 
@@ -71,8 +72,15 @@ standalone copies of the base stack plus a `seeder` (`init-test.sql`) and one ex
 `security-scan` / `newman`) — they don't `extends:` the
 main compose file, so env/image changes must be mirrored into all of them.
 
-The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `security-scan` injects a static admin JWT
-(`sub=1`, signed with `JWT_SECRET=b"secret"`, see the comment in `docker-compose-security.yml`) on every request,
+`mairie360_api_lib` (2.0+) refuses to start with a missing, short (< 32 bytes) or well-known `JWT_SECRET`. The four
+compose stacks keep the public test value `b"secret"` and set `JWT_ALLOW_WEAK_SECRET: "true"` next to it; a
+deployment never sets that variable and gets its own random secret, distinct per instance. **No JWT is committed**
+(MAIR-428): the Postman pre-request script, `load-test.js` (k6 `JWT_SECRET` env) and `.zap/scan.sh` (the
+`security-scan` entry point) each sign a short-lived token at startup from the stack's secret — keep their
+`JWT_SECRET` equal to the `elearning` service's.
+
+The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `.zap/scan.sh` signs a 2-hour admin JWT
+(`sub=1`) and runs `zap-api-scan.py` with a replacer injecting it on every request,
 waits for the `seeder` service (the same `init-test.sql`, which also makes user 2 a plain `User` account; user 1 is
 the Admin created by liquibase) and fails on any alert not set to `IGNORE` / `OUTOFSCOPE` in `.zap/rules.tsv` (no
 `-I`, file shared by every API). `-O http://elearning:3006` is required: the spec's `servers` are unreachable from
