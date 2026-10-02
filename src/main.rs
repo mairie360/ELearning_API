@@ -3,17 +3,13 @@ use actix_web::{middleware, web, App, HttpServer};
 use std::sync::Arc;
 
 use elearning_api::database::pg_url::build_pg_url;
-use elearning_api::endpoints::swagger::ApiDoc;
-use elearning_api::endpoints::{config, health, hello, ready};
+use elearning_api::endpoints::{config, health, ready, swagger};
 use elearning_api::logging;
 use elearning_api::storage::{FileStorage, S3FileStorage};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
 use mairie360_api_lib::security::JwtMiddleware;
 use mairie360_api_lib::state::AppState;
-
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 /// Attempts of the startup check, 2 s apart.
 const STARTUP_POSTGRES_ATTEMPTS: u32 = 15;
@@ -61,21 +57,20 @@ async fn main() -> std::io::Result<()> {
     let port = get_critical_env_var("PORT");
     let bind_address = format!("{}:{}", host, port);
 
+    let swagger_enabled = swagger::is_enabled();
+    log::info!("Swagger UI and /api-docs/openapi.json mounted: {swagger_enabled}");
+
     let server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
             .wrap(middleware::Logger::default())
             // Every response is JSON or plain text: forbid browsers from sniffing it as HTML.
             .wrap(middleware::DefaultHeaders::new().add(("X-Content-Type-Options", "nosniff")))
-            // 1. Swagger UI and API docs (public)
-            .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}")
-                    .url("/api-docs/openapi.json", ApiDoc::openapi()),
-            )
+            // 1. Swagger UI and API docs (public), only with SWAGGER_ENABLED=true
+            .configure(|cfg| swagger::config(cfg, swagger_enabled))
             // 2. Public endpoints
             .service(health::health)
             .service(ready::ready)
-            .service(hello::hello)
             // 3. Endpoints protected by a JWT
             .service(
                 web::scope("/api")
