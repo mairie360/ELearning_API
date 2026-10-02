@@ -3,6 +3,7 @@ use actix_web::{delete, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
+use crate::database::admin::users::purge_user_formation_progress::view::PurgeUserFormationProgressQueryView;
 use crate::database::admin::users::unsub_user_formation::view::{
     UnsubUserFormationQueryView, UnsubUserFormationRow,
 };
@@ -46,20 +47,27 @@ async fn trigger_unsub_formation(
     formation_id: u64,
     user_id: u64,
 ) -> Result<(), UnsubFormationError> {
-    let view = UnsubUserFormationQueryView::new(user_id, formation_id);
-    let outcome: UnsubUserFormationRow =
-        state
-            .get_smart_db()
-            .fetch_one(&view)
-            .await
-            .map_err(log_error(
-                "trigger_unsub_formation",
-                UnsubFormationError::DatabaseError,
-            ))?;
+    let db_error = || {
+        log_error(
+            "trigger_unsub_formation",
+            UnsubFormationError::DatabaseError,
+        )
+    };
 
+    // Two statements in one transaction (MAIR-420), see
+    // `UnsubUserFormationQueryView`. Returning early drops the transaction,
+    // which rolls it back.
+    let mut tx = state.get_smart_db().begin().await.map_err(db_error())?;
+
+    let view = UnsubUserFormationQueryView::new(user_id, formation_id);
+    let outcome: UnsubUserFormationRow = tx.fetch_one(&view).await.map_err(db_error())?;
     if !outcome.unregistered() {
         return Err(UnsubFormationError::NotEnrolled);
     }
+
+    let purge = PurgeUserFormationProgressQueryView::new(user_id, formation_id);
+    tx.execute(&purge).await.map_err(db_error())?;
+    tx.commit().await.map_err(db_error())?;
     Ok(())
 }
 
@@ -70,7 +78,7 @@ async fn trigger_unsub_formation(
     description = "Removes the enrolment of an agent in a formation. Inverse operation of \
                    `POST /api/v1/admin/formations/{formation_id}/`.\n\n\
                    The progress of the agent on this formation (completed modules) is deleted \
-                   with the enrolment, in the same statement; their progress on other \
+                   with the enrolment, in the same transaction; their progress on other \
                    formations is untouched. Enrolling the agent again starts from scratch, with \
                    the `NotStarted` status.\n\n\
                    Not idempotent: unenrolling an agent who is not enrolled (or from an unknown \
