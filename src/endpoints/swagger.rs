@@ -1,11 +1,37 @@
 use crate::endpoints::health::HealthDoc;
-use crate::endpoints::hello::HelloDoc;
 use crate::endpoints::ready::ReadyDoc;
 use crate::endpoints::v1::doc::V1Doc;
+use actix_web::web;
+use mairie360_api_lib::env_manager::get_env_var;
 use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
+use utoipa_swagger_ui::SwaggerUi;
 
-// Dans votre ApiDoc principale
+/// Environment variable that mounts Swagger UI and the served spec.
+pub const SWAGGER_ENABLED_ENV: &str = "SWAGGER_ENABLED";
+
+/// Whether `SWAGGER_ENABLED` is `true` (or `1`). Off by default, so a
+/// deployment that does not set it (production) serves neither Swagger UI nor
+/// `/api-docs/openapi.json` (MAIR-424). The dev, ZAP and k6 stacks set it; the
+/// published contract package is built from `cargo open_api`, not from the
+/// served spec.
+pub fn is_enabled() -> bool {
+    get_env_var(SWAGGER_ENABLED_ENV).is_some_and(|value| {
+        let value = value.trim();
+        value == "1" || value.eq_ignore_ascii_case("true")
+    })
+}
+
+/// Mounts Swagger UI at `/swagger-ui/` and the spec at
+/// `/api-docs/openapi.json`, outside of any authentication, when `enabled`.
+pub fn config(cfg: &mut web::ServiceConfig, enabled: bool) {
+    if enabled {
+        cfg.service(
+            SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", ApiDoc::openapi()),
+        );
+    }
+}
+
 #[derive(OpenApi)]
 #[openapi(
     info(
@@ -78,7 +104,6 @@ Statuses returned across the API, before the handler runs:
         (path = "/api/v1", api = V1Doc),
         (path = "/", api = HealthDoc),
         (path = "/", api = ReadyDoc),
-        (path = "/", api = HelloDoc),
     ),
     modifiers(&SecurityAddon)
 )]
