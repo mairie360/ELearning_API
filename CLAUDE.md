@@ -143,12 +143,17 @@ in the same statement as the write instead (`complete_module` locks the enrolmen
 `FOR UPDATE`), so the check cannot go stale before the write (MAIR-420). Note `main.rs` registers `health`/`hello` directly (not via
 `endpoints::config`), so the real route tree under `/api` is just `v1`.
 
-Runtime code, log lines, and comments are a French/English mix (`main.rs` prints
-"Serveur démarré…"). Write new text in English and translate the French text you touch.
+Runtime code and comments are a French/English mix. Write new text in English and translate the
+French text you touch.
 
 Never swallow an error with `.map_err(|_| …)`: the endpoint error enums answer a generic body,
 so map through `crate::logging::log_error("<trigger fn>", Error::Variant)`, which logs the cause
-on stderr first (MAIR-395).
+at the `error` level first (MAIR-395). Logging goes through the `log` facade, never
+`println!`/`eprintln!`: `main.rs` calls `logging::init()`, which installs `env_logger` writing one
+JSON object per line on stderr (`ts`, `level`, `target`, `message`; the target of `log_error` is
+the trigger fn), filtered by `RUST_LOG` (default `info`, which includes actix's per-request
+`Logger` line) (MAIR-421). Map the lib's typed errors before falling back to a logged `500`, like
+`register`/`complete` turn `DbError::ForeignKeyViolation` into a `404`.
 
 ### A leaf endpoint = a `get/` (or verb-named) directory with two or three files
 

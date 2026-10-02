@@ -5,6 +5,7 @@ use std::sync::Arc;
 use elearning_api::database::pg_url::build_pg_url;
 use elearning_api::endpoints::swagger::ApiDoc;
 use elearning_api::endpoints::{config, health, hello};
+use elearning_api::logging;
 use elearning_api::storage::{FileStorage, S3FileStorage};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
@@ -18,6 +19,8 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    logging::init();
+
     let redis_url = get_critical_env_var("REDIS_URL");
     let db_user = get_critical_env_var("DB_USER");
     let db_password = get_critical_env_var("DB_PASSWORD");
@@ -42,20 +45,20 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             // Every response is JSON or plain text: forbid browsers from sniffing it as HTML.
             .wrap(middleware::DefaultHeaders::new().add(("X-Content-Type-Options", "nosniff")))
-            // 1. Swagger UI et API Docs (Public)
+            // 1. Swagger UI and API docs (public)
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}")
                     .url("/api-docs/openapi.json", ApiDoc::openapi()),
             )
-            // 2. Endpoints Publics
+            // 2. Public endpoints
             .service(health::health)
             .service(hello::hello)
-            // 3. Endpoints Protégés par JWT
+            // 3. Endpoints protected by a JWT
             .service(
                 web::scope("/api")
                     .app_data(storage_data.clone())
                     .wrap(JwtMiddleware)
-                    .configure(config), // Tes routes v1, etc.
+                    .configure(config),
             )
     })
     .bind(bind_address)?;
@@ -63,7 +66,7 @@ async fn main() -> std::io::Result<()> {
     let addr = server.addrs().first().copied();
     tokio::spawn(async move {
         if let Some(addr) = addr {
-            println!("Serveur démarré avec succès sur http://{}", addr);
+            log::info!("Server listening on http://{addr}");
         }
     });
 
