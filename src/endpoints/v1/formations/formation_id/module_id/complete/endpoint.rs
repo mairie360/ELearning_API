@@ -5,16 +5,20 @@ use mairie360_api_lib::error::ApiLibError;
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
-use crate::database::formations::complete_module::view::CompleteModuleQueryView;
+use crate::database::formations::complete_module::view::{
+    CompleteModuleQueryView, CompleteModuleRow,
+};
 use crate::endpoints::v1::formations::formation_id::module_id::access::{
     check_module_access, ModuleAccessError,
 };
 use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
+use crate::logging::log_error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompleteModuleError {
     Forbidden,
     NotFound,
+    PreviousModulesPending,
     DatabaseError,
 }
 
@@ -37,6 +41,9 @@ impl std::fmt::Display for CompleteModuleError {
             CompleteModuleError::NotFound => {
                 write!(f, "The module was not found in this formation.")
             }
+            CompleteModuleError::PreviousModulesPending => {
+                write!(f, "Complete the previous modules of this formation first.")
+            }
             CompleteModuleError::DatabaseError => {
                 write!(f, "An error occurred while accessing the database.")
             }
@@ -49,6 +56,7 @@ impl ResponseError for CompleteModuleError {
         match self {
             CompleteModuleError::Forbidden => StatusCode::FORBIDDEN,
             CompleteModuleError::NotFound => StatusCode::NOT_FOUND,
+            CompleteModuleError::PreviousModulesPending => StatusCode::CONFLICT,
             CompleteModuleError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -69,12 +77,18 @@ async fn trigger_complete_module(
     check_module_access(smart_db, user_id, formation_id, module_id).await?;
 
     let view = CompleteModuleQueryView::new(user_id, module_id);
-    smart_db.execute(view).await.map_err(|err| match err {
+    let outcome: CompleteModuleRow = smart_db.fetch_one(&view).await.map_err(|err| match err {
         // The module was deleted between the access check and the insert.
         ApiLibError::Database(DbError::ForeignKeyViolation(_)) => CompleteModuleError::NotFound,
-        _ => CompleteModuleError::DatabaseError,
+        err => log_error(
+            "trigger_complete_module",
+            CompleteModuleError::DatabaseError,
+        )(err),
     })?;
 
+    if !outcome.completed() {
+        return Err(CompleteModuleError::PreviousModulesPending);
+    }
     Ok(())
 }
 
@@ -90,11 +104,16 @@ async fn trigger_complete_module(
                    Only available to a caller enrolled in the formation (`403` otherwise, admins \
                    included). The module must belong to the formation of the path (`404` \
                    otherwise): no progress is recorded in either case.\n\n\
+                   Modules are completed in order: every module that comes before this one in \
+                   the formation (the order of `GET /api/v1/formations/{formation_id}/`) must \
+                   already be completed, otherwise the call answers `409` and records \
+                   nothing.\n\n\
                    The status of the formation is recomputed automatically in the database: it \
                    switches to `InProgress` on the first completed module, then to `Completed` \
                    once all its modules are done. There is no inverse operation to \
                    \"un-complete\" a module.\n\n\
-                   Idempotent: an already completed module also answers `200`. The response has \
+                   Idempotent: an already completed module also answers `200`, even if a \
+                   previous module is not completed. The response has \
                    an empty body.",
     responses(
         (
@@ -128,6 +147,13 @@ async fn trigger_complete_module(
             body = String,
             content_type = "text/plain",
             example = json!("The module was not found in this formation.")
+        ),
+        (
+            status = 409,
+            description = "A module that comes before this one in the formation is not completed yet. Nothing is recorded.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Complete the previous modules of this formation first.")
         ),
         (
             status = 500,

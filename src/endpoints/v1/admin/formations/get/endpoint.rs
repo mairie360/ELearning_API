@@ -11,6 +11,7 @@ use crate::endpoints::v1::admin::formations::{
     AdminFormation, AdminFormationModule, AdminModuleContent,
 };
 use crate::endpoints::v1::admin::AdminUserDetailsQuery;
+use crate::logging::log_error;
 
 fn map_content(row: AdminModuleContentRow) -> AdminModuleContent {
     AdminModuleContent::new(row.id() as u64, row.file_name(), row.file_type())
@@ -68,11 +69,15 @@ async fn trigger_get_formations(
     details: bool,
 ) -> Result<GetFormationsResultView, GetFormationsError> {
     let view = GetFormationsQueryView::new(details);
-    let rows: Vec<AdminFormationRow> = state
-        .get_smart_db()
-        .fetch_all(&view)
-        .await
-        .map_err(|_| GetFormationsError::DatabaseError)?;
+    let rows: Vec<AdminFormationRow> =
+        state
+            .get_smart_db()
+            .fetch_all(&view)
+            .await
+            .map_err(log_error(
+                "trigger_get_formations",
+                GetFormationsError::DatabaseError,
+            ))?;
 
     let formations = rows.into_iter().map(map_formation).collect();
 

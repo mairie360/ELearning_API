@@ -1,10 +1,13 @@
 use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 
-/// Unregisters a user from a course (`user_courses`). Cascades to that
-/// user's per-module progress on the same course, since `user_modules`
-/// references `course_modules` (not `user_courses`) and is left untouched;
-/// re-registering the pair therefore starts a fresh `user_courses` row while
-/// history in `user_modules` is preserved.
+/// Unregisters a user from a course and deletes, in the same statement, their
+/// per-module progress on that course: `user_modules` references
+/// `course_modules`, not `user_courses`, so nothing cascades on its own and a
+/// later re-registration would otherwise resurrect the old completions.
+/// Progress on other courses is untouched.
+///
+/// Read the result with `fetch_one` into an [`UnsubUserFormationRow`]: nothing
+/// is deleted when the user was not registered to the course.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UnsubUserFormationQueryView {
     params: Vec<QueryParam>,
@@ -31,10 +34,34 @@ impl UnsubUserFormationQueryView {
 
 impl ApiRequestDto for UnsubUserFormationQueryView {
     fn query_sql(&self) -> &'static str {
-        "DELETE FROM user_courses WHERE user_id = $1 AND course_id = $2"
+        "WITH unregistered AS ( \
+            DELETE FROM user_courses WHERE user_id = $1 AND course_id = $2 \
+            RETURNING user_id \
+         ), purged AS ( \
+            DELETE FROM user_modules um \
+            USING course_modules cm, unregistered u \
+            WHERE um.module_id = cm.id AND cm.course_id = $2 AND um.user_id = u.user_id \
+         ) \
+         SELECT to_jsonb(t) FROM ( \
+            SELECT EXISTS(SELECT 1 FROM unregistered) AS unregistered \
+         ) t"
     }
 
     fn query_params(&self) -> &[QueryParam] {
         &self.params
+    }
+}
+
+/// Outcome of an [`UnsubUserFormationQueryView`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct UnsubUserFormationRow {
+    unregistered: bool,
+}
+
+impl UnsubUserFormationRow {
+    /// `false` when the user was not registered to the course (or the course
+    /// does not exist): nothing was deleted.
+    pub fn unregistered(&self) -> bool {
+        self.unregistered
     }
 }

@@ -9,15 +9,21 @@ use mairie360_api_lib::database::db_interface::ApiRequestDto;
 
 use elearning_api::database::admin::formations::get_formation_modules::view::GetFormationModulesQueryView;
 use elearning_api::database::admin::formations::get_formations::view::GetFormationsQueryView;
-use elearning_api::database::admin::formations::register_user_to_formation::view::RegisterUserToFormationQueryView;
+use elearning_api::database::admin::formations::register_user_to_formation::view::{
+    RegisterUserToFormationQueryView, RegisterUserToFormationRow,
+};
 use elearning_api::database::admin::users::get_user_formation::view::GetUserFormationQueryView;
 use elearning_api::database::admin::users::get_user_formations::view::GetUserFormationsQueryView;
 use elearning_api::database::admin::users::get_users::view::GetUsersQueryView;
-use elearning_api::database::admin::users::unsub_user_formation::view::UnsubUserFormationQueryView;
+use elearning_api::database::admin::users::unsub_user_formation::view::{
+    UnsubUserFormationQueryView, UnsubUserFormationRow,
+};
 use elearning_api::database::formations::check_module_access::view::{
     CheckModuleAccessQueryView, ModuleAccessRow,
 };
-use elearning_api::database::formations::complete_module::view::CompleteModuleQueryView;
+use elearning_api::database::formations::complete_module::view::{
+    CompleteModuleQueryView, CompleteModuleRow,
+};
 use elearning_api::database::formations::does_course_exist::view::DoesCourseExistQueryView;
 use elearning_api::database::formations::get_attachment::view::{
     AttachmentRow, GetAttachmentQueryView,
@@ -27,7 +33,9 @@ use elearning_api::database::formations::get_my_formation_modules::view::GetMyFo
 use elearning_api::database::formations::get_my_formations::view::GetMyFormationsQueryView;
 use elearning_api::database::formations::is_enrolled::view::IsEnrolledQueryView;
 
-use elearning_api::endpoints::v1::admin::users::ProgressStatus;
+use elearning_api::endpoints::v1::admin::users::{
+    AdminUsersPageQuery, ProgressStatus, DEFAULT_USERS_PAGE_SIZE, MAX_USERS_PAGE_SIZE,
+};
 use elearning_api::endpoints::v1::formations::formation_id::module_id::get::view::FileType;
 use elearning_api::endpoints::v1::formations::get::view::Status;
 
@@ -129,6 +137,13 @@ fn complete_module_view_accessors() {
 }
 
 #[test]
+fn complete_module_row_deserializes_from_jsonb() {
+    let row: CompleteModuleRow =
+        serde_json::from_value(serde_json::json!({ "completed": true })).expect("row decodes");
+    assert!(row.completed());
+}
+
+#[test]
 fn does_course_exist_view_accessors() {
     let view = DoesCourseExistQueryView::new(7);
     assert_eq!(view.course_id(), 7);
@@ -162,15 +177,51 @@ fn register_user_to_formation_view_accessors() {
     assert!(view.query_sql().contains("ON CONFLICT"));
 }
 
+#[test]
+fn register_user_to_formation_row_deserializes_from_jsonb() {
+    let row: RegisterUserToFormationRow = serde_json::from_value(serde_json::json!({
+        "user_exists": true,
+        "course_exists": false,
+    }))
+    .expect("row decodes");
+    assert!(row.user_exists());
+    assert!(!row.course_exists());
+}
+
 // ---------------------------------------------------------------------------
 // admin::users
 // ---------------------------------------------------------------------------
 
 #[test]
 fn get_users_view_sql() {
-    let view = GetUsersQueryView::new();
+    let view = GetUsersQueryView::new(50, 100);
     assert!(view.query_sql().contains("is_archived = FALSE"));
-    assert!(view.query_params().is_empty());
+    assert!(view.query_sql().contains("LIMIT $1 OFFSET $2"));
+    assert_eq!(view.query_params()[0].as_i64(), 50);
+    assert_eq!(view.query_params()[1].as_i64(), 100);
+}
+
+fn users_page(query: serde_json::Value) -> AdminUsersPageQuery {
+    serde_json::from_value(query).expect("query decodes")
+}
+
+#[test]
+fn users_page_query_defaults() {
+    let page = users_page(serde_json::json!({}));
+    assert_eq!(page.limit(), DEFAULT_USERS_PAGE_SIZE);
+    assert_eq!(page.offset(), 0);
+}
+
+#[test]
+fn users_page_query_bounds_the_limit() {
+    assert_eq!(
+        users_page(serde_json::json!({ "limit": 10_000 })).limit(),
+        MAX_USERS_PAGE_SIZE
+    );
+    assert_eq!(users_page(serde_json::json!({ "limit": 0 })).limit(), 1);
+    let page = users_page(serde_json::json!({ "limit": 20, "offset": 40 }));
+    assert_eq!(page.limit(), 20);
+    assert_eq!(page.offset(), 40);
 }
 
 #[test]
@@ -186,6 +237,13 @@ fn get_user_formation_view_accessors() {
     assert_eq!(view.formation_id(), 1);
     assert_eq!(view.user_id(), 2);
     assert!(view.details());
+}
+
+#[test]
+fn unsub_user_formation_row_deserializes_from_jsonb() {
+    let row: UnsubUserFormationRow =
+        serde_json::from_value(serde_json::json!({ "unregistered": false })).expect("row decodes");
+    assert!(!row.unregistered());
 }
 
 #[test]

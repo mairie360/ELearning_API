@@ -9,6 +9,7 @@ use crate::database::formations::get_my_formation_modules::view::{
 use crate::database::formations::is_enrolled::view::IsEnrolledQueryView;
 use crate::endpoints::v1::formations::formation_id::get::view::{GetFormationResponseView, Module};
 use crate::endpoints::v1::formations::formation_id::FormationIdParams;
+use crate::logging::log_error;
 
 fn map_module(row: FormationModuleRow) -> Module {
     Module {
@@ -69,16 +70,19 @@ async fn trigger_get_my_formation_by_id(
     let enrolled: bool = smart_db
         .fetch_scalar(&IsEnrolledQueryView::new(user_id, formation_id))
         .await
-        .map_err(|_| GetMeFormationByIdError::DatabaseError)?;
+        .map_err(log_error(
+            "trigger_get_my_formation_by_id",
+            GetMeFormationByIdError::DatabaseError,
+        ))?;
     if !enrolled {
         return Err(GetMeFormationByIdError::Forbidden);
     }
 
     let view = GetMyFormationModulesQueryView::new(formation_id, user_id);
-    let rows: Vec<FormationModuleRow> = smart_db
-        .fetch_all(&view)
-        .await
-        .map_err(|_| GetMeFormationByIdError::DatabaseError)?;
+    let rows: Vec<FormationModuleRow> = smart_db.fetch_all(&view).await.map_err(log_error(
+        "trigger_get_my_formation_by_id",
+        GetMeFormationByIdError::DatabaseError,
+    ))?;
 
     let modules = rows.into_iter().map(map_module).collect();
 

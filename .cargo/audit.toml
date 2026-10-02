@@ -1,7 +1,22 @@
 [advisories]
+# Every ignored advisory has no patched version reachable from this crate and
+# is not exploitable through the way the API uses the dependency. Re-check them
+# when bumping `actix-web`, `mairie360_api_lib` or `rust-s3`.
 ignore = [
+    # rsa (Marvin timing attack), pulled by jsonwebtoken through
+    # mairie360_api_lib. No patched release exists. The API only verifies HS256
+    # JWTs and never handles RSA keys. Shared with every API.
     "RUSTSEC-2023-0071",
+    # h2 0.3 (unbounded empty DATA frames), pulled by actix-http 3. Only HTTP/2 is affected: main.rs listens with a plain
+    # `HttpServer::bind` (no TLS/ALPN, no `bind_auto_h2c`), whose service only
+    # speaks HTTP/1.x, so the h2 code is never reached. Shared with every API.
     "RUSTSEC-2026-0258",
+    # quick-xml 0.38 (quadratic duplicate-attribute check, NsReader namespace
+    # allocation), pulled by rust-s3 0.37.2, the latest release, which pins
+    # quick-xml below the fixed 0.41. quick-xml only parses XML responses
+    # from S3 (and STS through aws-creds). The API only presigns URLs, a
+    # local computation that sends no request and parses no XML
+    # (src/storage/file_storage.rs). Specific to this API.
     "RUSTSEC-2026-0194",
-    "RUSTSEC-2026-0195"
+    "RUSTSEC-2026-0195",
 ]
