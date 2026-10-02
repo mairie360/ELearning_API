@@ -8,6 +8,7 @@ pub mod admin_reads;
 pub mod enrolment;
 pub mod formation_access;
 pub mod module_access;
+pub mod rate_limit;
 pub mod readiness;
 
 use std::sync::{Arc, Mutex, Once};

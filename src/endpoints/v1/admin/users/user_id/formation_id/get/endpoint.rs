@@ -143,6 +143,13 @@ async fn trigger_get_user_formation(
             example = json!("Jeton expiré")
         ),
         (
+            status = 429,
+            description = "The caller exceeded their request quota (per user, `RATE_LIMIT_PER_SECOND` / `RATE_LIMIT_BURST`). `Retry-After` gives the seconds to wait.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Too many requests, retry in 1 s.")
+        ),
+        (
             status = 403,
             description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
             body = String,

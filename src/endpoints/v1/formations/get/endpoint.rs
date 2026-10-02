@@ -96,6 +96,13 @@ async fn trigger_get_my_formations(
             example = json!("Jeton expiré")
         ),
         (
+            status = 429,
+            description = "The caller exceeded their request quota (per user, `RATE_LIMIT_PER_SECOND` / `RATE_LIMIT_BURST`). `Retry-After` gives the seconds to wait.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Too many requests, retry in 1 s.")
+        ),
+        (
             status = 500,
             description = "Erreur de base de données.",
             body = String,
