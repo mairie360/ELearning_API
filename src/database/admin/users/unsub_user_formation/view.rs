@@ -1,13 +1,16 @@
 use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 
-/// Unregisters a user from a course and deletes, in the same statement, their
-/// per-module progress on that course: `user_modules` references
-/// `course_modules`, not `user_courses`, so nothing cascades on its own and a
-/// later re-registration would otherwise resurrect the old completions.
-/// Progress on other courses is untouched.
+/// Unregisters a user from a course. Read the result with `fetch_one` into an
+/// [`UnsubUserFormationRow`]: nothing is deleted when the user was not
+/// registered to the course.
 ///
-/// Read the result with `fetch_one` into an [`UnsubUserFormationRow`]: nothing
-/// is deleted when the user was not registered to the course.
+/// The user's per-module progress on the course is deleted afterwards by
+/// [`PurgeUserFormationProgressQueryView`], **in the same transaction and in a
+/// second statement** (MAIR-420): this `DELETE` waits for a completion in flight
+/// (`CompleteModuleQueryView` holds the enrolment row `FOR SHARE`), and only a
+/// statement started after that wait sees the progress it wrote.
+///
+/// [`PurgeUserFormationProgressQueryView`]: crate::database::admin::users::purge_user_formation_progress::view::PurgeUserFormationProgressQueryView
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UnsubUserFormationQueryView {
     params: Vec<QueryParam>,
@@ -37,10 +40,6 @@ impl ApiRequestDto for UnsubUserFormationQueryView {
         "WITH unregistered AS ( \
             DELETE FROM user_courses WHERE user_id = $1 AND course_id = $2 \
             RETURNING user_id \
-         ), purged AS ( \
-            DELETE FROM user_modules um \
-            USING course_modules cm, unregistered u \
-            WHERE um.module_id = cm.id AND cm.course_id = $2 AND um.user_id = u.user_id \
          ) \
          SELECT to_jsonb(t) FROM ( \
             SELECT EXISTS(SELECT 1 FROM unregistered) AS unregistered \

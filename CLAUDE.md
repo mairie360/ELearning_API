@@ -135,10 +135,12 @@ returns `"Hello, world!"`) + Swagger UI at `/swagger-ui/` (spec served at
 `/v1/formations/{formation_id}` requires the caller to be enrolled in the formation (admins
 included — they enrol themselves through the admin route), otherwise `403`; an unknown formation
 also gets `403`, never `404`, so these routes do not reveal which formation ids exist.
-`formation_id/get` checks it with the query `formations::is_enrolled`; every route under
-`{module_id}` calls `module_id::access::check_module_access` (query
+`formation_id/get` checks it with the query `formations::is_enrolled`; the read routes under
+`{module_id}` call `module_id::access::check_module_access` (query
 `formations::check_module_access`), which then answers `404` when the module does not belong to
-the formation. A new route under either segment must run the same check. Note `main.rs` registers `health`/`hello` directly (not via
+the formation. A new route under either segment must run the same check — a **write** runs it
+in the same statement as the write instead (`complete_module` locks the enrolment row
+`FOR SHARE`), so the check cannot go stale before the write (MAIR-420). Note `main.rs` registers `health`/`hello` directly (not via
 `endpoints::config`), so the real route tree under `/api` is just `v1`.
 
 Runtime code, log lines, and comments are a French/English mix (`main.rs` prints
@@ -219,9 +221,13 @@ an empty list (`formations::does_course_exist`, the lib's own
 own error enum — except before a write: a check-then-write pair is racy, so the writes fold
 their checks into the same statement (a top-level data-modifying `WITH`, read with `fetch_one`
 into an outcome row): `register_user_to_formation` (user/course existence),
-`unsub_user_formation` (enrolment, plus deleting the course's `user_modules`) and
-`complete_module` (every previous module, by `sort_order` then `id`, must be completed, else
-`409`).
+`unsub_user_formation` (enrolment) and `complete_module` (enrolment, module in the formation,
+and every previous module, by `sort_order` then `id`, completed, else `409`). When an operation
+really needs several statements, run them in one `state.get_smart_db().begin()` transaction
+(API_lib ≥ 2.0.0; dropping it without `commit()` rolls back): the unenrolment deletes the
+enrolment, then purges the course's `user_modules` with `purge_user_formation_progress` in a
+second statement, whose fresh snapshot sees a completion that committed while the first one
+waited on its lock.
 
 ### File storage — `src/storage/` (Scaleway Object Storage / S3)
 

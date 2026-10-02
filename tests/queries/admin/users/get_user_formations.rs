@@ -35,7 +35,8 @@ async fn test_get_user_formations_reports_progress_status() {
     assert_eq!(course.progress_status(), "not_started");
     assert!(course.modules().is_none());
 
-    let complete_view = CompleteModuleQueryView::new(alice_id as u64, module_id as u64);
+    let complete_view =
+        CompleteModuleQueryView::new(alice_id as u64, course_id as u64, module_id as u64);
     db.execute(complete_view)
         .await
         .expect("failed to complete module");
