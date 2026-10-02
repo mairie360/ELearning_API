@@ -136,7 +136,7 @@ fn complete_module_view_accessors() {
     assert_eq!(view.formation_id(), 2);
     assert_eq!(view.module_id(), 3);
     assert!(view.query_sql().contains("ON CONFLICT"));
-    assert!(view.query_sql().contains("FOR SHARE"));
+    assert!(view.query_sql().contains("FOR UPDATE"));
 }
 
 #[test]

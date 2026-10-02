@@ -117,7 +117,7 @@ async fn test_unsub_user_formation_reports_when_not_registered() {
 }
 
 /// MAIR-420: a completion still in flight when the unenrolment starts must not
-/// survive it. The completion holds the enrolment row `FOR SHARE`, so the
+/// survive it. The completion locks the enrolment row `FOR UPDATE`, so the
 /// unenrolment waits for it, then purges the progress it wrote.
 #[tokio::test]
 async fn test_unsub_user_formation_purges_a_completion_in_flight() {

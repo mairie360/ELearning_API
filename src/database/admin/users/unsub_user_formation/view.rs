@@ -7,7 +7,7 @@ use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 /// The user's per-module progress on the course is deleted afterwards by
 /// [`PurgeUserFormationProgressQueryView`], **in the same transaction and in a
 /// second statement** (MAIR-420): this `DELETE` waits for a completion in flight
-/// (`CompleteModuleQueryView` holds the enrolment row `FOR SHARE`), and only a
+/// (`CompleteModuleQueryView` locks the enrolment row `FOR UPDATE`), and only a
 /// statement started after that wait sees the progress it wrote.
 ///
 /// [`PurgeUserFormationProgressQueryView`]: crate::database::admin::users::purge_user_formation_progress::view::PurgeUserFormationProgressQueryView

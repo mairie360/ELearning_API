@@ -10,13 +10,16 @@ use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 ///
 /// The access check, the order check and the upsert run as a single statement
 /// (MAIR-420), so the check cannot go stale before the write. The enrolment row
-/// is read `FOR SHARE`: an unenrolment in flight
+/// is locked `FOR UPDATE`: an unenrolment in flight
 /// (`UnsubUserFormationQueryView`) either waits for this statement to commit,
 /// then deletes the progress it wrote, or commits first, in which case this
 /// statement finds no enrolment and writes nothing. Read the result with
 /// `fetch_one` into a [`CompleteModuleRow`]. The database-side trigger
 /// (`fn_update_user_course_progress`) rolls the completion up into the parent
-/// `user_courses` status.
+/// `user_courses` row, which it updates: that is why the lock is exclusive. With
+/// `FOR SHARE`, two completions of the same user both held the shared lock,
+/// then each waited for the other one in the trigger (deadlock); with
+/// `FOR UPDATE` they queue.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CompleteModuleQueryView {
     params: Vec<QueryParam>,
@@ -51,7 +54,7 @@ impl ApiRequestDto for CompleteModuleQueryView {
         // A data-modifying CTE must sit at the top level, hence the `WITH`
         // around the usual `to_jsonb(t)` select.
         "WITH enrolment AS ( \
-            SELECT 1 FROM user_courses WHERE user_id = $1 AND course_id = $2 FOR SHARE \
+            SELECT 1 FROM user_courses WHERE user_id = $1 AND course_id = $2 FOR UPDATE \
          ), state AS ( \
             SELECT \
                 EXISTS(SELECT 1 FROM enrolment) AS enrolled, \
