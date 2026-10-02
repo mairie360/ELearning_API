@@ -165,3 +165,31 @@ async fn test_complete_module_outside_the_course_writes_nothing() {
         assert!(!row.completed());
     }
 }
+
+/// MAIR-420: concurrent completions by the same user lock the same enrolment
+/// row, which `fn_update_user_course_progress` then updates. A shared lock
+/// there deadlocked them (k6, two write VUs): they must queue instead.
+#[tokio::test]
+async fn test_concurrent_completions_of_the_same_user_do_not_deadlock() {
+    let (_container, host) = get_shared_db().await;
+    let db = get_smart_db(host.to_string()).await;
+    let user_id = create_user(&db).await;
+
+    let course_id = create_course(&db, "RGPD", "Comprendre le RGPD").await;
+    let module_id = create_module(&db, course_id, "Module 1", "Contenu 1", 1).await;
+    enrol(&db, user_id, course_id).await;
+
+    let tasks: Vec<_> = (0..16)
+        .map(|_| {
+            let db = db.clone();
+            tokio::spawn(async move { complete(&db, user_id, course_id, module_id).await })
+        })
+        .collect();
+    for task in tasks {
+        let row = task
+            .await
+            .expect("task panicked")
+            .expect("completion failed");
+        assert!(row.completed());
+    }
+}

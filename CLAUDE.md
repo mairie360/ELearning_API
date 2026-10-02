@@ -140,7 +140,7 @@ also gets `403`, never `404`, so these routes do not reveal which formation ids 
 `formations::check_module_access`), which then answers `404` when the module does not belong to
 the formation. A new route under either segment must run the same check — a **write** runs it
 in the same statement as the write instead (`complete_module` locks the enrolment row
-`FOR SHARE`), so the check cannot go stale before the write (MAIR-420). Note `main.rs` registers `health`/`hello` directly (not via
+`FOR UPDATE`), so the check cannot go stale before the write (MAIR-420). Note `main.rs` registers `health`/`hello` directly (not via
 `endpoints::config`), so the real route tree under `/api` is just `v1`.
 
 Runtime code, log lines, and comments are a French/English mix (`main.rs` prints
