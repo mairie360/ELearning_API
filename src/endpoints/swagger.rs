@@ -79,6 +79,7 @@ Statuses returned across the API, before the handler runs:
 | `400` | A path segment is not an integer, or the JSON body is malformed. |
 | `401` | `Authorization` header missing or malformed, invalid or expired JWT, or revoked session. |
 | `403` | `/api/v1/admin/…` only: the caller is not an admin. |
+| `429` | The caller sent too many requests: every `/api` route is rate limited per user. `Retry-After` gives the seconds to wait. |
 | `500` | Database or Redis failure. |
 ",
         contact(

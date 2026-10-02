@@ -34,9 +34,8 @@ use elearning_api::database::formations::get_my_formation_modules::view::GetMyFo
 use elearning_api::database::formations::get_my_formations::view::GetMyFormationsQueryView;
 use elearning_api::database::formations::is_enrolled::view::IsEnrolledQueryView;
 
-use elearning_api::endpoints::v1::admin::users::{
-    AdminUsersPageQuery, ProgressStatus, DEFAULT_USERS_PAGE_SIZE, MAX_USERS_PAGE_SIZE,
-};
+use elearning_api::endpoints::v1::admin::users::ProgressStatus;
+use elearning_api::endpoints::v1::admin::{AdminPageQuery, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE};
 use elearning_api::endpoints::v1::formations::formation_id::module_id::get::view::FileType;
 use elearning_api::endpoints::v1::formations::get::view::Status;
 
@@ -165,9 +164,10 @@ fn does_course_exist_view_accessors() {
 
 #[test]
 fn get_formations_view_accessors() {
-    let view = GetFormationsQueryView::new(true);
+    let view = GetFormationsQueryView::new(true, 50, 0);
     assert!(view.details());
-    let view = GetFormationsQueryView::new(false);
+    assert!(view.query_sql().contains("LIMIT $2 OFFSET $3"));
+    let view = GetFormationsQueryView::new(false, 50, 0);
     assert!(!view.details());
 }
 
@@ -210,14 +210,14 @@ fn get_users_view_sql() {
     assert_eq!(view.query_params()[1].as_i64(), 100);
 }
 
-fn users_page(query: serde_json::Value) -> AdminUsersPageQuery {
+fn users_page(query: serde_json::Value) -> AdminPageQuery {
     serde_json::from_value(query).expect("query decodes")
 }
 
 #[test]
 fn users_page_query_defaults() {
     let page = users_page(serde_json::json!({}));
-    assert_eq!(page.limit(), DEFAULT_USERS_PAGE_SIZE);
+    assert_eq!(page.limit(), DEFAULT_PAGE_SIZE);
     assert_eq!(page.offset(), 0);
 }
 
@@ -225,7 +225,7 @@ fn users_page_query_defaults() {
 fn users_page_query_bounds_the_limit() {
     assert_eq!(
         users_page(serde_json::json!({ "limit": 10_000 })).limit(),
-        MAX_USERS_PAGE_SIZE
+        MAX_PAGE_SIZE
     );
     assert_eq!(users_page(serde_json::json!({ "limit": 0 })).limit(), 1);
     let page = users_page(serde_json::json!({ "limit": 20, "offset": 40 }));

@@ -1,3 +1,4 @@
+use actix_governor::Governor;
 use actix_web::{middleware, web, App, HttpServer};
 
 use std::sync::Arc;
@@ -5,6 +6,7 @@ use std::sync::Arc;
 use elearning_api::database::pg_url::build_pg_url;
 use elearning_api::endpoints::{config, health, ready, swagger};
 use elearning_api::logging;
+use elearning_api::rate_limit;
 use elearning_api::storage::{FileStorage, S3FileStorage};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
@@ -57,6 +59,9 @@ async fn main() -> std::io::Result<()> {
     let port = get_critical_env_var("PORT");
     let bind_address = format!("{}:{}", host, port);
 
+    // Built once so that every worker shares the same per-user buckets.
+    let rate_limit = rate_limit::config_from_env();
+
     let swagger_enabled = swagger::is_enabled();
     log::info!("Swagger UI and /api-docs/openapi.json mounted: {swagger_enabled}");
 
@@ -75,6 +80,8 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api")
                     .app_data(storage_data.clone())
+                    // Inside JwtMiddleware: the limiter keys on the authenticated user.
+                    .wrap(Governor::new(&rate_limit))
                     .wrap(JwtMiddleware)
                     .configure(config),
             )

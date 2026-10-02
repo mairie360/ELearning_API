@@ -42,14 +42,32 @@ async fn admin_reads_the_catalogue_and_a_formation() {
     )
     .await;
 
-    let body = get_json!(app, "/api/v1/admin/formations/?details=true");
-    let course = body["formations"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|f| f["id"] == course_id)
-        .expect("created course missing from the catalogue");
-    assert_eq!(course["modules"][0]["id"], module_id);
+    // The catalogue is paginated (MAIR-425) and the test database keeps the
+    // courses of every test: walk the pages until the created course shows up.
+    let mut course = None;
+    for page in 0.. {
+        let body = get_json!(
+            app,
+            &format!(
+                "/api/v1/admin/formations/?details=true&limit=200&offset={}",
+                page * 200
+            )
+        );
+        let formations = body["formations"].as_array().unwrap().clone();
+        assert!(formations.len() <= 200);
+        if let Some(found) = formations.iter().find(|f| f["id"] == course_id) {
+            course = Some(found.clone());
+            break;
+        }
+        assert!(
+            !formations.is_empty(),
+            "created course missing from the catalogue"
+        );
+    }
+    assert_eq!(course.unwrap()["modules"][0]["id"], module_id);
+
+    let body = get_json!(app, "/api/v1/admin/formations/?limit=1");
+    assert_eq!(body["formations"].as_array().unwrap().len(), 1);
 
     let body = get_json!(app, &format!("/api/v1/admin/formations/{course_id}/"));
     assert_eq!(body["modules"][0]["id"], module_id);
