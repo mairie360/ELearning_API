@@ -36,7 +36,7 @@ cargo test <name> -- --exact      # single test, exact match
 cargo test --test views           # fast: view/QueryView unit tests, no Docker needed
 cargo test --test integration_test  # DB-backed query + handler tests (needs Docker, see below)
 
-cargo cov_test       # alias: llvm-cov --workspace --ignore-filename-regex 'endpoints|main\.rs|lib\.rs' --fail-under-lines 60
+cargo cov_test       # alias: llvm-cov --workspace --ignore-filename-regex 'main\.rs|lib\.rs' --fail-under-lines 60
 cargo cov            # same, plus --codecov --output-path codecov.json               (CI gate)
 
 cargo open_api > openapi.json     # alias: run --example generate_openapi (prints OpenAPI JSON)
@@ -108,8 +108,9 @@ shared across the whole test binary), and seeds a handful of users (`ALICE_ID`, 
 `ADMIN_ID`, `GROUP_OWNER_ID`). Only `users`/`sessions`/`groups`/`access_control` are truncated
 between runs — `courses`/`course_modules`/`course_attachments` accumulate, so each test creates
 its own course/module/attachment rows (see `tests/queries/fixtures.rs`) instead of assuming a
-clean table. `cargo cov_test` excludes `endpoints/`, `main.rs`, and `lib.rs` from the coverage
-count — it's meant to grade the `src/database/` query layer, not the actix wiring around it.
+clean table. `cargo cov_test` only excludes `main.rs` and `lib.rs` from the coverage count:
+`endpoints/` holds every authorization and validation rule, so it is graded too (MAIR-419), and
+every refusal (non-admin, not enrolled, archived account, encoded path) has a handler test.
 
 The same binary holds handler-level tests in `tests/endpoints/`: `init_app!` mounts `/api` exactly
 like `main.rs` (`JwtMiddleware` + `endpoints::config` + a `MockFileStorage`) over an `AppState`
