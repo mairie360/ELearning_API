@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use elearning_api::database::pg_url::build_pg_url;
 use elearning_api::endpoints::swagger::ApiDoc;
-use elearning_api::endpoints::{config, health, hello};
+use elearning_api::endpoints::{config, health, hello, ready};
 use elearning_api::logging;
 use elearning_api::storage::{FileStorage, S3FileStorage};
 
@@ -14,6 +14,27 @@ use mairie360_api_lib::state::AppState;
 
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+/// Attempts of the startup check, 2 s apart.
+const STARTUP_POSTGRES_ATTEMPTS: u32 = 15;
+
+/// Refuses to start while Postgres is unreachable (MAIR-423): the lib only
+/// logs a failed connection and keeps an empty pool, so the API would serve
+/// `500`s. Retries for ~30 s so a database that starts alongside the API is
+/// waited for.
+async fn wait_for_postgres(state: &AppState) {
+    for attempt in 1..=STARTUP_POSTGRES_ATTEMPTS {
+        if ready::check_postgres(state).await.is_ok() {
+            return;
+        }
+        log::warn!(
+            "PostgreSQL unreachable (attempt {attempt}/{STARTUP_POSTGRES_ATTEMPTS}), retrying in 2 s"
+        );
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    }
+    log::error!("PostgreSQL still unreachable, refusing to start");
+    std::process::exit(1);
+}
 
 //                                        -- MAIN FUNCTION --
 
@@ -29,6 +50,7 @@ async fn main() -> std::io::Result<()> {
     let db_name = get_critical_env_var("DB_NAME");
     let pg_url = build_pg_url(&db_user, &db_password, &db_host, &db_port, &db_name);
     let state = AppState::new(redis_url, pg_url).await;
+    wait_for_postgres(&state).await;
     let data = web::Data::new(state);
 
     let storage: Arc<dyn FileStorage> =
@@ -52,6 +74,7 @@ async fn main() -> std::io::Result<()> {
             )
             // 2. Public endpoints
             .service(health::health)
+            .service(ready::ready)
             .service(hello::hello)
             // 3. Endpoints protected by a JWT
             .service(

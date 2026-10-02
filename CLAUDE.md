@@ -55,7 +55,7 @@ npx orval                         # regenerate generated/ TS axios client from o
 The service under test in these three stacks is `image: ${IMAGE_REF}` (no `build:` block). CI sets `IMAGE_REF` to the
 published `ghcr.io/mairie360/elearning-api:dev-<sha>` image; when it is empty the scripts build `elearning-api:local` from
 `development.Dockerfile` first. That image is distroless (no shell, no curl), so readiness is an `elearning-ready` sidecar
-polling `/health`, and dependent services wait for it with `service_completed_successfully`.
+polling `/ready`, and dependent services wait for it with `service_completed_successfully`.
 
 `tests/postman/collection.json` is a Postman v2.1 collection (importable in the app) and
 `tests/postman/environment.json` its variables; the compose file overrides `baseUrl` with `--env-var` so the
@@ -126,8 +126,9 @@ Every URL path segment maps to a directory containing a `mod.rs`. Each `mod.rs`:
 - declares its submodules, and
 - exposes `pub fn config(cfg: &mut web::ServiceConfig)` that builds an actix `web::scope("/<segment>")`, registers leaf handlers with `.service(...)`, and `.configure(child::config)` for sub-scopes.
 
-`main.rs` mounts: public `/health` + `POST /` (`endpoints::hello` — a stale template stub that
-returns `"Hello, world!"`) + Swagger UI at `/swagger-ui/` (spec served at
+`main.rs` mounts: public `/health` (liveness, answers `OK` while the process runs) + `/ready`
+(readiness, `503` unless Postgres answers `SELECT 1` and Redis answers, `endpoints::ready`) +
+`POST /` (`endpoints::hello` — a stale template stub that returns `"Hello, world!"`) + Swagger UI at `/swagger-ui/` (spec served at
 `/api-docs/openapi.json`), then everything under `/api` wrapped in `JwtMiddleware`.
 `endpoints::config` → `v1::config` → `/v1` → `formations` (end-user) and `admin`
 (`admin/formations`, `admin/users`). The `/admin` scope is wrapped in the lib's
@@ -140,8 +141,10 @@ also gets `403`, never `404`, so these routes do not reveal which formation ids 
 `formations::check_module_access`), which then answers `404` when the module does not belong to
 the formation. A new route under either segment must run the same check — a **write** runs it
 in the same statement as the write instead (`complete_module` locks the enrolment row
-`FOR UPDATE`), so the check cannot go stale before the write (MAIR-420). Note `main.rs` registers `health`/`hello` directly (not via
-`endpoints::config`), so the real route tree under `/api` is just `v1`.
+`FOR UPDATE`), so the check cannot go stale before the write (MAIR-420). `main.rs` registers `health`/`ready`/`hello` directly (not via
+`endpoints::config`), so the real route tree under `/api` is just `v1`. Before serving, `main.rs`
+waits up to ~30 s for Postgres (`wait_for_postgres`) and exits otherwise: the lib only logs a
+failed connection (MAIR-423).
 
 Runtime code and comments are a French/English mix. Write new text in English and translate the
 French text you touch.

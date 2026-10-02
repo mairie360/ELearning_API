@@ -1,21 +1,20 @@
 use actix_web::{get, HttpResponse, Responder};
 use utoipa::OpenApi;
 
-/** * Handles a GET request to the /health endpoint.
- * Responds with a simple "OK" message to indicate the service is healthy.
- */
+/// Liveness probe: the process accepts connections. See `ready` for the
+/// readiness probe, which checks the dependencies.
 #[utoipa::path(
     get,
     path = "health",
-    summary = "Sonde de vivacité",
-    description = "Répond `OK` dès que le processus accepte des connexions. Route non \
-                   authentifiée, utilisée comme healthcheck par Docker et Kubernetes. Elle ne \
-                   vérifie ni la base de données ni Redis : un `200` ne garantit donc pas que les \
-                   dépendances du service soient joignables.",
+    summary = "Liveness probe",
+    description = "Answers `OK` as soon as the process accepts connections. Unauthenticated \
+                   route, used as the liveness probe by Kubernetes. It checks neither the \
+                   database nor Redis, so that an outage of a dependency does not get the pod \
+                   restarted: `GET /ready` is the probe that checks them.",
     responses(
         (
             status = 200,
-            description = "Le service accepte des connexions.",
+            description = "The service accepts connections.",
             body = String,
             content_type = "text/plain",
             example = json!("OK")
