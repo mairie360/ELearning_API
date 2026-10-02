@@ -140,6 +140,9 @@ services:
       JWT_TIMEOUT: 3600
       # Serves Swagger UI and /api-docs/openapi.json (off in production, MAIR-424).
       SWAGGER_ENABLED: "true"
+      # k6 hammers the API as a single admin: lift the per-user rate limit (MAIR-425).
+      RATE_LIMIT_PER_SECOND: 100000
+      RATE_LIMIT_BURST: 100000
     depends_on:
       liquibase:
         condition: service_completed_successfully

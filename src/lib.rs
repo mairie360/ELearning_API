@@ -9,4 +9,5 @@
 pub mod database;
 pub mod endpoints;
 pub mod logging;
+pub mod rate_limit;
 pub mod storage;

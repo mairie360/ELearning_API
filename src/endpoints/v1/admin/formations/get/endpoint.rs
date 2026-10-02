@@ -11,7 +11,7 @@ use crate::endpoints::v1::admin::formations::get::view::GetFormationsResultView;
 use crate::endpoints::v1::admin::formations::{
     AdminFormation, AdminFormationModule, AdminModuleContent,
 };
-use crate::endpoints::v1::admin::AdminUserDetailsQuery;
+use crate::endpoints::v1::admin::{AdminPageQuery, AdminUserDetailsQuery};
 use crate::logging::log_error;
 
 fn map_content(row: AdminModuleContentRow) -> AdminModuleContent {
@@ -68,8 +68,9 @@ impl ResponseError for GetFormationsError {
 async fn trigger_get_formations(
     state: web::Data<AppState>,
     details: bool,
+    page: &AdminPageQuery,
 ) -> Result<GetFormationsResultView, GetFormationsError> {
-    let view = GetFormationsQueryView::new(details);
+    let view = GetFormationsQueryView::new(details, page.limit(), page.offset());
     let rows: Vec<AdminFormationRow> =
         state
             .get_smart_db()
@@ -89,21 +90,25 @@ async fn trigger_get_formations(
     get,
     params(
         AdminUserDetailsQuery,
+        AdminPageQuery,
     ),
     path = "",
-    summary = "Lister le catalogue des formations",
-    description = "Renvoie toutes les formations de la plateforme, indépendamment des inscriptions \
-                   de l'appelant — contrairement à `GET /api/v1/formations/`, qui ne montre que \
-                   les siennes.\n\n\
-                   `details=true` fait descendre la réponse jusqu'aux modules et à leurs pièces \
-                   jointes en une seule requête. Sans ce paramètre, `modules` est `null` et non un \
-                   tableau vide : l'information n'a pas été demandée, ce n'est pas une formation \
-                   sans module.\n\n\
+    summary = "List the formation catalogue",
+    description = "Returns one page of the formations of the platform, in `id` order, whatever \
+                   the enrolments of the caller — unlike `GET /api/v1/formations/`, which only \
+                   shows the caller's own.\n\n\
+                   Paginated: `limit` (default 50, capped to 200) and `offset` (default 0). A \
+                   page shorter than `limit` is the last one; an `offset` past the end returns \
+                   an empty list.\n\n\
+                   `details=true` expands the response down to the modules and their \
+                   attachments in a single query. Without it, `modules` is `null`, not an empty \
+                   array: the information was not requested, it is not a formation without \
+                   modules.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
-            description = "Catalogue complet des formations.",
+            description = "One page of the catalogue, possibly empty.",
             body = GetFormationsResultView,
             example = json!({
                 "formations": [
@@ -114,7 +119,7 @@ async fn trigger_get_formations(
         ),
         (
             status = 400,
-            description = "Paramètre `details` qui n'est pas un booléen.",
+            description = "`details` is not a boolean, or `limit` / `offset` is not a non-negative integer.",
             body = String,
             content_type = "text/plain",
             example = json!("Query deserialize error: invalid type: string \"oui\", expected a boolean")
@@ -127,6 +132,13 @@ async fn trigger_get_formations(
             example = json!("Jeton expiré")
         ),
         (
+            status = 429,
+            description = "The caller exceeded their request quota (per user, `RATE_LIMIT_PER_SECOND` / `RATE_LIMIT_BURST`). `Retry-After` gives the seconds to wait.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Too many requests, retry in 1 s.")
+        ),
+        (
             status = 403,
             description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
             body = String,
@@ -135,7 +147,7 @@ async fn trigger_get_formations(
         ),
         (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")
@@ -151,7 +163,8 @@ pub async fn get_formations(
     state: web::Data<AppState>,
     _: AuthenticatedUser,
     query: web::Query<AdminUserDetailsQuery>,
+    page: web::Query<AdminPageQuery>,
 ) -> Result<impl Responder, GetFormationsError> {
-    let formations = trigger_get_formations(state, query.details()).await?;
+    let formations = trigger_get_formations(state, query.details(), &page).await?;
     Ok(HttpResponse::Ok().json(formations))
 }
