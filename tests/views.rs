@@ -325,3 +325,9 @@ fn progress_status_from_string() {
         ProgressStatus::Error
     ));
 }
+
+#[test]
+fn ids_beyond_int4_saturate_instead_of_wrapping() {
+    let view = DoesCourseExistQueryView::new((1_u64 << 32) + 1);
+    assert_eq!(view.course_id(), i32::MAX as u64);
+}
