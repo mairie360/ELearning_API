@@ -1,17 +1,22 @@
 use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 
-/// Lists every course. When `details` is `true`, each course's modules (and
-/// each module's attachments) are aggregated as nested JSON in the same
-/// round-trip instead of running one query per course.
+/// Lists one page of the courses in `id` order. When `details` is `true`, each
+/// course's modules (and each module's attachments) are aggregated as nested
+/// JSON in the same round-trip instead of running one query per course. The
+/// caller bounds `limit`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GetFormationsQueryView {
     params: Vec<QueryParam>,
 }
 
 impl GetFormationsQueryView {
-    pub fn new(details: bool) -> Self {
+    pub fn new(details: bool, limit: u32, offset: u32) -> Self {
         Self {
-            params: vec![QueryParam::Bool(details)],
+            params: vec![
+                QueryParam::Bool(details),
+                QueryParam::I64(i64::from(limit)),
+                QueryParam::I64(i64::from(offset)),
+            ],
         }
     }
 
@@ -42,6 +47,7 @@ impl ApiRequestDto for GetFormationsQueryView {
                 ) END AS modules \
             FROM courses c \
             ORDER BY c.id \
+            LIMIT $2 OFFSET $3 \
          ) t"
     }
 
