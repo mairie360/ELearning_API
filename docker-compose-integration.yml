@@ -121,6 +121,8 @@ services:
       PUBLIC_URL: http://elearning.development.mairie360.fr
       JWT_SECRET: b"secret"
       JWT_TIMEOUT: 3600
+      # Serves Swagger UI and /api-docs/openapi.json (off in production, MAIR-424).
+      SWAGGER_ENABLED: "true"
     depends_on:
       seeder:
         condition: service_completed_successfully
