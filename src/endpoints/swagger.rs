@@ -1,5 +1,6 @@
 use crate::endpoints::health::HealthDoc;
 use crate::endpoints::hello::HelloDoc;
+use crate::endpoints::ready::ReadyDoc;
 use crate::endpoints::v1::doc::V1Doc;
 use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
@@ -71,11 +72,12 @@ Statuses returned across the API, before the handler runs:
         (name = "Formations", description = "Vue de l'agent connecté : ses formations, ses modules, sa progression et les URL de ses pièces jointes."),
         (name = "Admin - Formations", description = "Catalogue complet des formations et inscription des agents."),
         (name = "Admin - Users", description = "Progression des agents et désinscription."),
-        (name = "Service", description = "Sondes techniques non authentifiées, utilisées par Docker et Kubernetes.")
+        (name = "Service", description = "Unauthenticated technical probes used by Docker and Kubernetes: `/health` (liveness) and `/ready` (readiness).")
     ),
     nest(
         (path = "/api/v1", api = V1Doc),
         (path = "/", api = HealthDoc),
+        (path = "/", api = ReadyDoc),
         (path = "/", api = HelloDoc),
     ),
     modifiers(&SecurityAddon)

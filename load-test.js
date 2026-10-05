@@ -96,6 +96,7 @@ const spec = loadSpec();
 
 const readHandlers = {
   'GET /health': ({ request }) => check(request(), { 'health 200': (r) => r.status === 200 }),
+  'GET /ready': ({ request }) => check(request(), { 'ready 200': (r) => r.status === 200 }),
 
   // Management view.
   'GET /api/v1/admin/formations/': ({ request }) =>
