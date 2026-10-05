@@ -1,5 +1,6 @@
 use actix_web::http::StatusCode;
 use actix_web::{get, web, HttpResponse, Responder, ResponseError};
+use mairie360_api_lib::database::db_interface::id_from_sql;
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
@@ -17,12 +18,17 @@ use crate::logging::log_error;
 fn map_content(row: UserModuleContentRow) -> UsersModuleContent {
     // `course_attachments` has no per-user tracking, so files never carry a
     // `finished_at`; only whole modules do (`user_modules.completed_at`).
-    UsersModuleContent::new(row.id() as u64, row.file_name(), row.file_type(), None)
+    UsersModuleContent::new(
+        id_from_sql(row.id()),
+        row.file_name(),
+        row.file_type(),
+        None,
+    )
 }
 
 fn map_module(row: UserFormationModuleRow) -> UsersFormationModule {
     UsersFormationModule::new(
-        row.id() as u64,
+        id_from_sql(row.id()),
         row.name(),
         row.description().unwrap_or_default(),
         row.content().iter().cloned().map(map_content).collect(),
@@ -33,7 +39,7 @@ fn map_module(row: UserFormationModuleRow) -> UsersFormationModule {
 
 fn map_formation(row: UserFormationRow) -> UsersFormation {
     UsersFormation::new(
-        row.id() as u64,
+        id_from_sql(row.id()),
         row.name(),
         row.description().unwrap_or_default(),
         row.modules()

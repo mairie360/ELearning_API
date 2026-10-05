@@ -1,5 +1,6 @@
 use actix_web::http::StatusCode;
 use actix_web::{get, web, HttpResponse, Responder, ResponseError};
+use mairie360_api_lib::database::db_interface::id_from_sql;
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
@@ -13,7 +14,7 @@ use crate::logging::log_error;
 
 fn map_module(row: FormationModuleRow) -> Module {
     Module {
-        id: row.id() as u64,
+        id: id_from_sql(row.id()),
         name: row.name().to_string(),
         description: row.description().unwrap_or_default().to_string(),
         completed: row.completed(),

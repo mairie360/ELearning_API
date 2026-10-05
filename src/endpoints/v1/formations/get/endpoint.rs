@@ -1,5 +1,6 @@
 use actix_web::http::StatusCode;
 use actix_web::{get, web, HttpResponse, Responder, ResponseError};
+use mairie360_api_lib::database::db_interface::id_from_sql;
 use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
@@ -11,7 +12,7 @@ use crate::logging::log_error;
 
 fn map_formation(row: FormationSummaryRow) -> Formation {
     Formation::new(
-        row.id() as u64,
+        id_from_sql(row.id()),
         row.name(),
         row.description().unwrap_or_default(),
         Status::from(row.status().to_string()),
