@@ -1,11 +1,19 @@
 {
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "github>mairie360/renovate-config"
+  ],
+  "packageRules": [
+    {
+      "description": "The reusable workflow tag (`uses:`) and the `cicd_version` input must stay equal: bump them in one PR",
+      "matchPackageNames": ["mairie360/CICD"],
+      "groupName": "mairie360 CICD"
+    }
   ],
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^\\.github/workflows/cicd\\.yml$"],
+      "managerFilePatterns": ["/^\\.github/workflows/cicd\\.yml$/"],
       "matchStrings": [
         "cicd_version:\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
