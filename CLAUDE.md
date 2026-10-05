@@ -128,8 +128,9 @@ Every URL path segment maps to a directory containing a `mod.rs`. Each `mod.rs`:
 
 `main.rs` mounts: public `/health` (liveness, answers `OK` while the process runs) + `/ready`
 (readiness, `503` unless Postgres answers `SELECT 1` and Redis answers, `endpoints::ready`) +
-`POST /` (`endpoints::hello` — a stale template stub that returns `"Hello, world!"`) + Swagger UI at `/swagger-ui/` (spec served at
-`/api-docs/openapi.json`), then everything under `/api` wrapped in `JwtMiddleware`.
+Swagger UI at `/swagger-ui/` and the spec at `/api-docs/openapi.json` **only when
+`SWAGGER_ENABLED=true`** (`endpoints::swagger::config`; off by default, so off in production; the
+dev, ZAP and k6 compose files set it, MAIR-424), then everything under `/api` wrapped in `JwtMiddleware`.
 `endpoints::config` → `v1::config` → `/v1` → `formations` (end-user) and `admin`
 (`admin/formations`, `admin/users`). The `/admin` scope is wrapped in the lib's
 `AdminMiddleware` (`403` for a non-admin, like Core_API). Every route under
@@ -141,7 +142,7 @@ also gets `403`, never `404`, so these routes do not reveal which formation ids 
 `formations::check_module_access`), which then answers `404` when the module does not belong to
 the formation. A new route under either segment must run the same check — a **write** runs it
 in the same statement as the write instead (`complete_module` locks the enrolment row
-`FOR UPDATE`), so the check cannot go stale before the write (MAIR-420). `main.rs` registers `health`/`ready`/`hello` directly (not via
+`FOR UPDATE`), so the check cannot go stale before the write (MAIR-420). `main.rs` registers `health`/`ready` directly (not via
 `endpoints::config`), so the real route tree under `/api` is just `v1`. Before serving, `main.rs`
 waits up to ~30 s for Postgres (`wait_for_postgres`) and exits otherwise: the lib only logs a
 failed connection (MAIR-423).

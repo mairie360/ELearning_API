@@ -1,5 +1,4 @@
 pub mod health;
-pub mod hello;
 pub mod ready;
 pub mod swagger;
 pub mod v1;

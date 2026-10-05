@@ -135,7 +135,6 @@ const readHandlers = {
 };
 
 const writeHandlers = {
-  'POST /': ({ request }) => check(request(), { 'hello 200': (r) => r.status === 200 }),
 
   // Enrollment: enroll → unenroll, each VU on its own agent (see the header).
   'POST /api/v1/admin/formations/{formation_id}/': ({ request }) => {
