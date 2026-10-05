@@ -15,6 +15,7 @@ use elearning_api::database::admin::formations::register_user_to_formation::view
 use elearning_api::database::admin::users::get_user_formation::view::GetUserFormationQueryView;
 use elearning_api::database::admin::users::get_user_formations::view::GetUserFormationsQueryView;
 use elearning_api::database::admin::users::get_users::view::GetUsersQueryView;
+use elearning_api::database::admin::users::purge_user_formation_progress::view::PurgeUserFormationProgressQueryView;
 use elearning_api::database::admin::users::unsub_user_formation::view::{
     UnsubUserFormationQueryView, UnsubUserFormationRow,
 };
@@ -130,16 +131,24 @@ fn attachment_row_deserializes_from_jsonb() {
 
 #[test]
 fn complete_module_view_accessors() {
-    let view = CompleteModuleQueryView::new(1, 2);
+    let view = CompleteModuleQueryView::new(1, 2, 3);
     assert_eq!(view.user_id(), 1);
-    assert_eq!(view.module_id(), 2);
+    assert_eq!(view.formation_id(), 2);
+    assert_eq!(view.module_id(), 3);
     assert!(view.query_sql().contains("ON CONFLICT"));
+    assert!(view.query_sql().contains("FOR UPDATE"));
 }
 
 #[test]
 fn complete_module_row_deserializes_from_jsonb() {
-    let row: CompleteModuleRow =
-        serde_json::from_value(serde_json::json!({ "completed": true })).expect("row decodes");
+    let row: CompleteModuleRow = serde_json::from_value(serde_json::json!({
+        "enrolled": true,
+        "module_in_formation": true,
+        "completed": true
+    }))
+    .expect("row decodes");
+    assert!(row.enrolled());
+    assert!(row.module_in_formation());
     assert!(row.completed());
 }
 
@@ -251,7 +260,16 @@ fn unsub_user_formation_view_accessors() {
     let view = UnsubUserFormationQueryView::new(1, 2);
     assert_eq!(view.user_id(), 1);
     assert_eq!(view.formation_id(), 2);
-    assert!(view.query_sql().contains("DELETE"));
+    assert!(view.query_sql().contains("DELETE FROM user_courses"));
+    assert!(!view.query_sql().contains("user_modules"));
+}
+
+#[test]
+fn purge_user_formation_progress_view_accessors() {
+    let view = PurgeUserFormationProgressQueryView::new(1, 2);
+    assert_eq!(view.user_id(), 1);
+    assert_eq!(view.formation_id(), 2);
+    assert!(view.query_sql().contains("DELETE FROM user_modules"));
 }
 
 // ---------------------------------------------------------------------------
