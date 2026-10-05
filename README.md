@@ -44,3 +44,15 @@ request). To iterate on the collection against a stack already running on `local
 docker run --rm --network host -v "$PWD/tests/postman:/etc/newman:ro" postman/newman:6.1.3-alpine \
   run collection.json --environment environment.json
 ```
+
+## Deployment configuration
+
+- `JWT_SECRET` must be random, at least 32 bytes and distinct per instance: `mairie360_api_lib`
+  refuses to start with a short or well-known one. The compose stacks use the public test value
+  `b"secret"` with `JWT_ALLOW_WEAK_SECRET=true`; never set that variable in a deployment. No JWT
+  is committed: the test tools sign their tokens at startup from the stack's secret.
+- `SWAGGER_ENABLED=true` serves Swagger UI and `/api-docs/openapi.json`; leave it unset in
+  production.
+- `RATE_LIMIT_PER_SECOND` (default 50) and `RATE_LIMIT_BURST` (default 100) bound the requests of
+  each authenticated user on `/api`.
+- Probes: `GET /health` (liveness) and `GET /ready` (readiness: Postgres and Redis answer).
