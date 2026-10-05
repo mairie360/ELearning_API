@@ -6,7 +6,7 @@ use mairie360_api_lib::state::AppState;
 
 use crate::database::admin::users::get_users::view::{GetUsersQueryView, UserRow};
 use crate::endpoints::v1::admin::users::get::view::{GetUsersResultView, User};
-use crate::endpoints::v1::admin::users::AdminUsersPageQuery;
+use crate::endpoints::v1::admin::AdminPageQuery;
 use crate::logging::log_error;
 
 fn map_user(row: UserRow) -> User {
@@ -45,7 +45,7 @@ impl ResponseError for GetUsersError {
 
 async fn trigger_get_users(
     state: web::Data<AppState>,
-    page: &AdminUsersPageQuery,
+    page: &AdminPageQuery,
 ) -> Result<GetUsersResultView, GetUsersError> {
     let view = GetUsersQueryView::new(page.limit(), page.offset());
     let rows: Vec<UserRow> = state
@@ -63,7 +63,7 @@ async fn trigger_get_users(
     get,
     path = "",
     params(
-        AdminUsersPageQuery,
+        AdminPageQuery,
     ),
     summary = "List the active users",
     description = "Returns one page of the active (non-archived) users of the platform, in \
@@ -102,6 +102,13 @@ async fn trigger_get_users(
             example = json!("Jeton expiré")
         ),
         (
+            status = 429,
+            description = "The caller exceeded their request quota (per user, `RATE_LIMIT_PER_SECOND` / `RATE_LIMIT_BURST`). `Retry-After` gives the seconds to wait.",
+            body = String,
+            content_type = "text/plain",
+            example = json!("Too many requests, retry in 1 s.")
+        ),
+        (
             status = 403,
             description = "The caller is authenticated but is not an admin (checked by `AdminMiddleware` before the handler runs).",
             body = String,
@@ -125,7 +132,7 @@ async fn trigger_get_users(
 pub async fn get_users(
     state: web::Data<AppState>,
     _: AuthenticatedUser,
-    page: web::Query<AdminUsersPageQuery>,
+    page: web::Query<AdminPageQuery>,
 ) -> Result<impl Responder, GetUsersError> {
     let users = trigger_get_users(state, &page).await?;
     Ok(HttpResponse::Ok().json(users))

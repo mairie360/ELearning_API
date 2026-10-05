@@ -2,37 +2,6 @@ pub mod doc;
 pub mod get;
 pub mod user_id;
 
-/// Page size of `GET /api/v1/admin/users/` when `limit` is absent.
-pub const DEFAULT_USERS_PAGE_SIZE: u32 = 50;
-/// Largest page `GET /api/v1/admin/users/` returns, whatever `limit` asks for.
-pub const MAX_USERS_PAGE_SIZE: u32 = 200;
-
-#[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
-#[into_params(parameter_in = Query)]
-pub struct AdminUsersPageQuery {
-    /// Maximum number of users to return. Defaults to 50; values above 200 are capped to 200
-    /// and `0` is raised to 1.
-    #[param(example = 50, minimum = 1, maximum = 200)]
-    limit: Option<u32>,
-    /// Number of users to skip, in `id` order. Defaults to 0. Page `n` (from 0) is
-    /// `offset = n * limit`; a page shorter than `limit` is the last one.
-    #[param(example = 0, minimum = 0)]
-    offset: Option<u32>,
-}
-
-impl AdminUsersPageQuery {
-    /// The page size actually used, within `1..=MAX_USERS_PAGE_SIZE`.
-    pub fn limit(&self) -> u32 {
-        self.limit
-            .unwrap_or(DEFAULT_USERS_PAGE_SIZE)
-            .clamp(1, MAX_USERS_PAGE_SIZE)
-    }
-
-    pub fn offset(&self) -> u32 {
-        self.offset.unwrap_or(0)
-    }
-}
-
 /// Avancement d'un agent dans une formation : `NotStarted`, `InProgress` ou `Completed`.
 /// `Error` signale une valeur en base que l'API ne sait pas interpréter.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]

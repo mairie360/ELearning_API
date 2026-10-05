@@ -131,6 +131,13 @@ Every URL path segment maps to a directory containing a `mod.rs`. Each `mod.rs`:
 Swagger UI at `/swagger-ui/` and the spec at `/api-docs/openapi.json` **only when
 `SWAGGER_ENABLED=true`** (`endpoints::swagger::config`; off by default, so off in production; the
 dev, ZAP and k6 compose files set it, MAIR-424), then everything under `/api` wrapped in `JwtMiddleware`.
+Inside `JwtMiddleware`, the `/api` scope is rate limited **per authenticated user**
+(`src/rate_limit.rs`, `actix-governor`; `429` + `Retry-After`; `RATE_LIMIT_PER_SECOND`, default
+50, and `RATE_LIMIT_BURST`, default 100, built once in `main.rs` so workers share the buckets).
+The ZAP and k6 stacks lift both limits: they hammer the API as a single user (MAIR-425). The
+admin lists (`/admin/users/`, `/admin/formations/`) are paginated with the shared
+`admin::AdminPageQuery` (`limit` default 50, capped to 200, `offset`); every `/api` operation
+documents the `429`.
 `endpoints::config` → `v1::config` → `/v1` → `formations` (end-user) and `admin`
 (`admin/formations`, `admin/users`). The `/admin` scope is wrapped in the lib's
 `AdminMiddleware` (`403` for a non-admin, like Core_API). Every route under
