@@ -46,8 +46,9 @@ npx orval                         # regenerate generated/ TS axios client from o
 
 ```bash
 # Perf & security harnesses (each spins up its OWN full stack, then tears it down)
-./performance_test.sh   # docker-compose-performance.yml: k6 (load-test.js) vs elearning:3006
-                        #   thresholds: p95 per operation < 200ms reads / 500ms writes, http_req_failed < 1%
+./performance_test.sh   # docker-compose-performance.yml: k6 (load-test.js) vs elearning:3006, on init-perf.sql
+                        #   thresholds: p95 per operation < 200ms reads / 500ms writes, checks > 99%,
+                        #   dropped_iterations == 0, http_req_failed < 1%
 ./security_test.sh      # docker-compose-security.yml: OWASP ZAP zap-api-scan.py (openapi mode)
 ./integration_test.sh   # docker-compose-integration.yml: newman replays tests/postman/collection.json
                         #   (this is the CICD `integration_tests` job; no Postman account involved)
@@ -90,12 +91,16 @@ Both the ZAP and k6 stacks carry the OpenAPI coverage gate (MAIR-194) from mairi
 `cicd-repo/` (checked out by CI, cloned by the scripts at the pinned `cicd_version` otherwise, override with
 `CICD_VERSION`; gitignored). ZAP runs with `--hook zap_hooks.py` and fails when an operation of the served spec was
 never reached, or when an operation declaring `security(("jwt" = []))` only got 401/403. `load-test.js` is built on
-`coverage.js` and covers every operation (MAIR-195) as the Admin: GET handlers run in the `reads` scenario (20 VUs)
-on the `init-test.sql` course `1000` (the Admin is enrolled in `setup()`, unenrolled in `teardown()`), the other
-methods in the `writes` scenario (2 VUs). Unenrolling answers `404` when the user is not enrolled, so each write VU
-enrolls/unenrolls its own agent (`3000 + VU id`, users `3001`-`3064` seeded by `init-test.sql`); modules are completed
-in order, so `setup()` completes module `1001` for the Admin before the writes complete `1002` (idempotent). One
-`p(95)` threshold per `op` tag and `http_req_failed < 1%`. The spec k6 reads is the one served by the image under
+`coverage.js` and covers every operation (MAIR-195), under a high load on a volume seed (MAIR-474): the performance
+stack's `seeder` also runs `init-perf.sql` (300 formations of 10 modules, 2 000 learners `200001`-`202000` enrolled
+in 15 formations each with their first 5 modules completed). GET handlers run in the `reads` scenario (up to 100
+VUs): the admin lists read a random page, the learner routes run as a random seeded learner on one of their
+formations (token signed in k6 like the Admin's). The other methods run in the `writes` scenario (10 VUs): learners
+complete their 6th module (idempotent), and each write VU enrolls/unenrolls its own learner in course `1000`
+(`200001 + VU id - 1`; unenrolling answers `404` when the user is not enrolled, so VUs never share one). A
+`formations_rush` scenario sends `GET /formations/` at a fixed 100 req/s. Thresholds: one `p(95)` per `op` tag,
+`checks > 99%`, `dropped_iterations == 0`, `http_req_failed < 1%`. Keep `init-perf.sql` and the id ranges at the top
+of `load-test.js` in step. The spec k6 reads is the one served by the image under
 test, saved into the `openapi-spec` volume by `elearning-ready`. **Adding an endpoint = adding its handler in
 `load-test.js`** (k6 aborts at init otherwise), nothing to do for ZAP. `init-test.sql` also seeds the rows of the
 spec's path examples (course 4, module 11, attachment 27, user 42) so ZAP reaches real rows. It enrols the Admin
@@ -119,6 +124,10 @@ its own course/module/attachment rows (see `tests/queries/fixtures.rs`) instead 
 clean table. `cargo cov_test` only excludes `main.rs` and `lib.rs` from the coverage count:
 `endpoints/` holds every authorization and validation rule, so it is graded too (MAIR-419), and
 every refusal (non-admin, not enrolled, archived account, encoded path) has a handler test.
+`tests/endpoints/token_refusals.rs` sweeps every operation of `ApiDoc` declaring `jwt` (`401` without a token, with
+another scheme, garbage, another secret, an expired token, `alg: none`, a swapped payload or an asymmetric
+algorithm; `404` for an unknown or archived account), and `rate_limit.rs` checks the production budget of
+`config_from_env()` (`429` past the burst, `Retry-After` of at least 1 s).
 
 The same binary holds handler-level tests in `tests/endpoints/`: `init_app!` mounts `/api` exactly
 like `main.rs` (`JwtMiddleware` + `endpoints::config` + a `MockFileStorage`) over an `AppState`

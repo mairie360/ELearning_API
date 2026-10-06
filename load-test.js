@@ -6,21 +6,24 @@
 // `readHandlers` (GET) or `writeHandlers` (any other method) and send its request through
 // `request()` (raw `http.*` calls are not counted).
 //
-// Two scenarios share the spec, split by HTTP method:
-// - `reads`: the GET operations under the historical profile (ramp up to 20 VUs);
-// - `writes`: every other operation with 2 VUs, each handler undoing what it did when the API
-//   allows it.
+// High load on a volume seed (MAIR-474): the performance stack also runs init-perf.sql (300
+// formations of 10 modules, 2 000 learners enrolled in 15 formations each, 150 000 completed
+// modules). Three scenarios:
+// - `reads`: the GET operations, ramping up to 100 VUs. The admin lists read a random page (their
+//   OFFSET cost grows with it), the learner routes run as a random seeded learner on one of their
+//   formations, with a token signed here like the Admin's;
+// - `writes`: every other operation with 10 VUs, each handler undoing what it did when the API
+//   allows it. Seeded learners complete module 6 of their formations (modules 1 to 5 are done),
+//   an idempotent upsert that locks their enrolment row;
+// - `formations_rush`: `GET /formations/` as learners at a fixed arrival rate, failing if k6 has
+//   to drop iterations (the API no longer keeps up).
 //
 // The API cannot create formations, modules or attachments: they come from init-test.sql
-// (formation 1000, modules 1001-1002, attachment 1003 of module 1001). setup() enrolls the Admin
-// in formation 1000 so the "my formations" routes have something to return; teardown()
-// unenrolls it, which also deletes its progress. Modules are completed in order, so setup() also
-// completes module 1001 for the Admin before the writes complete module 1002 (an idempotent
-// upsert, so the table does not grow).
+// (formation 1000, the enrolment writes) and init-perf.sql (the formations the reads use).
 //
-// Unenrolling an agent who is not enrolled answers 404, so the two write VUs must never share an
-// agent: each one enrolls and unenrolls its own agent (`AGENT_BASE_ID + VU id`, seeded by
-// init-test.sql for VU ids 1 to 64).
+// Unenrolling an agent who is not enrolled answers 404, so the write VUs must never share an
+// agent: each one enrolls and unenrolls its own seeded learner in formation 1000, picked by its VU
+// id (unique across the scenarios, fewer than the 2 000 learners).
 import crypto from 'k6/crypto';
 import encoding from 'k6/encoding';
 import http from 'k6/http';
@@ -47,17 +50,46 @@ if (!__ENV.JWT && !__ENV.JWT_SECRET) {
 const TOKEN = __ENV.JWT || signJwt(1, 'admin', __ENV.JWT_SECRET, 2 * 3600);
 const AUTH = { Authorization: `Bearer ${TOKEN}` };
 
-const ADMIN_ID = 1;
-// Plain `User` accounts seeded by init-test.sql (ids 3001-3064), one per write VU, enrolled and
-// unenrolled by the writes.
-const AGENT_BASE_ID = 3000;
-const agentId = () => AGENT_BASE_ID + exec.vu.idInTest;
-// Fixtures of init-test.sql.
+// Rows of init-perf.sql.
+const LEARNERS = { first: 200001, count: 2000 };
+const PERF_FORMATIONS = { first: 5000, count: 300 };
+const ENROLMENTS_PER_LEARNER = 15;
+const MODULES_PER_FORMATION = 10;
+const COMPLETED_MODULES = 5;
+// Admin list pages (`limit` default 50) and their sizes, fixtures included.
+const ADMIN_PAGE = 50;
+const CATALOGUE_SIZE = 300;
+const LEARNERS_SIZE = 2000;
+
+// Fixed-rate `GET /formations/` as learners.
+const FORMATIONS_RUSH_RATE = 100; // requests per second
+const FORMATIONS_RUSH_BUDGET_MS = 200;
+
+const randomInt = (max) => Math.floor(Math.random() * max);
+const randomPage = (size) => randomInt(Math.ceil(size / ADMIN_PAGE)) * ADMIN_PAGE;
+
+const learnerTokens = {};
+
+/** A random seeded learner: its id, `Authorization` header and one of its formations. */
+function randomLearner() {
+  const rank = randomInt(LEARNERS.count);
+  const id = LEARNERS.first + rank;
+  if (!learnerTokens[id]) {
+    learnerTokens[id] = { Authorization: `Bearer ${signJwt(id, 'user', __ENV.JWT_SECRET, 2 * 3600)}` };
+  }
+  const formationRank = (rank + 20 * randomInt(ENROLMENTS_PER_LEARNER)) % PERF_FORMATIONS.count;
+  return {
+    id,
+    headers: learnerTokens[id],
+    formationId: PERF_FORMATIONS.first + formationRank,
+    moduleId: (rank) => 10000 + MODULES_PER_FORMATION * formationRank + rank,
+  };
+}
+
+// Seeded learner of the write VU, enrolled and unenrolled in formation 1000 (init-test.sql),
+// which no learner follows otherwise.
+const agentId = () => LEARNERS.first + exec.vu.idInTest - 1;
 const FORMATION_ID = 1000;
-const MODULE_ID = 1001;
-const ATTACHMENT_ID = 1003;
-// Second module of formation 1000: completing it needs MODULE_ID completed first (setup()).
-const MODULE_TO_COMPLETE_ID = 1002;
 
 // p(95) latency budget of each family of operations, in ms (reference machine).
 const READ_BUDGET_MS = 200;
@@ -112,38 +144,63 @@ const readHandlers = {
 
   // Management view.
   'GET /api/v1/admin/formations/': ({ request }) =>
-    check(request({ query: { details: true } }), { 'catalog 200': (r) => r.status === 200 }),
+    check(request({ query: { details: true, offset: randomPage(CATALOGUE_SIZE) } }), {
+      'catalog 200': (r) => r.status === 200,
+    }),
   'GET /api/v1/admin/formations/{formation_id}/': ({ request }) =>
-    check(request({ path: { formation_id: FORMATION_ID }, query: { details: true } }), {
+    check(request({ path: { formation_id: randomLearner().formationId }, query: { details: true } }), {
       'catalog formation 200': (r) => r.status === 200,
     }),
   'GET /api/v1/admin/users/': ({ request }) =>
-    check(request(), { 'learners 200': (r) => r.status === 200 }),
+    check(request({ query: { offset: randomPage(LEARNERS_SIZE) } }), {
+      'learners 200': (r) => r.status === 200,
+    }),
   'GET /api/v1/admin/users/{user_id}/': ({ request }) =>
-    check(request({ path: { user_id: ADMIN_ID }, query: { details: true } }), {
+    check(request({ path: { user_id: randomLearner().id }, query: { details: true } }), {
       'learner 200': (r) => r.status === 200,
     }),
-  'GET /api/v1/admin/users/{user_id}/{formation_id}/': ({ request }) =>
-    check(request({ path: { user_id: ADMIN_ID, formation_id: FORMATION_ID }, query: { details: true } }), {
-      'learner formation 200': (r) => r.status === 200,
-    }),
-
-  // View of the caller (the Admin, enrolled by setup()).
-  'GET /api/v1/formations/': ({ request }) =>
-    check(request(), { 'my formations 200': (r) => r.status === 200 }),
-  'GET /api/v1/formations/{formation_id}/': ({ request }) =>
-    check(request({ path: { formation_id: FORMATION_ID } }), {
-      'my formation 200': (r) => r.status === 200,
-    }),
-  'GET /api/v1/formations/{formation_id}/{module_id}/': ({ request }) =>
-    check(request({ path: { formation_id: FORMATION_ID, module_id: MODULE_ID } }), {
-      'my module 200': (r) => r.status === 200,
-    }),
-  'GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/': ({ request }) =>
+  'GET /api/v1/admin/users/{user_id}/{formation_id}/': ({ request }) => {
+    const learner = randomLearner();
     check(
-      request({ path: { formation_id: FORMATION_ID, module_id: MODULE_ID, attachment_id: ATTACHMENT_ID } }),
+      request({ path: { user_id: learner.id, formation_id: learner.formationId }, query: { details: true } }),
+      { 'learner formation 200': (r) => r.status === 200 },
+    );
+  },
+
+  // View of a seeded learner, on one of their formations.
+  'GET /api/v1/formations/': ({ request }) =>
+    check(request({ headers: randomLearner().headers }), { 'my formations 200': (r) => r.status === 200 }),
+  'GET /api/v1/formations/{formation_id}/': ({ request }) => {
+    const learner = randomLearner();
+    check(request({ path: { formation_id: learner.formationId }, headers: learner.headers }), {
+      'my formation 200': (r) => r.status === 200,
+    });
+  },
+  'GET /api/v1/formations/{formation_id}/{module_id}/': ({ request }) => {
+    const learner = randomLearner();
+    check(
+      request({
+        path: { formation_id: learner.formationId, module_id: learner.moduleId(randomInt(MODULES_PER_FORMATION)) },
+        headers: learner.headers,
+      }),
+      { 'my module 200': (r) => r.status === 200 },
+    );
+  },
+  'GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/': ({ request }) => {
+    const learner = randomLearner();
+    const moduleId = learner.moduleId(randomInt(MODULES_PER_FORMATION));
+    check(
+      request({
+        path: {
+          formation_id: learner.formationId,
+          module_id: moduleId,
+          attachment_id: 20000 + 2 * (moduleId - 10000) + randomInt(2),
+        },
+        headers: learner.headers,
+      }),
       { 'attachment url 200': (r) => r.status === 200 },
-    ),
+    );
+  },
 };
 
 const writeHandlers = {
@@ -162,11 +219,18 @@ const writeHandlers = {
     });
   },
 
-  // Progress of the caller (no inverse route, see the header).
-  'PATCH /api/v1/formations/{formation_id}/{module_id}/': ({ request }) =>
-    check(request({ path: { formation_id: FORMATION_ID, module_id: MODULE_TO_COMPLETE_ID } }), {
-      'complete module 200': (r) => r.status === 200,
-    }),
+  // Progress of a seeded learner: the module after the ones init-perf.sql completed (an
+  // idempotent upsert, no inverse route).
+  'PATCH /api/v1/formations/{formation_id}/{module_id}/': ({ request }) => {
+    const learner = randomLearner();
+    check(
+      request({
+        path: { formation_id: learner.formationId, module_id: learner.moduleId(COMPLETED_MODULES) },
+        headers: learner.headers,
+      }),
+      { 'complete module 200': (r) => r.status === 200 },
+    );
+  },
 };
 
 const reads = createCoverage(readHandlers, {
@@ -191,34 +255,39 @@ export const options = {
       executor: 'ramping-vus',
       exec: 'readScenario',
       stages: [
-        { duration: '30s', target: 20 }, // Ramp up to 20 virtual users
-        { duration: '1m', target: 20 }, // Hold
-        { duration: '10s', target: 0 }, // Ramp down
+        { duration: '30s', target: 50 },
+        { duration: '30s', target: 100 },
+        { duration: '2m', target: 100 }, // Hold
+        { duration: '20s', target: 0 },
       ],
     },
     writes: {
       executor: 'constant-vus',
       exec: 'writeScenario',
-      vus: 2,
-      duration: '1m40s',
+      vus: 10,
+      duration: '3m20s',
+    },
+    formations_rush: {
+      executor: 'constant-arrival-rate',
+      exec: 'formationsRushScenario',
+      startTime: '1m', // once the reads are at full load
+      rate: FORMATIONS_RUSH_RATE,
+      timeUnit: '1s',
+      duration: '1m',
+      preAllocatedVUs: 50,
+      maxVUs: 200,
     },
   },
   thresholds: {
     ...reads.thresholds, // every operation exercised, no handler error (shared counters)
     ...latencyThresholds(reads, READ_BUDGET_MS),
     ...latencyThresholds(writes, WRITE_BUDGET_MS),
+    'http_req_duration{op:formations_rush}': [`p(95)<${FORMATIONS_RUSH_BUDGET_MS}`],
+    dropped_iterations: ['count==0'], // the rush kept its rate
+    checks: ['rate>0.99'], // a wrong status fails the run, not only a slow one
     http_req_failed: ['rate<0.01'], // Less than 1% errors
   },
 };
-
-export function setup() {
-  enroll(ADMIN_ID, FORMATION_ID);
-  fixture('PATCH', `/api/v1/formations/${FORMATION_ID}/${MODULE_ID}/`);
-}
-
-export function teardown() {
-  unenroll(ADMIN_ID, FORMATION_ID);
-}
 
 export function readScenario() {
   reads.run({ headers: AUTH });
@@ -228,4 +297,12 @@ export function readScenario() {
 export function writeScenario() {
   writes.run({ headers: AUTH });
   sleep(1);
+}
+
+export function formationsRushScenario() {
+  const res = http.get(`${BASE_URL}/api/v1/formations/`, {
+    headers: randomLearner().headers,
+    tags: { op: 'formations_rush' },
+  });
+  check(res, { 'formations rush 200': (r) => r.status === 200 });
 }

@@ -12,7 +12,7 @@ use actix_governor::{
     GovernorConfig, GovernorConfigBuilder, KeyExtractor, SimpleKeyExtractionError,
 };
 use actix_web::dev::ServiceRequest;
-use actix_web::http::header::ContentType;
+use actix_web::http::header::{ContentType, RETRY_AFTER};
 use actix_web::http::StatusCode;
 use actix_web::{HttpMessage, HttpResponse, HttpResponseBuilder};
 use mairie360_api_lib::env_manager::get_env_var;
@@ -51,7 +51,13 @@ impl KeyExtractor for UserKeyExtractor {
             .wait_time_from(DefaultClock::default().now())
             .as_secs()
             .max(1);
+        // actix-governor already set `Retry-After` / `X-RateLimit-After`, but in whole seconds
+        // rounded down: at the default 50 requests per second the wait is 20 ms and the header
+        // said `0`, telling the client to retry at once. Both now carry the same wait as the
+        // body, at least 1 s (MAIR-474).
         response
+            .insert_header((RETRY_AFTER, wait))
+            .insert_header(("x-ratelimit-after", wait))
             .content_type(ContentType::plaintext())
             .body(format!("Too many requests, retry in {wait} s."))
     }
