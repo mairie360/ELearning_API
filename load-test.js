@@ -9,13 +9,13 @@
 // High load on a volume seed (MAIR-474): the performance stack also runs init-perf.sql (300
 // formations of 10 modules, 2 000 learners enrolled in 15 formations each, 150 000 completed
 // modules). Three scenarios:
-// - `reads`: the GET operations, ramping up to 100 VUs. The admin lists read a random page (their
+// - `reads`: the GET operations, ramping up to the read VUs of the profile (PROFILES). The admin lists read a random page (their
 //   OFFSET cost grows with it), the learner routes run as a random seeded learner on one of their
 //   formations, with a token signed here like the Admin's;
-// - `writes`: every other operation with 10 VUs, each handler undoing what it did when the API
+// - `writes`: every other operation with the write VUs of the profile, each handler undoing what it did when the API
 //   allows it. Seeded learners complete module 6 of their formations (modules 1 to 5 are done),
 //   an idempotent upsert that locks their enrolment row;
-// - `formations_rush`: `GET /formations/` as learners at a fixed arrival rate, failing if k6 has
+// - `formations_rush`: `GET /formations/` as learners at the fixed arrival rate of the profile, failing if k6 has
 //   to drop iterations (the API no longer keeps up).
 //
 // The API cannot create formations, modules or attachments: they come from init-test.sql
@@ -61,8 +61,20 @@ const ADMIN_PAGE = 50;
 const CATALOGUE_SIZE = 300;
 const LEARNERS_SIZE = 2000;
 
+// Load profile (MAIR-474), K6_PROFILE:
+// - `ci` (default): what the CI runner holds with the same strict thresholds. The runner
+//   (ubuntu-latest, 4 vCPU) hosts the API, Postgres, Redis and k6 together;
+// - `stress`: the high load, run by hand (`K6_PROFILE=stress ./performance_test.sh`) to find
+//   the breaking point on a larger machine, not on every push.
+const PROFILES = {
+  ci: { readVus: 30, writeVus: 4, rushRate: 30 },
+  stress: { readVus: 100, writeVus: 10, rushRate: 100 },
+};
+const PROFILE = PROFILES[__ENV.K6_PROFILE || 'ci'];
+if (!PROFILE) throw new Error(`Unknown K6_PROFILE ${__ENV.K6_PROFILE}: ${Object.keys(PROFILES).join(', ')}`);
+
 // Fixed-rate `GET /formations/` as learners.
-const FORMATIONS_RUSH_RATE = 100; // requests per second
+const FORMATIONS_RUSH_RATE = PROFILE.rushRate; // requests per second
 const FORMATIONS_RUSH_BUDGET_MS = 200;
 
 const randomInt = (max) => Math.floor(Math.random() * max);
@@ -272,16 +284,16 @@ export const options = {
       executor: 'ramping-vus',
       exec: 'readScenario',
       stages: [
-        { duration: '30s', target: 50 },
-        { duration: '30s', target: 100 },
-        { duration: '2m', target: 100 }, // Hold
+        { duration: '30s', target: Math.ceil(PROFILE.readVus / 2) },
+        { duration: '30s', target: PROFILE.readVus },
+        { duration: '2m', target: PROFILE.readVus }, // Hold
         { duration: '20s', target: 0 },
       ],
     },
     writes: {
       executor: 'constant-vus',
       exec: 'writeScenario',
-      vus: 10,
+      vus: PROFILE.writeVus,
       duration: '3m20s',
     },
     formations_rush: {

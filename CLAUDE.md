@@ -99,7 +99,7 @@ formations (token signed in k6 like the Admin's). The other methods run in the `
 complete their 6th module (idempotent), and each write VU enrolls/unenrolls its own learner in course `1000`
 (`200001 + VU id - 1`; unenrolling answers `404` when the user is not enrolled, so VUs never share one). A
 `formations_rush` scenario sends `GET /formations/` at a fixed 100 req/s. Thresholds: one `p(95)` per `op` tag,
-`checks == 100%` (status and seeded rows), `dropped_iterations == 0`, `http_req_failed == 0`. Keep `init-perf.sql` and the id ranges at the top
+`checks == 100%` (status and seeded rows), `dropped_iterations == 0`, `http_req_failed == 0`. Two load profiles (`K6_PROFILE`, passed by the compose file): `ci` (default) is what the 4 vCPU CI runner holds with the strict thresholds (30 readers, 4 writers, rush at 30 req/s); `stress` is the high load (100 readers, 10 writers, 100 req/s), run by hand with `K6_PROFILE=stress ./performance_test.sh` to find the breaking point, not on every push. Keep `init-perf.sql` and the id ranges at the top
 of `load-test.js` in step. The spec k6 reads is the one served by the image under
 test, saved into the `openapi-spec` volume by `elearning-ready`. **Adding an endpoint = adding its handler in
 `load-test.js`** (k6 aborts at init otherwise), nothing to do for ZAP. `init-test.sql` also seeds the rows of the

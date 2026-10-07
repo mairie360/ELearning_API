@@ -193,6 +193,8 @@ services:
     environment:
       - BASE_URL=http://elearning:3006
       - OPENAPI_SPEC=/spec/openapi.json
+      # Load profile of load-test.js: `ci` (default, sized for the CI runner) or `stress` (MAIR-474).
+      - K6_PROFILE=${K6_PROFILE:-ci}
       # Signs the admin JWT of load-test.js: must equal the JWT_SECRET of the elearning service.
       - JWT_SECRET=b"secret"
     depends_on:
