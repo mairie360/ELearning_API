@@ -146,34 +146,45 @@ const readHandlers = {
   'GET /api/v1/admin/formations/': ({ request }) =>
     check(request({ query: { details: true, offset: randomPage(CATALOGUE_SIZE) } }), {
       'catalog 200': (r) => r.status === 200,
+      'catalog reads the seed': (r) => r.status === 200 && r.json('formations').length > 0,
     }),
   'GET /api/v1/admin/formations/{formation_id}/': ({ request }) =>
     check(request({ path: { formation_id: randomLearner().formationId }, query: { details: true } }), {
       'catalog formation 200': (r) => r.status === 200,
+      'catalog formation reads its modules': (r) => r.status === 200 && r.json('modules').length === MODULES_PER_FORMATION,
     }),
   'GET /api/v1/admin/users/': ({ request }) =>
     check(request({ query: { offset: randomPage(LEARNERS_SIZE) } }), {
       'learners 200': (r) => r.status === 200,
+      'learners reads the seed': (r) => r.status === 200 && r.json('users').length > 0,
     }),
   'GET /api/v1/admin/users/{user_id}/': ({ request }) =>
     check(request({ path: { user_id: randomLearner().id }, query: { details: true } }), {
       'learner 200': (r) => r.status === 200,
+      'learner reads the enrolments': (r) => r.status === 200 && r.json('formations').length >= ENROLMENTS_PER_LEARNER,
     }),
   'GET /api/v1/admin/users/{user_id}/{formation_id}/': ({ request }) => {
     const learner = randomLearner();
     check(
       request({ path: { user_id: learner.id, formation_id: learner.formationId }, query: { details: true } }),
-      { 'learner formation 200': (r) => r.status === 200 },
+      {
+        'learner formation 200': (r) => r.status === 200,
+        'learner formation reads its modules': (r) => r.status === 200 && r.json('modules').length === MODULES_PER_FORMATION,
+      },
     );
   },
 
   // View of a seeded learner, on one of their formations.
   'GET /api/v1/formations/': ({ request }) =>
-    check(request({ headers: randomLearner().headers }), { 'my formations 200': (r) => r.status === 200 }),
+    check(request({ headers: randomLearner().headers }), {
+      'my formations 200': (r) => r.status === 200,
+      'my formations reads the enrolments': (r) => r.status === 200 && r.json('formations').length >= ENROLMENTS_PER_LEARNER,
+    }),
   'GET /api/v1/formations/{formation_id}/': ({ request }) => {
     const learner = randomLearner();
     check(request({ path: { formation_id: learner.formationId }, headers: learner.headers }), {
       'my formation 200': (r) => r.status === 200,
+      'my formation reads its modules': (r) => r.status === 200 && r.json('modules').length === MODULES_PER_FORMATION,
     });
   },
   'GET /api/v1/formations/{formation_id}/{module_id}/': ({ request }) => {
@@ -183,7 +194,10 @@ const readHandlers = {
         path: { formation_id: learner.formationId, module_id: learner.moduleId(randomInt(MODULES_PER_FORMATION)) },
         headers: learner.headers,
       }),
-      { 'my module 200': (r) => r.status === 200 },
+      {
+        'my module 200': (r) => r.status === 200,
+        'my module reads its attachments': (r) => r.status === 200 && r.json('files').length === 2,
+      },
     );
   },
   'GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/': ({ request }) => {
@@ -198,7 +212,10 @@ const readHandlers = {
         },
         headers: learner.headers,
       }),
-      { 'attachment url 200': (r) => r.status === 200 },
+      {
+        'attachment url 200': (r) => r.status === 200,
+        'attachment url is signed': (r) => r.status === 200 && typeof r.json('url') === 'string',
+      },
     );
   },
 };
@@ -284,8 +301,9 @@ export const options = {
     ...latencyThresholds(writes, WRITE_BUDGET_MS),
     'http_req_duration{op:formations_rush}': [`p(95)<${FORMATIONS_RUSH_BUDGET_MS}`],
     dropped_iterations: ['count==0'], // the rush kept its rate
-    checks: ['rate>0.99'], // a wrong status fails the run, not only a slow one
-    http_req_failed: ['rate<0.01'], // Less than 1% errors
+    // Strict (MAIR-474): one wrong status or one missing seeded row fails the run.
+    checks: ['rate==1'],
+    http_req_failed: ['rate==0'],
   },
 };
 
@@ -304,5 +322,9 @@ export function formationsRushScenario() {
     headers: randomLearner().headers,
     tags: { op: 'formations_rush' },
   });
-  check(res, { 'formations rush 200': (r) => r.status === 200 });
+  check(res, {
+    'formations rush 200': (r) => r.status === 200,
+    'formations rush reads the enrolments': (r) =>
+      r.status === 200 && r.json('formations').length >= ENROLMENTS_PER_LEARNER,
+  });
 }
