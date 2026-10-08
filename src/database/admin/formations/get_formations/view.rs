@@ -26,6 +26,9 @@ impl GetFormationsQueryView {
 }
 
 impl ApiRequestDto for GetFormationsQueryView {
+    // The page is cut first and the modules aggregated for its rows only: with the aggregates in
+    // the same SELECT as `LIMIT ... OFFSET`, Postgres built them for every formation skipped by
+    // the OFFSET too (300 module lists for the last page of 50, MAIR-474).
     fn query_sql(&self) -> &'static str {
         "SELECT to_jsonb(t) FROM ( \
             SELECT c.id, c.title AS name, c.description, \
@@ -45,9 +48,8 @@ impl ApiRequestDto for GetFormationsQueryView {
                     ) ORDER BY cm.sort_order, cm.id) \
                     FROM course_modules cm WHERE cm.course_id = c.id \
                 ) END AS modules \
-            FROM courses c \
+            FROM (SELECT id, title, description FROM courses ORDER BY id LIMIT $2 OFFSET $3) c \
             ORDER BY c.id \
-            LIMIT $2 OFFSET $3 \
          ) t"
     }
 
