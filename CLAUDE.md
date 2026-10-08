@@ -23,7 +23,7 @@ docker compose up --watch          # --watch syncs src/ + Cargo.* into the dev c
 # Bare cargo run needs env vars set: DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME
 #   REDIS_URL HOST PORT JWT_SECRET JWT_TIMEOUT
 #   S3_BUCKET S3_REGION S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY  (+ optional S3_PRESIGN_TTL_SECS)
-#   optional: SWAGGER_ENABLED RATE_LIMIT_PER_SECOND RATE_LIMIT_BURST RUST_LOG
+#   optional: SWAGGER_ENABLED RATE_LIMIT_PER_SECOND RATE_LIMIT_BURST RUST_LOG OTEL_*
 #   (see x-common-env in docker-compose.yml)
 cargo run
 
@@ -176,11 +176,25 @@ French text you touch.
 
 Never swallow an error with `.map_err(|_| …)`: the endpoint error enums answer a generic body,
 so map through `crate::logging::log_error("<trigger fn>", Error::Variant)`, which logs the cause
-at the `error` level first (MAIR-395). Logging goes through the `log` facade, never
-`println!`/`eprintln!`: `main.rs` calls `logging::init()`, which installs `env_logger` writing one
-JSON object per line on stderr (`ts`, `level`, `target`, `message`; the target of `log_error` is
-the trigger fn), filtered by `RUST_LOG` (default `info`, which includes actix's per-request
-`Logger` line) (MAIR-421). Map the lib's typed errors before falling back to a logged `500`, like
+at the `error` level first (MAIR-395). Logging goes through the `log` facade (or `tracing`), never
+`println!`/`eprintln!`: `main.rs` calls `telemetry::init()`, which bridges the `log` records to `tracing` and installs
+`logging::layer`, writing one JSON object per line on stderr (`ts`, `level`, `target`, `message`, plus the fields of a
+`tracing` event; the target of `log_error` is the trigger fn), filtered by `RUST_LOG` (default `info`, which includes
+actix's per-request `Logger` line) (MAIR-421, MAIR-503). The spans around an event are never printed.
+
+Traces (MAIR-503, same approach as the Core API POC of MAIR-131): when `OTEL_EXPORTER_OTLP_ENDPOINT` (or
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) is set, `src/telemetry.rs` exports the spans of `TracingLogger` (mounted inside
+`Logger` in `main.rs`, one per request, refused ones included, continuing the BFF's `traceparent`) over OTLP/HTTP
+(protobuf) to the agent relaying to Scaleway Cockpit (e.g. `http://alloy:4318`, `/v1/traces` is appended). Nothing
+changes without it; `OTEL_SDK_DISABLED=true` forces it off; `OTEL_SERVICE_NAME` defaults to `elearning-api`; a
+failure to build the exporter is printed and never stops the API. The SQL of `mairie360_api_lib` shows up as
+`db.statement` span events (placeholders, never the bound values), the errors of `log_error` as events too. No
+personal data leaves (MAIR-290, MAIR-501): `telemetry::Redact` drops `http.client_ip` and the query string of
+`http.target` before the export and the trace layer ignores actix's request log; build providers with
+`telemetry::tracer_provider`, never `SdkTracerProvider::builder()` directly. The `opentelemetry*`,
+`tracing-opentelemetry` and `tracing-actix-web` versions are coupled (0.32 / 0.33 / 0.7 with `opentelemetry_0_32`):
+bump them together. `tests/endpoints/telemetry.rs` covers the span, the trace id, the SQL events and the redaction,
+`tests/logging_test.rs` the log format. Map the lib's typed errors before falling back to a logged `500`, like
 `register`/`complete` turn `DbError::ForeignKeyViolation` into a `404`.
 
 ### A leaf endpoint = a `get/` (or verb-named) directory with two or three files

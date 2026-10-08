@@ -10,6 +10,7 @@ pub mod formation_access;
 pub mod module_access;
 pub mod rate_limit;
 pub mod readiness;
+pub mod telemetry;
 pub mod token_refusals;
 
 use std::sync::{Arc, Mutex, Once};
