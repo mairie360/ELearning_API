@@ -124,6 +124,11 @@ its own course/module/attachment rows (see `tests/queries/fixtures.rs`) instead 
 clean table. `cargo cov_test` only excludes `main.rs` and `lib.rs` from the coverage count:
 `endpoints/` holds every authorization and validation rule, so it is graded too (MAIR-419), and
 every refusal (non-admin, not enrolled, archived account, encoded path) has a handler test.
+`access-matrix.yaml` (MAIR-288) is the access decision of every operation of `ApiDoc` (admin scope, roles,
+the enrolled learner; personal fields of the answer): `tests/endpoints/access_matrix.rs` fails when an
+operation is missing from it or unknown, and calls each operation as each non-enrolled role and as an
+enrolled learner (an allowed caller never gets 401 / 403 / 404, the others get 403). **A new route goes into
+the matrix.**
 `tests/endpoints/token_refusals.rs` sweeps every operation of `ApiDoc` declaring `jwt` (`401` without a token, with
 another scheme, garbage, another secret, an expired token, `alg: none`, a swapped payload or an asymmetric
 algorithm; `404` for an unknown or archived account), and `rate_limit.rs` checks the production budget of

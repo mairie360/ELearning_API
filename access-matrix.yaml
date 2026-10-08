@@ -1,0 +1,60 @@
+# Access matrix of ELearning_API (MAIR-288, epic MAIR-284).
+#
+# A decision of the mairie, proposed by Mairie 360: for every operation of the OpenAPI, who may
+# call it. tests/endpoints/access_matrix.rs reads the spec the API serves and fails when an
+# operation is missing here or listed here without existing, then calls every operation as a user
+# of each role who is not enrolled in the formation, and as an enrolled learner, and checks the
+# answer: an allowed caller never gets 401 / 403 / 404, any other caller gets 403 (401 without a
+# session). Change this file and the code together.
+#
+# Keys of an operation ("METHOD /path" of the OpenAPI):
+#   access     public          no session needed
+#              authenticated   any session (every role, Guest included)
+#              admin           the `/api/v1/admin` scope (AdminMiddleware, database is_admin())
+#   roles      roles that pass whatever the formation
+#   ownership  relations that pass:
+#              learner         an agent enrolled in the formation (administrators included: they
+#                              enrol themselves through the admin route)
+#   personal   personal fields of the answer (gdpr/inventory.yaml of Database), for the review
+#   note       the rule when it is not obvious
+#
+# Decisions of the mairie (2026-10-08): a Guest only gets the default access of its role.
+
+version: 1
+api: elearning
+roles: [Admin, Maire, Responsable, User, Guest]
+
+operations:
+  GET /health: {access: public}
+  GET /ready: {access: public}
+
+  # --- Administration of the enrolments ---
+  GET /api/v1/admin/formations/: {access: admin, roles: [Admin]}
+  GET /api/v1/admin/formations/{formation_id}/: {access: admin, roles: [Admin]}
+  POST /api/v1/admin/formations/{formation_id}/: {access: admin, roles: [Admin]}
+  GET /api/v1/admin/users/:
+    access: admin
+    roles: [Admin]
+    personal: [users.id, users.name]
+  GET /api/v1/admin/users/{user_id}/:
+    access: admin
+    roles: [Admin]
+    personal: [formations.progress_status, formations.started_at, formations.completed_at]
+  GET /api/v1/admin/users/{user_id}/{formation_id}/:
+    access: admin
+    roles: [Admin]
+    personal: [modules.is_completed, modules.completed_at]
+  DELETE /api/v1/admin/users/{user_id}/{formation_id}/: {access: admin, roles: [Admin]}
+
+  # --- The learner's own formations ---
+  GET /api/v1/formations/:
+    access: authenticated
+    roles: [Admin, Maire, Responsable, User, Guest]
+    note: "the caller's own enrolments"
+  GET /api/v1/formations/{formation_id}/: {access: authenticated, ownership: [learner]}
+  GET /api/v1/formations/{formation_id}/{module_id}/: {access: authenticated, ownership: [learner]}
+  PATCH /api/v1/formations/{formation_id}/{module_id}/:
+    access: authenticated
+    ownership: [learner]
+    note: "marks the module completed for the caller"
+  GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/: {access: authenticated, ownership: [learner]}
