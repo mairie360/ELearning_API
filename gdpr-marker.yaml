@@ -1,0 +1,49 @@
+# GDPR log marker journey (MAIR-290), played by mairie360/CICD tests/gdpr/marker.
+#
+# ELearning_API stores no free text from the agents: it reads the accounts of Core and records
+# enrolments and progress. The marker's values are sent where a request can carry them anyway:
+# query strings and bodies of the wrong type (deliberate errors), next to an enrolment round
+# trip. The logs of every container of docker-compose-gdpr-marker.yml are then searched for them
+# (gdpr_marker_test.sh). A log describes an error by its type and context, never by the value it
+# received.
+version: 1
+target: http://elearning:3006
+wait: /ready
+# The admin JWT of this run (sub=1, the Admin seeded by liquibase), signed by gdpr_marker_test.sh.
+env: [ADMIN_JWT]
+steps:
+  - name: list the agents with a refused page size (deliberate error, query string)
+    request: {method: GET, path: "/api/v1/admin/users/?limit={{marker.last_name}}", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+    expect: [400]
+  - name: list the agents with a refused offset (deliberate error, query string)
+    request: {method: GET, path: "/api/v1/admin/users/?offset={{marker.email}}", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+    expect: [400]
+  - name: list the formations with a refused details flag (deliberate error, query string)
+    request: {method: GET, path: "/api/v1/admin/formations/?details={{marker.first_name}}", headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+    expect: [400]
+  - name: list the agents
+    request: {method: GET, path: /api/v1/admin/users/, headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+  - name: enrol an agent given by a value of the wrong type (deliberate error)
+    request:
+      method: POST
+      path: /api/v1/admin/formations/4/
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {user_id: "{{marker.email}}"}
+    expect: [400]
+  - name: enrol an agent in a formation that does not exist (deliberate error)
+    request:
+      method: POST
+      path: /api/v1/admin/formations/999999/
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {user_id: 2, comment: "{{marker.first_name}} {{marker.last_name}} {{marker.phone}}"}
+    expect: [404]
+  - name: enrol agent 2 in formation 4
+    request:
+      method: POST
+      path: /api/v1/admin/formations/4/
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {user_id: 2}
+  - name: read the enrolment
+    request: {method: GET, path: /api/v1/admin/users/2/4/, headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
+  - name: remove the enrolment
+    request: {method: DELETE, path: /api/v1/admin/users/2/4/, headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}}
