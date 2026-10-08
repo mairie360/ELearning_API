@@ -3,7 +3,7 @@
 //! [`init`] installs `env_logger` with one JSON object per line on stderr
 //! (`ts`, `level`, `target`, `message`), so a log collector can filter on the
 //! level and the handler without parsing free text. The filter comes from
-//! `RUST_LOG` (default `info`: startup, one line per request from actix's
+//! `RUST_LOG` (default `info`: startup, one line per request from `request_log::request_logger`
 //! `Logger`, and every error below).
 
 use std::io::Write;

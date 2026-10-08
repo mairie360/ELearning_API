@@ -7,6 +7,7 @@ use elearning_api::database::pg_url::build_pg_url;
 use elearning_api::endpoints::{config, health, ready, swagger};
 use elearning_api::logging;
 use elearning_api::rate_limit;
+use elearning_api::request_log::request_logger;
 use elearning_api::storage::{FileStorage, S3FileStorage};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
@@ -68,7 +69,8 @@ async fn main() -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .wrap(middleware::Logger::default())
+            // Method and path only, never the query string (MAIR-290, see `request_log`).
+            .wrap(request_logger())
             // Every response is JSON or plain text: forbid browsers from sniffing it as HTML.
             .wrap(middleware::DefaultHeaders::new().add(("X-Content-Type-Options", "nosniff")))
             // 1. Swagger UI and API docs (public), only with SWAGGER_ENABLED=true
