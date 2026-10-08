@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use elearning_api::database::pg_url::build_pg_url;
 use elearning_api::endpoints::{config, health, ready, swagger};
-use elearning_api::logging;
 use elearning_api::rate_limit;
 use elearning_api::storage::{FileStorage, S3FileStorage};
+use elearning_api::telemetry;
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
 use mairie360_api_lib::security::JwtMiddleware;
@@ -38,7 +38,9 @@ async fn wait_for_postgres(state: &AppState) {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    logging::init();
+    // JSON logs on stderr (`logging`), plus the trace export when `OTEL_EXPORTER_OTLP_ENDPOINT`
+    // is set (MAIR-503); flushed on drop.
+    let _telemetry = telemetry::init();
 
     let redis_url = get_critical_env_var("REDIS_URL");
     let db_user = get_critical_env_var("DB_USER");
@@ -69,6 +71,9 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(data.clone())
             .wrap(middleware::Logger::default())
+            // One span per request (MAIR-503), including those refused by `JwtMiddleware`; it
+            // continues the `traceparent` of the BFF.
+            .wrap(tracing_actix_web::TracingLogger::default())
             // Every response is JSON or plain text: forbid browsers from sniffing it as HTML.
             .wrap(middleware::DefaultHeaders::new().add(("X-Content-Type-Options", "nosniff")))
             // 1. Swagger UI and API docs (public), only with SWAGGER_ENABLED=true
