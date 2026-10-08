@@ -3,6 +3,7 @@
 //! against the shared test database, with forged JWTs and a mock file storage.
 
 pub mod access_denials;
+pub mod access_matrix;
 pub mod admin_guard;
 pub mod admin_reads;
 pub mod enrolment;
