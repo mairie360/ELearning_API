@@ -192,6 +192,20 @@ const readHandlers = {
       'my formations 200': (r) => r.status === 200,
       'my formations reads the enrolments': (r) => r.status === 200 && r.json('formations').length >= ENROLMENTS_PER_LEARNER,
     }),
+  // The whole catalogue of a seeded learner in one call: 15 formations of 10 modules with their 2 files each
+  // (MAIR-506), replacing 1 + 15 + 150 calls of the three routes below.
+  'GET /api/v1/formations/catalog/': ({ request }) =>
+    check(request({ headers: randomLearner().headers }), {
+      'catalog 200': (r) => r.status === 200,
+      'catalog reads the enrolments with their modules and files': (r) => {
+        if (r.status !== 200) return false;
+        // A write VU may have enrolled this learner in course 1000 (2 modules) at the same time: count the seeded ones.
+        const seeded = r.json('formations').filter(
+          (f) => f.modules.length === MODULES_PER_FORMATION && f.modules.every((m) => m.files.length === 2),
+        );
+        return seeded.length === ENROLMENTS_PER_LEARNER;
+      },
+    }),
   'GET /api/v1/formations/{formation_id}/': ({ request }) => {
     const learner = randomLearner();
     check(request({ path: { formation_id: learner.formationId }, headers: learner.headers }), {

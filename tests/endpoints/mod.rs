@@ -5,6 +5,7 @@
 pub mod access_denials;
 pub mod admin_guard;
 pub mod admin_reads;
+pub mod catalog;
 pub mod enrolment;
 pub mod formation_access;
 pub mod module_access;

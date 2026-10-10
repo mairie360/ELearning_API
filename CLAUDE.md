@@ -108,6 +108,13 @@ spec's path examples (course 4, module 11, attachment 27, user 42) so ZAP reache
 routes answer `403` to a caller who is not enrolled, admins included. A new formation id used by
 either stack must be added to that enrolment.
 
+`GET /api/v1/formations/catalog/` (MAIR-506) returns the caller's formations with their modules and the
+files of each module in one answer (query `formations::get_my_catalog`: correlated subqueries aggregated
+into JSON, so the number of statements does not grow with the data). It is registered **before** the
+`/{formation_id}` scope in `formations/mod.rs`, which would otherwise try to read "catalog" as an id. It
+exposes the same fields as the three per-formation routes and no `file_url`; BFF_Elearning uses it instead of
+1 + 15 + 150 calls per catalogue page.
+
 Every leaf handler is mounted as `#[get("/")]` (etc.) inside its segment scope, so its URL ends with `/`: its
 `#[utoipa::path]` must say `path = "/"` when the parent `doc.rs` nests it without a trailing slash, otherwise the
 spec documents a URL actix answers `404` to (k6 caught it on `/admin/formations/{formation_id}/` and
