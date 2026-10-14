@@ -13,7 +13,7 @@ use crate::endpoints::v1::admin::users::{
     ProgressStatus, UsersFormation, UsersFormationModule, UsersModuleContent,
 };
 use crate::endpoints::v1::admin::AdminUserDetailsQuery;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 fn map_content(row: UserModuleContentRow) -> UsersModuleContent {
     // `course_attachments` has no per-user tracking, so files never carry a

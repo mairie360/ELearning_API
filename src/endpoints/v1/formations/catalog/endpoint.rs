@@ -12,7 +12,7 @@ use crate::endpoints::v1::formations::catalog::view::{
 };
 use crate::endpoints::v1::formations::formation_id::module_id::get::view::{File, FileType};
 use crate::endpoints::v1::formations::get::view::Status;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 fn map_file(row: &CatalogFileRow) -> File {
     File {

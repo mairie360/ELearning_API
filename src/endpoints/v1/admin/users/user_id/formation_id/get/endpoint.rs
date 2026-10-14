@@ -12,7 +12,7 @@ use crate::endpoints::v1::admin::users::user_id::formation_id::get::view::GetUse
 use crate::endpoints::v1::admin::users::user_id::formation_id::AdminUserFormationIdParams;
 use crate::endpoints::v1::admin::users::{UsersFormationModule, UsersModuleContent};
 use crate::endpoints::v1::admin::AdminUserDetailsQuery;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 fn map_content(row: UserModuleContentRow) -> UsersModuleContent {
     UsersModuleContent::new(

@@ -9,7 +9,7 @@ use crate::database::formations::complete_module::view::{
     CompleteModuleQueryView, CompleteModuleRow,
 };
 use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompleteModuleError {

@@ -9,7 +9,7 @@ use crate::endpoints::v1::formations::formation_id::module_id::access::{
 };
 use crate::endpoints::v1::formations::formation_id::module_id::attachment_id::get::view::GetAttachmentUrlView;
 use crate::endpoints::v1::formations::formation_id::module_id::attachment_id::AttachmentIdParams;
-use crate::logging::log_error;
+use crate::error::log_error;
 use crate::storage::{mime_for, FileStorage};
 
 #[derive(Debug, Clone, PartialEq)]

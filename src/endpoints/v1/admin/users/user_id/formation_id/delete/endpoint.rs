@@ -8,7 +8,7 @@ use crate::database::admin::users::unsub_user_formation::view::{
     UnsubUserFormationQueryView, UnsubUserFormationRow,
 };
 use crate::endpoints::v1::admin::users::user_id::formation_id::AdminUserFormationIdParams;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnsubFormationError {
