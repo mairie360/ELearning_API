@@ -7,7 +7,7 @@ use mairie360_api_lib::state::AppState;
 use crate::database::admin::users::get_users::view::{GetUsersQueryView, UserRow};
 use crate::endpoints::v1::admin::users::get::view::{GetUsersResultView, User};
 use crate::endpoints::v1::admin::AdminPageQuery;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 fn map_user(row: UserRow) -> User {
     User {

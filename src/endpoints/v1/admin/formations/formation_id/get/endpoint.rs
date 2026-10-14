@@ -12,7 +12,7 @@ use crate::endpoints::v1::admin::formations::formation_id::get::view::GetFormati
 use crate::endpoints::v1::admin::formations::formation_id::AdminFormationIdParams;
 use crate::endpoints::v1::admin::formations::{AdminFormationModule, AdminModuleContent};
 use crate::endpoints::v1::admin::AdminUserDetailsQuery;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 fn map_content(row: AdminModuleContentRow) -> AdminModuleContent {
     AdminModuleContent::new(id_from_sql(row.id()), row.file_name(), row.file_type())

@@ -8,6 +8,6 @@
 
 pub mod database;
 pub mod endpoints;
-pub mod logging;
+pub mod error;
 pub mod rate_limit;
 pub mod storage;

@@ -23,7 +23,7 @@ docker compose up --watch          # --watch syncs src/ + Cargo.* into the dev c
 # Bare cargo run needs env vars set: DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME
 #   REDIS_URL HOST PORT JWT_SECRET JWT_TIMEOUT
 #   S3_BUCKET S3_REGION S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY  (+ optional S3_PRESIGN_TTL_SECS)
-#   optional: SWAGGER_ENABLED RATE_LIMIT_PER_SECOND RATE_LIMIT_BURST RUST_LOG
+#   optional: SWAGGER_ENABLED RATE_LIMIT_PER_SECOND RATE_LIMIT_BURST RUST_LOG LOG_FORMAT OTEL_*
 #   (see x-common-env in docker-compose.yml)
 cargo run
 
@@ -182,13 +182,36 @@ Runtime code and comments are a French/English mix. Write new text in English an
 French text you touch.
 
 Never swallow an error with `.map_err(|_| …)`: the endpoint error enums answer a generic body,
-so map through `crate::logging::log_error("<trigger fn>", Error::Variant)`, which logs the cause
-at the `error` level first (MAIR-395). Logging goes through the `log` facade, never
-`println!`/`eprintln!`: `main.rs` calls `logging::init()`, which installs `env_logger` writing one
-JSON object per line on stderr (`ts`, `level`, `target`, `message`; the target of `log_error` is
-the trigger fn), filtered by `RUST_LOG` (default `info`, which includes actix's per-request
-`Logger` line) (MAIR-421). Map the lib's typed errors before falling back to a logged `500`, like
-`register`/`complete` turn `DbError::ForeignKeyViolation` into a `404`.
+so map through `crate::error::log_error("<trigger fn>", Error::Variant)`, which logs the cause
+at the `error` level first, with the trigger fn as its `context` field (MAIR-395); never log
+the values of the request (MAIR-290). It stays local because the lib's
+`mairie360_api_lib::error::log_error` only takes an `ApiLibError`, while these call sites also map
+S3 and other errors into a `map_err` closure. Log with `tracing` (`tracing::info!` etc.), never
+`println!`/`eprintln!` nor the `log` crate. Map the lib's typed errors before falling back to a
+logged `500`, like `register`/`complete` turn `DbError::ForeignKeyViolation` into a `404`.
+
+### Logs and observability (MAIR-503)
+
+Logs and traces come from `mairie360_api_lib::logging::telemetry` (feature `otel`), shared by every API: `main.rs`
+only calls `init_telemetry("elearning-api")` and keeps the guard. Read the lib for the details.
+
+- Logs on stdout in the format of every API: coloured text (`RUST_LOG`, default `info`, which includes actix's
+  per-request `Logger` line), one JSON object per line with `LOG_FORMAT=json`. The request root span is hidden
+  from them (it holds the client address and query string).
+- Traces over OTLP/HTTP, opt-in: nothing is exported unless `OTEL_EXPORTER_OTLP_ENDPOINT` (or
+  `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) is set, `OTEL_SDK_DISABLED=true` forces it off, a failing exporter is
+  logged and never stops the API. The endpoint is an agent relaying to Scaleway Cockpit (OTel Collector or Grafana
+  Alloy, e.g. `http://alloy:4318`); `OTEL_SERVICE_NAME` defaults to `elearning-api`.
+- `main.rs` wraps the app in the lib's `TracingLogger`, inside the request log (`middleware::Logger`, kept), so
+  requests refused by `JwtMiddleware` get a span too. Root spans are named `<METHOD> <route pattern>` and continue
+  the BFF's `traceparent`. The SQL appears as span **events** (`db.statement` with `$n` placeholders, never the
+  values), the errors of `log_error` too. The lib's `Redact` drops `http.client_ip` and the query string before
+  export: build test providers with `telemetry::tracer_provider`, never `SdkTracerProvider::builder()`.
+- Never add `opentelemetry*` / `tracing-actix-web` / `tracing-subscriber` (outside dev-dependencies) to
+  `Cargo.toml`: use the lib's re-exports, its versions are coupled.
+- `tests/endpoints/telemetry.rs` asserts the span of a real route (status, route, continued trace id, no query
+  string, SQL events) and of a `401`; `tests/error_test.rs` covers `log_error`; the redaction of logs and spans is
+  tested in the lib.
 
 ### A leaf endpoint = a `get/` (or verb-named) directory with two or three files
 

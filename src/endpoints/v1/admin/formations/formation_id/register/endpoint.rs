@@ -11,7 +11,7 @@ use crate::database::admin::formations::register_user_to_formation::view::{
 };
 use crate::endpoints::v1::admin::formations::formation_id::register::view::RegisterUserView;
 use crate::endpoints::v1::admin::formations::formation_id::AdminFormationIdParams;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RegisterUserToFormationError {

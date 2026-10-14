@@ -10,7 +10,7 @@ use crate::database::formations::get_my_formation_modules::view::{
 use crate::database::formations::is_enrolled::view::IsEnrolledQueryView;
 use crate::endpoints::v1::formations::formation_id::get::view::{GetFormationResponseView, Module};
 use crate::endpoints::v1::formations::formation_id::FormationIdParams;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 fn map_module(row: FormationModuleRow) -> Module {
     Module {

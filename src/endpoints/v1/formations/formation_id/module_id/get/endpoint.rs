@@ -14,7 +14,7 @@ use crate::endpoints::v1::formations::formation_id::module_id::get::view::{
     File, FileType, GetModuleResponseView,
 };
 use crate::endpoints::v1::formations::formation_id::module_id::ModuleIdParams;
-use crate::logging::log_error;
+use crate::error::log_error;
 
 fn map_file(row: ModuleAttachmentRow) -> File {
     // `file_url` (the S3 object key) is deliberately not exposed here: clients

@@ -5,11 +5,11 @@ use std::sync::Arc;
 
 use elearning_api::database::pg_url::build_pg_url;
 use elearning_api::endpoints::{config, health, ready, swagger};
-use elearning_api::logging;
 use elearning_api::rate_limit;
 use elearning_api::storage::{FileStorage, S3FileStorage};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
+use mairie360_api_lib::logging::telemetry::{init_telemetry, TracingLogger};
 use mairie360_api_lib::security::JwtMiddleware;
 use mairie360_api_lib::state::AppState;
 
@@ -25,12 +25,12 @@ async fn wait_for_postgres(state: &AppState) {
         if ready::check_postgres(state).await.is_ok() {
             return;
         }
-        log::warn!(
+        tracing::warn!(
             "PostgreSQL unreachable (attempt {attempt}/{STARTUP_POSTGRES_ATTEMPTS}), retrying in 2 s"
         );
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     }
-    log::error!("PostgreSQL still unreachable, refusing to start");
+    tracing::error!("PostgreSQL still unreachable, refusing to start");
     std::process::exit(1);
 }
 
@@ -38,7 +38,10 @@ async fn wait_for_postgres(state: &AppState) {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    logging::init();
+    // Logs on stdout in the format shared by every API (`RUST_LOG`, default `info`;
+    // `LOG_FORMAT=json` for JSON lines), plus the trace export when `OTEL_EXPORTER_OTLP_ENDPOINT`
+    // is set (MAIR-503); flushed on drop.
+    let _telemetry = init_telemetry("elearning-api");
 
     let redis_url = get_critical_env_var("REDIS_URL");
     let db_user = get_critical_env_var("DB_USER");
@@ -63,12 +66,15 @@ async fn main() -> std::io::Result<()> {
     let rate_limit = rate_limit::config_from_env();
 
     let swagger_enabled = swagger::is_enabled();
-    log::info!("Swagger UI and /api-docs/openapi.json mounted: {swagger_enabled}");
+    tracing::info!("Swagger UI and /api-docs/openapi.json mounted: {swagger_enabled}");
 
     let server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
             .wrap(middleware::Logger::default())
+            // One span per request (MAIR-503), including those refused by `JwtMiddleware`; it
+            // continues the `traceparent` of the BFF.
+            .wrap(TracingLogger::default())
             // Every response is JSON or plain text: forbid browsers from sniffing it as HTML.
             .wrap(middleware::DefaultHeaders::new().add(("X-Content-Type-Options", "nosniff")))
             // 1. Swagger UI and API docs (public), only with SWAGGER_ENABLED=true
@@ -91,7 +97,7 @@ async fn main() -> std::io::Result<()> {
     let addr = server.addrs().first().copied();
     tokio::spawn(async move {
         if let Some(addr) = addr {
-            log::info!("Server listening on http://{addr}");
+            tracing::info!("Server listening on http://{addr}");
         }
     });
 
