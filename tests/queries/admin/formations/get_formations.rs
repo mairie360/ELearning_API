@@ -33,7 +33,7 @@ async fn test_get_formations_with_details_nests_modules_and_content() {
     let course_id = create_course(&fx, "Sécurité", "Bases").await;
     let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     create_attachment(
-        &db,
+        &fx,
         module_id,
         "guide.pdf",
         "pdf",

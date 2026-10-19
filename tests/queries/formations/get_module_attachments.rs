@@ -12,7 +12,7 @@ async fn test_get_module_attachments_lists_files() {
     let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
     let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     create_attachment(
-        &db,
+        &fx,
         module_id,
         "guide.pdf",
         "pdf",
@@ -42,7 +42,7 @@ async fn test_get_module_attachments_scoped_to_formation() {
     let other_course_id = create_course(&fx, "Autre formation", "Autre").await;
     let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     create_attachment(
-        &db,
+        &fx,
         module_id,
         "guide.pdf",
         "pdf",

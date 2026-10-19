@@ -21,8 +21,9 @@ ignore = [
     "RUSTSEC-2026-0195",
     # zip 8 (build-dependency of utoipa-swagger-ui 10, which requires zip ^8.6), unconfined
     # permissions, symlinks and SUID bits on extraction (fixed in zip >= 9.0.0). zip only runs in
-    # utoipa-swagger-ui's build script, extracting the Swagger UI archive it ships, never an
-    # archive from a user, and is not in the binary. Drop these once utoipa-swagger-ui moves to zip 9.
+    # utoipa-swagger-ui's build script, extracting the Swagger UI release archive it downloads at
+    # build time (no `vendored` feature), never an archive from a user of the API, and is not in
+    # the binary. Drop these once utoipa-swagger-ui moves to zip 9.
     "RUSTSEC-2026-0367",
     "RUSTSEC-2026-0368",
     "RUSTSEC-2026-0369",

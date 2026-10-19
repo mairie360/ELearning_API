@@ -12,7 +12,7 @@ async fn test_get_attachment_returns_scoped_row() {
     let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
     let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     let attachment_id = create_attachment(
-        &db,
+        &fx,
         module_id,
         "guide.pdf",
         "pdf",
@@ -44,7 +44,7 @@ async fn test_get_attachment_rejects_mismatched_triple() {
     let other_course_id = create_course(&fx, "Autre", "Autre").await;
     let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     let attachment_id = create_attachment(
-        &db,
+        &fx,
         module_id,
         "guide.pdf",
         "pdf",

@@ -33,7 +33,7 @@ async fn test_get_formation_modules_with_details_includes_content() {
     let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
     let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     create_attachment(
-        &db,
+        &fx,
         module_id,
         "guide.pdf",
         "pdf",
