@@ -1,21 +1,25 @@
 //! MAIR-423: `/ready` answers `200` only when Postgres and Redis answer.
 
+use crate::common::elearning_db_url;
 use actix_web::http::StatusCode;
 use actix_web::test::{self, TestRequest};
 use actix_web::{web, App, ResponseError};
 use elearning_api::endpoints::ready::{check_postgres, check_redis, ready, ReadinessError};
 use mairie360_api_lib::state::AppState;
-use mairie360_api_lib::test_setup::queries_setup::get_shared_db;
 
-/// An `AppState` whose Redis listens nowhere (port 1).
-async fn state_without_redis(pg_url: &str) -> AppState {
-    AppState::with_keycloak("redis://127.0.0.1:1".to_string(), pg_url.to_string(), None).await
+/// An `AppState` connected as the API's Postgres role, whose Redis listens nowhere (port 1).
+async fn state_without_redis() -> AppState {
+    AppState::with_keycloak(
+        "redis://127.0.0.1:1".to_string(),
+        elearning_db_url().await,
+        None,
+    )
+    .await
 }
 
 #[actix_web::test]
 async fn postgres_check_passes_on_a_live_database() {
-    let (_container, pg_url) = get_shared_db().await;
-    let state = state_without_redis(pg_url).await;
+    let state = state_without_redis().await;
 
     assert_eq!(check_postgres(&state).await, Ok(()));
     assert_eq!(check_redis(&state).await, Err(ReadinessError::Redis));
@@ -23,8 +27,7 @@ async fn postgres_check_passes_on_a_live_database() {
 
 #[actix_web::test]
 async fn ready_is_503_while_redis_is_down() {
-    let (_container, pg_url) = get_shared_db().await;
-    let state = state_without_redis(pg_url).await;
+    let state = state_without_redis().await;
     let app = test::init_service(App::new().app_data(web::Data::new(state)).service(ready)).await;
 
     let response = test::call_service(&app, TestRequest::get().uri("/ready").to_request()).await;

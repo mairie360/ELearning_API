@@ -1,20 +1,20 @@
-use crate::common::get_smart_db;
+use crate::common::{fixture_db, get_smart_db};
 use crate::queries::fixtures::{create_course, create_module};
 use elearning_api::database::admin::formations::register_user_to_formation::view::RegisterUserToFormationQueryView;
 use elearning_api::database::admin::users::get_user_formations::view::{
     GetUserFormationsQueryView, UserFormationRow,
 };
 use elearning_api::database::formations::complete_module::view::CompleteModuleQueryView;
-use mairie360_api_lib::test_setup::queries_setup::{get_shared_db, ALICE_ID};
+use mairie360_api_lib::test_setup::queries_setup::ALICE_ID;
 
 #[tokio::test]
 async fn test_get_user_formations_reports_progress_status() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
     let alice_id = *ALICE_ID.get().expect("Alice ID missing");
 
-    let course_id = create_course(&db, "RGPD", "Comprendre le RGPD").await;
-    let module_id = create_module(&db, course_id, "Module 1", "Contenu 1", 1).await;
+    let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
+    let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
 
     // The completion trigger registers the user into `user_courses` on its
     // own, but we also exercise the explicit admin registration path.

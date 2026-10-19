@@ -1,17 +1,16 @@
-use crate::common::get_smart_db;
+use crate::common::{fixture_db, get_smart_db};
 use crate::queries::fixtures::{create_attachment, create_course, create_module};
 use elearning_api::database::formations::get_attachment::view::{
     AttachmentRow, GetAttachmentQueryView,
 };
-use mairie360_api_lib::test_setup::queries_setup::get_shared_db;
 
 #[tokio::test]
 async fn test_get_attachment_returns_scoped_row() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
 
-    let course_id = create_course(&db, "RGPD", "Comprendre le RGPD").await;
-    let module_id = create_module(&db, course_id, "Module 1", "Contenu 1", 1).await;
+    let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
+    let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     let attachment_id = create_attachment(
         &db,
         module_id,
@@ -38,12 +37,12 @@ async fn test_get_attachment_returns_scoped_row() {
 
 #[tokio::test]
 async fn test_get_attachment_rejects_mismatched_triple() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
 
-    let course_id = create_course(&db, "RGPD", "Comprendre le RGPD").await;
-    let other_course_id = create_course(&db, "Autre", "Autre").await;
-    let module_id = create_module(&db, course_id, "Module 1", "Contenu 1", 1).await;
+    let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
+    let other_course_id = create_course(&fx, "Autre", "Autre").await;
+    let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     let attachment_id = create_attachment(
         &db,
         module_id,

@@ -1,19 +1,19 @@
-use crate::common::get_smart_db;
+use crate::common::{fixture_db, get_smart_db};
 use crate::queries::fixtures::{create_attachment, create_course, create_module, enrol};
 use elearning_api::database::admin::users::get_user_formation::view::{
     GetUserFormationQueryView, UserFormationModuleRow,
 };
 use elearning_api::database::formations::complete_module::view::CompleteModuleQueryView;
-use mairie360_api_lib::test_setup::queries_setup::{get_shared_db, ALICE_ID};
+use mairie360_api_lib::test_setup::queries_setup::ALICE_ID;
 
 #[tokio::test]
 async fn test_get_user_formation_content_is_always_an_array() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
     let alice_id = *ALICE_ID.get().expect("Alice ID missing");
 
-    let course_id = create_course(&db, "RGPD", "Comprendre le RGPD").await;
-    let module_id = create_module(&db, course_id, "Module 1", "Contenu 1", 1).await;
+    let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
+    let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     create_attachment(
         &db,
         module_id,
@@ -33,7 +33,7 @@ async fn test_get_user_formation_content_is_always_an_array() {
     assert!(rows[0].content().is_empty());
     assert!(!rows[0].is_completed());
 
-    enrol(&db, alice_id, course_id).await;
+    enrol(&fx, alice_id, course_id).await;
     let complete_view =
         CompleteModuleQueryView::new(alice_id as u64, course_id as u64, module_id as u64);
     db.execute(complete_view)

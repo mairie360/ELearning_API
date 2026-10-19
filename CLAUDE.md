@@ -125,7 +125,15 @@ spec documents a URL actix answers `404` to (k6 caught it on `/admin/formations/
 `mairie360_api_lib::test_setup::queries_setup::get_shared_db()`, which spins up the real
 `ghcr.io/mairie360/database` image, runs the Liquibase migrations against it once (`OnceCell`,
 shared across the whole test binary), and seeds a handful of users (`ALICE_ID`, `BOB_ID`,
-`ADMIN_ID`, `GROUP_OWNER_ID`). Only `users`/`sessions`/`groups`/`access_control` are truncated
+`ADMIN_ID`, `GROUP_OWNER_ID`). That superuser URL only serves the fixtures (`common::fixture_db`,
+`TestContext::db`): everything that runs the API's code connects as the `elearning_api` role, like in staging
+(MAIR-556): `common::get_smart_db()` (query views, `get_shared_db_as("elearning_api")`) and the `AppState` of
+`TestContext`, `readiness.rs` and `routing_test.rs`. A query outside the grants of Database's `api_grants.sql` then
+fails the test with `permission denied` (`tests/queries/db_role.rs` pins it): add the grant there, never connect
+the code under test as the superuser. `.cargo/config.toml` pins `TEST_DB_VERSION` to the compose files' Database
+tag, so the tests check the grants the stacks deploy. The compose stacks connect the API as `elearning_api` too
+(`-Delearning_api_password` passed to Liquibase); postgres, liquibase and the seeder keep the superuser.
+Only `users`/`sessions`/`groups`/`access_control` are truncated
 between runs — `courses`/`course_modules`/`course_attachments` accumulate, so each test creates
 its own course/module/attachment rows (see `tests/queries/fixtures.rs`) instead of assuming a
 clean table. `cargo cov_test` only excludes `main.rs` and `lib.rs` from the coverage count:
@@ -315,7 +323,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 1.4.2)
+### External library: `mairie360_api_lib` (pinned to 4.2.0)
 
 - `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
   `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
