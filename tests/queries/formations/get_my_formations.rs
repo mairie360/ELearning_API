@@ -1,14 +1,13 @@
-use crate::common::get_smart_db;
+use crate::common::{fixture_db, get_smart_db};
 use crate::queries::fixtures::create_course;
 use elearning_api::database::formations::get_my_formations::view::{
     FormationSummaryRow, GetMyFormationsQueryView,
 };
-use mairie360_api_lib::test_setup::queries_setup::{get_shared_db, ALICE_ID};
+use mairie360_api_lib::test_setup::queries_setup::ALICE_ID;
 
 #[tokio::test]
 async fn test_get_my_formations_empty_for_unregistered_user() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
     let alice_id = *ALICE_ID.get().expect("Alice ID missing");
 
     let view = GetMyFormationsQueryView::new(alice_id as u64);
@@ -19,11 +18,11 @@ async fn test_get_my_formations_empty_for_unregistered_user() {
 
 #[tokio::test]
 async fn test_get_my_formations_lists_registered_course() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
     let alice_id = *ALICE_ID.get().expect("Alice ID missing");
 
-    let course_id = create_course(&db, "RGPD", "Comprendre le RGPD").await;
+    let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
     sqlx_register(&db, alice_id, course_id).await;
 
     let view = GetMyFormationsQueryView::new(alice_id as u64);

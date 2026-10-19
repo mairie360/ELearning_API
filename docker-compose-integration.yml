@@ -14,9 +14,11 @@ x-common-env: &common-env
   REDIS_URL: redis://redis:6379
   DB_TYPE: postgres
   DB_NAME: mairie_360_database
-  DB_USER: postgres
+  # The API connects with its own role, like in staging/prod (MAIR-556): a query its grants do not
+  # cover fails here. The superuser stays for postgres, liquibase and the seeder.
+  DB_USER: elearning_api
   DB_HOST: postgres
-  DB_PASSWORD: password
+  DB_PASSWORD: elearning-api-password
   DB_PORT: 5432
   # Presigning is a local SigV4 computation (no network call), so placeholder credentials are
   # enough for the attachment URL route; the bucket is never contacted by the tests.
@@ -66,6 +68,7 @@ services:
       --changelog-file=changelog.xml
       update
       -Dallow_template_admin=true
+      -Delearning_api_password=elearning-api-password
     networks:
       - backend
 

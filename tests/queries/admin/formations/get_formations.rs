@@ -1,17 +1,16 @@
-use crate::common::get_smart_db;
+use crate::common::{fixture_db, get_smart_db};
 use crate::queries::fixtures::{create_attachment, create_course, create_module};
 use elearning_api::database::admin::formations::get_formations::view::{
     AdminFormationRow, GetFormationsQueryView,
 };
-use mairie360_api_lib::test_setup::queries_setup::get_shared_db;
 
 #[tokio::test]
 async fn test_get_formations_without_details_has_no_modules() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
 
-    let course_id = create_course(&db, "RGPD", "Comprendre le RGPD").await;
-    create_module(&db, course_id, "Module 1", "Contenu 1", 1).await;
+    let course_id = create_course(&fx, "RGPD", "Comprendre le RGPD").await;
+    create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
 
     let view = GetFormationsQueryView::new(false, u32::MAX, 0);
     let rows = db
@@ -28,13 +27,13 @@ async fn test_get_formations_without_details_has_no_modules() {
 
 #[tokio::test]
 async fn test_get_formations_with_details_nests_modules_and_content() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
 
-    let course_id = create_course(&db, "Sécurité", "Bases").await;
-    let module_id = create_module(&db, course_id, "Module 1", "Contenu 1", 1).await;
+    let course_id = create_course(&fx, "Sécurité", "Bases").await;
+    let module_id = create_module(&fx, course_id, "Module 1", "Contenu 1", 1).await;
     create_attachment(
-        &db,
+        &fx,
         module_id,
         "guide.pdf",
         "pdf",
@@ -66,11 +65,11 @@ async fn test_get_formations_with_details_nests_modules_and_content() {
 /// MAIR-425: the catalogue is paginated in `id` order.
 #[tokio::test]
 async fn test_get_formations_pages_in_id_order() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
 
-    let first = create_course(&db, "Page 1", "Premier").await;
-    let second = create_course(&db, "Page 2", "Second").await;
+    let first = create_course(&fx, "Page 1", "Premier").await;
+    let second = create_course(&fx, "Page 2", "Second").await;
 
     let all = db
         .fetch_all::<AdminFormationRow, _>(&GetFormationsQueryView::new(false, u32::MAX, 0))

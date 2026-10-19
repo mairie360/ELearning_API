@@ -2,6 +2,10 @@
 //! `course_attachments` rows for the query tests below. These tables aren't
 //! truncated by `mairie360_api_lib::test_setup::queries_setup::get_shared_db`,
 //! so each test creates its own rows instead of relying on fixed ids.
+//!
+//! Every fixture runs on the superuser database of `common::fixture_db` (or
+//! `TestContext::db`): `elearning_api` may not insert into `users`. The code
+//! under test connects as `elearning_api` instead (MAIR-556).
 
 use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 use mairie360_api_lib::smart_db::SmartDatabase;
@@ -76,7 +80,7 @@ struct CreateAttachment {
 
 impl ApiRequestDto for CreateAttachment {
     fn query_sql(&self) -> &'static str {
-        // `title` est obligatoire depuis Database 1.2.0 : on reprend le nom de fichier.
+        // `title` is required since Database 1.2.0: reuse the file name.
         "INSERT INTO course_attachments (module_id, file_name, title, file_type, file_url, file_size_bytes) \
          VALUES ($1, $2, $2, $3::attachment_type, $4, $5) RETURNING id"
     }
