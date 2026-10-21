@@ -357,9 +357,9 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
   `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:1.2.1` tag — keep them
   in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an
   nginx reverse proxy.
-- CI (`.github/workflows/cicd.yml`) delegates to the shared `mairie360/CICD` workflow, which runs
-  the three `*_test.sh` stacks on `main` with `IMAGE_REF` set to the `dev-<sha>` image it just
-  published. Same file as `API_template`: triggered by `pull_request` and by `push` on `main`
+- CI (`.github/workflows/cicd.yml`) delegates to the shared `mairie360/CICD` workflow and stops
+  after `release-dev` on a push to `main`; `promote-staging.yml` runs the three `*_test.sh` stacks
+  with `IMAGE_REF` set to the published `dev-<sha>` image. Same file as `API_template`: triggered by `pull_request` and by `push` on `main`
   only, passing only the secrets the reusable workflow declares (`CODECOV_TOKEN`,
   `N8N_WEBHOOK_SECRET`, no `secrets: inherit`). The `uses:` tag and `cicd_version` must stay
   equal: `renovate.json` groups them (`mairie360 CICD`) so they move in one PR. Renovate PRs are
@@ -380,7 +380,7 @@ invalid value falls back to its default with a `warn!`. Per-instance values are 
 ## Promotion to staging and prod (MAIR-494)
 
 A push to `main` only releases dev (`cicd.yml` stops at `release-dev`). Staging and prod are manual:
-`gh workflow run promote-staging.yml -R mairie360/ELearning_API [-f sha=<sha>]`, then `promote-prod.yml`
+`gh workflow run promote-staging.yml -R mairie360/ELearning_API` (main's newest commit) or `gh workflow run promote-staging.yml -R mairie360/ELearning_API -f sha=SHA` (a given commit), then the same with `promote-prod.yml`
 (environments `Staging` / `Prod`). Staging refuses a commit without `dev-<sha>` and a green main run, and runs
 the integration, ZAP and k6 stacks on that image; prod refuses one without `staging-<sha>` and tags the version semantic-release computes
 for that commit. `cicd.yml`, `promote-staging.yml` and `promote-prod.yml` pin the same mairie360/CICD release.
