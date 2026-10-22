@@ -119,7 +119,7 @@ pub struct UsersFormationModule {
     #[schema(example = true)]
     is_completed: bool,
     /// Date d'achèvement du module par l'agent, ou `null` s'il ne l'a pas terminé.
-    #[schema(value_type = String, format = DateTime, example = "2026-09-03T14:25:00Z")]
+    #[schema(value_type = Option<String>, format = DateTime, example = "2026-09-03T14:25:00Z")]
     completed_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -177,7 +177,7 @@ pub struct UsersModuleContent {
     file_type: String,
     /// Date à laquelle l'agent a terminé cette pièce jointe, ou `null` s'il ne l'a pas encore
     /// consultée.
-    #[schema(value_type = String, format = DateTime, example = "2026-09-03T14:22:00Z")]
+    #[schema(value_type = Option<String>, format = DateTime, example = "2026-09-03T14:22:00Z")]
     finished_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 

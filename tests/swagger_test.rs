@@ -56,3 +56,29 @@ fn hello_route_is_gone_from_the_contract() {
     let spec = serde_json::to_value(swagger::ApiDoc::openapi()).unwrap();
     assert!(spec["paths"].get("/").is_none());
 }
+
+/// MAIR-262: the dates an agent has not reached yet are `null` in the answers, so the contract
+/// must say so. `value_type = String` on an `Option` dropped the `null`, and a client validating
+/// the progress of an unfinished module against the spec refused it.
+#[test]
+fn unfinished_progress_dates_are_nullable_in_the_contract() {
+    let document = serde_json::to_value(
+        <elearning_api::endpoints::swagger::ApiDoc as utoipa::OpenApi>::openapi(),
+    )
+    .unwrap();
+    let schemas = &document["components"]["schemas"];
+    for (schema, field) in [
+        ("UsersFormation", "completed_at"),
+        ("UsersFormationModule", "completed_at"),
+        ("UsersModuleContent", "finished_at"),
+    ] {
+        let property = &schemas[schema]["properties"][field];
+        let nullable = property["type"]
+            .as_array()
+            .is_some_and(|types| types.iter().any(|t| t == "null"))
+            || property["oneOf"]
+                .as_array()
+                .is_some_and(|variants| variants.iter().any(|v| v["type"] == "null"));
+        assert!(nullable, "{schema}.{field} is not nullable: {property}");
+    }
+}
