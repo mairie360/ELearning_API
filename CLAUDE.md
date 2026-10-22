@@ -71,6 +71,29 @@ so `init-test.sql` (run by the `seeder` service of that compose file) seeds user
 `1001`/`1002` and attachment `1003`, and resets user 2's progress so the scenario replays. The S3 credentials in
 that file are placeholders: presigning is local, the bucket is never contacted.
 
+Split of the tests (MAIR-262): `cargo test` (unit and handler tests) validates the code, newman validates that the
+running image works. The collection holds, for **every operation of the spec**, its success case and one case per
+documented `400` / `401` / `403` / `404`, chained in business journeys (catalogue → refusals before enrolment →
+registration → agent side, modules and attachments, completion → admin progress → unregistration), each case
+checking the status and what the front relies on. The `429` / `500` / `502` cannot be produced on purpose on a
+healthy stack and stay in the handler tests. Three collection-level scripts, identical in every API collection,
+back it:
+
+- the collection pre-request loads `/api-docs/openapi.json` once (the stack sets `SWAGGER_ENABLED=true`), and the
+  collection test checks every answer against it: documented operation, documented status, content type, and the
+  JSON body against the response schema (`$ref`s inlined);
+- `Every secured operation refuses a missing JWT` replays every `jwt`-secured operation of the spec without a token
+  and expects a documented `401 text/plain`;
+- `OpenAPI coverage`, the last request, fails when an operation has no success case or a documented status above
+  was never answered, and when an entry of the collection variable `openapi_coverage_exceptions` (`"METHOD /path
+  STATUS": "reason"`, `2xx` for the success) is no longer needed. There is none in this API.
+
+A new endpoint therefore fails the integration stack until the collection tests it. The contract checks found that
+`completed_at` / `finished_at` of the admin progress were documented as non-nullable strings while unfinished items
+answer `null` (`value_type = String` on an `Option`): use `value_type = Option<String>`, guarded by
+`tests/swagger_test.rs::unfinished_progress_dates_are_nullable_in_the_contract`. Plain-text answers without a content
+type get `text/plain; charset=utf-8` from `endpoints::headers::default_headers()` (with `nosniff`), wired in `main.rs`.
+
 `docker-compose-performance.yml` / `docker-compose-security.yml` / `docker-compose-integration.yml` are
 standalone copies of the base stack plus a `seeder` (`init-test.sql`) and one extra service (`k6-perf-test` /
 `security-scan` / `newman`) — they don't `extends:` the
