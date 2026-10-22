@@ -1,29 +1,33 @@
 # Journal des releases — ELearning_API
 
-<!-- release-journal-state {"dev": "ba18081d50321354e5961ed0c2d8d2703141bc5e", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "12c5977817c325cfd8971f2b078d158c35a0157b", "updated": {"dev": "2026-10-22 06:44 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-10-21 03:21 UTC"}} -->
+<!-- release-journal-state {"dev": "733fcbae8c8f4dd24f43511df97ef7bb9b3d07e4", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "12c5977817c325cfd8971f2b078d158c35a0157b", "updated": {"dev": "2026-10-22 23:43 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-10-21 03:21 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.2.0 | `12c5977` | 2026-10-21 09:11 UTC |
 | staging | — | `12c5977` | 2026-10-21 03:21 UTC |
-| dev | — | `ba18081` | 2026-10-22 06:44 UTC |
+| dev | — | `733fcba` | 2026-10-22 23:43 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.2.0)
 
+#### Changements de comportement
+- Stacks docker-compose (`docker-compose.yml`, `docker-compose-integration.yml`, `docker-compose-performance.yml`, `docker-compose-security.yml`) et `TEST_DB_VERSION` dans `.cargo/config.toml` : les images `ghcr.io/mairie360/database` et `ghcr.io/mairie360/liquibase-migrations` passent de 3.2.0 à 3.3.0. Le diff ne contient pas les migrations, donc les changements de tables, colonnes ou contraintes ne sont pas visibles ici et restent à vérifier dans la version 3.3.0 du schéma. (#179, [#179](https://github.com/mairie360/ELearning_API/pull/179))
+
 #### Technique
-- Mise à jour de tokio de 1.54.0 à 1.54.1 (selon la description de la PR, un retour arrière sur les timers ; le diff de Cargo.lock n'est pas fourni, donc non vérifiable ici) ([#184](https://github.com/mairie360/ELearning_API/pull/184)).
-- Version du schéma de base passée de 3.2.0 à 3.3.0 : images ghcr.io/mairie360/database et liquibase-migrations dans docker-compose.yml et ses variantes integration, performance et security, plus TEST_DB_VERSION dans .cargo/config.toml. Le contenu des migrations 3.3.0 n'apparaît pas dans ces diffs ([#179](https://github.com/mairie360/ELearning_API/pull/179)).
-- Image de développement rust:1.99-bookworm épinglée par digest dans development.Dockerfile (e12566d puis 5c1a173, puis edaa2a8) ([#178](https://github.com/mairie360/ELearning_API/pull/178), [#183](https://github.com/mairie360/ELearning_API/pull/183)).
-- Pipeline de release : mairie360/CICD passe de v4.4.0 à v4.4.3 dans cicd.yml, promote-staging.yml et promote-prod.yml, ce qui corrige la création du tag et de la release lors de la promotion en prod (MAIR-612, [#175](https://github.com/mairie360/ELearning_API/pull/175), [#177](https://github.com/mairie360/ELearning_API/pull/177), [#181](https://github.com/mairie360/ELearning_API/pull/181)).
+- Image de développement `development.Dockerfile` : le digest de `rust:1.99-bookworm` passe de `e12566d` à `5c1a173` ([#178](https://github.com/mairie360/ELearning_API/pull/178)), puis à `edaa2a8` ([#183](https://github.com/mairie360/ELearning_API/pull/183)), puis à `48b7f43` ([#185](https://github.com/mairie360/ELearning_API/pull/185)). Aucun effet sur l'API en exécution.
+- Dépendance `tokio` passée de 1.54.0 à 1.54.1 ([#184](https://github.com/mairie360/ELearning_API/pull/184)). Le diff n'est pas fourni : seule la description de la PR est connue (revert d'un changement sur les timers).
+- Pins `mairie360/CICD` passés de v4.4.0 à v4.4.3 dans `cicd.yml`, `promote-staging.yml` et `promote-prod.yml`, en trois PR successives (MAIR-612, [#175](https://github.com/mairie360/ELearning_API/pull/175), [#177](https://github.com/mairie360/ELearning_API/pull/177), [#181](https://github.com/mairie360/ELearning_API/pull/181)). Les corrections concernent la publication des tags et releases par `promote-prod`, sans effet sur l'API.
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+#### Changements de comportement
+- Stacks docker-compose (`docker-compose.yml`, `docker-compose-integration.yml`, `docker-compose-performance.yml`, `docker-compose-security.yml`) et `TEST_DB_VERSION` dans `.cargo/config.toml` : les images `ghcr.io/mairie360/database` et `ghcr.io/mairie360/liquibase-migrations` passent de 3.2.0 à 3.3.0. Le diff ne contient pas les migrations, donc les changements de tables, colonnes ou contraintes ne sont pas visibles ici et restent à vérifier dans la version 3.3.0 du schéma. (#179, [#179](https://github.com/mairie360/ELearning_API/pull/179))
+
 #### Technique
-- Mise à jour de tokio de 1.54.0 à 1.54.1 (selon la description de la PR, un retour arrière sur les timers ; le diff de Cargo.lock n'est pas fourni, donc non vérifiable ici) ([#184](https://github.com/mairie360/ELearning_API/pull/184)).
-- Version du schéma de base passée de 3.2.0 à 3.3.0 : images ghcr.io/mairie360/database et liquibase-migrations dans docker-compose.yml et ses variantes integration, performance et security, plus TEST_DB_VERSION dans .cargo/config.toml. Le contenu des migrations 3.3.0 n'apparaît pas dans ces diffs ([#179](https://github.com/mairie360/ELearning_API/pull/179)).
-- Image de développement rust:1.99-bookworm épinglée par digest dans development.Dockerfile (e12566d puis 5c1a173, puis edaa2a8) ([#178](https://github.com/mairie360/ELearning_API/pull/178), [#183](https://github.com/mairie360/ELearning_API/pull/183)).
-- Pipeline de release : mairie360/CICD passe de v4.4.0 à v4.4.3 dans cicd.yml, promote-staging.yml et promote-prod.yml, ce qui corrige la création du tag et de la release lors de la promotion en prod (MAIR-612, [#175](https://github.com/mairie360/ELearning_API/pull/175), [#177](https://github.com/mairie360/ELearning_API/pull/177), [#181](https://github.com/mairie360/ELearning_API/pull/181)).
+- Image de développement `development.Dockerfile` : le digest de `rust:1.99-bookworm` passe de `e12566d` à `5c1a173` ([#178](https://github.com/mairie360/ELearning_API/pull/178)), puis à `edaa2a8` ([#183](https://github.com/mairie360/ELearning_API/pull/183)), puis à `48b7f43` ([#185](https://github.com/mairie360/ELearning_API/pull/185)). Aucun effet sur l'API en exécution.
+- Dépendance `tokio` passée de 1.54.0 à 1.54.1 ([#184](https://github.com/mairie360/ELearning_API/pull/184)). Le diff n'est pas fourni : seule la description de la PR est connue (revert d'un changement sur les timers).
+- Pins `mairie360/CICD` passés de v4.4.0 à v4.4.3 dans `cicd.yml`, `promote-staging.yml` et `promote-prod.yml`, en trois PR successives (MAIR-612, [#175](https://github.com/mairie360/ELearning_API/pull/175), [#177](https://github.com/mairie360/ELearning_API/pull/177), [#181](https://github.com/mairie360/ELearning_API/pull/181)). Les corrections concernent la publication des tags et releases par `promote-prod`, sans effet sur l'API.
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
@@ -34,6 +38,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-10-22 23:43 UTC | dev | — | `733fcba` | [run](https://github.com/mairie360/ELearning_API/actions/runs/39872754764) |
 | 2026-10-22 06:44 UTC | dev | — | `ba18081` | [run](https://github.com/mairie360/ELearning_API/actions/runs/39734444851) |
 | 2026-10-22 06:37 UTC | dev | — | `6e8ea43` | [run](https://github.com/mairie360/ELearning_API/actions/runs/39734296233) |
 | 2026-10-21 09:11 UTC | prod | v1.2.0 | `12c5977` | [run](https://github.com/mairie360/ELearning_API/actions/runs/39573690984) |
