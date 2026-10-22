@@ -83,8 +83,8 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::from_fn(restore_query))
             .wrap(TracingLogger::<RedactedRootSpanBuilder>::new())
             .wrap(middleware::from_fn(hide_query))
-            // Every response is JSON or plain text: forbid browsers from sniffing it as HTML.
-            .wrap(middleware::DefaultHeaders::new().add(("X-Content-Type-Options", "nosniff")))
+            // nosniff, and text/plain on the plain-text answers (MAIR-262).
+            .wrap(elearning_api::endpoints::headers::default_headers())
             // 1. Swagger UI and API docs (public), only with SWAGGER_ENABLED=true
             .configure(|cfg| swagger::config(cfg, swagger_enabled))
             // 2. Public endpoints

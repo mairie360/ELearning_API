@@ -1,3 +1,4 @@
+pub mod headers;
 pub mod health;
 pub mod ready;
 pub mod swagger;
