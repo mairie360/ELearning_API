@@ -50,12 +50,17 @@ operations:
   GET /api/v1/formations/:
     access: authenticated
     roles: [Admin, Maire, Responsable, User, Guest]
+    personal: [formations.progress_status]
     note: "the caller's own enrolments"
   GET /api/v1/formations/catalog/:
     access: authenticated
     roles: [Admin, Maire, Responsable, User, Guest]
+    personal: [formations.progress_status, modules.is_completed]
     note: "the caller's own enrolments with their modules, files and completion"
-  GET /api/v1/formations/{formation_id}/: {access: authenticated, ownership: [learner]}
+  GET /api/v1/formations/{formation_id}/:
+    access: authenticated
+    ownership: [learner]
+    personal: [modules.is_completed]
   GET /api/v1/formations/{formation_id}/{module_id}/: {access: authenticated, ownership: [learner]}
   PATCH /api/v1/formations/{formation_id}/{module_id}/:
     access: authenticated
