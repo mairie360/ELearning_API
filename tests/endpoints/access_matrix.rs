@@ -1,7 +1,8 @@
 //! MAIR-288: `access-matrix.yaml` covers every operation of the `OpenAPI`, and the API answers as
 //! it says. Each operation is called without a session, as a user of each role who is not enrolled
 //! in the formation, and as an enrolled learner: an allowed caller never gets 401 / 403 / 404, any
-//! other caller gets 403.
+//! other caller gets 403. A public operation (`/health`, `/ready`) never refuses anyone, with or
+//! without a session.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -217,9 +218,33 @@ async fn every_role_and_relation_gets_what_the_matrix_says() {
         callers.push(((*role).to_string(), id));
     }
 
+    // The public probes are mounted outside `/api`, like in `main.rs`.
+    let public = actix_web::test::init_service(
+        actix_web::App::new()
+            .app_data(ctx.state.clone())
+            .service(elearning_api::endpoints::health::health)
+            .service(elearning_api::endpoints::ready::ready),
+    )
+    .await;
+
     let mut failures = Vec::new();
     for (name, op) in &matrix().operations {
         if op.access == "public" {
+            // Anyone reaches a public operation, with or without a session.
+            let f = fixtures(db, learner).await;
+            let mut cases = vec![("anonymous".to_string(), None)];
+            cases.extend(callers.iter().map(|(role, id)| (role.clone(), Some(*id))));
+            for (who, user) in cases {
+                let req = request(name, &f, learner, learner);
+                let req = match user {
+                    Some(id) => req.insert_header(("Authorization", jwt_for(id))),
+                    None => req,
+                };
+                let got = status_of!(public, req).as_u16();
+                if got == 401 || got == 403 || got == 404 {
+                    failures.push(format!("{name}: {who} got {got}, the operation is public"));
+                }
+            }
             continue;
         }
         let f = fixtures(db, learner).await;
