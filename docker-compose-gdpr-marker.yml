@@ -69,7 +69,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -121,7 +121,7 @@ services:
       - ./init-test.sql:/init-test.sql:ro
     # ON_ERROR_STOP: a failing fixture must fail the stack.
     command: >
-      psql -h postgres -U postgres -d mairie_360_database -v ON_ERROR_STOP=1 -f /init-test.sql
+      psql -h postgres -U ${DB_USER:-postgres} -d mairie_360_database -v ON_ERROR_STOP=1 -f /init-test.sql
     environment:
       PGPASSWORD: ${DB_PASSWORD:-password}
     networks:
@@ -166,9 +166,11 @@ services:
     depends_on:
       elearning:
         condition: service_started
+    # Bounded wait (5 min): an API that never gets ready fails the stack instead of hanging it.
     command: >
-      sh -c 'until curl -fsS http://elearning:3006/ready >/dev/null; do
-      echo "waiting for elearning..."; sleep 2; done; echo "elearning ready"'
+      sh -c 'for i in $$(seq 150); do
+      curl -fsS http://elearning:3006/ready >/dev/null && echo "elearning ready" && exit 0;
+      echo "waiting for elearning..."; sleep 2; done; echo "elearning never got ready" >&2; exit 1'
     networks:
       - backend
 
