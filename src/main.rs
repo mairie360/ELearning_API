@@ -10,6 +10,9 @@ use elearning_api::storage::{FileStorage, S3FileStorage};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
 use mairie360_api_lib::logging::telemetry::{init_telemetry, TracingLogger};
+use mairie360_api_lib::request_log::{
+    hide_query, request_logger, restore_query, RedactedRootSpanBuilder,
+};
 use mairie360_api_lib::security::JwtMiddleware;
 use mairie360_api_lib::state::AppState;
 
@@ -71,10 +74,15 @@ async fn main() -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .wrap(middleware::Logger::default())
+            // Method and path only, never the query string nor the `Referer` (MAIR-290).
+            .wrap(request_logger())
             // One span per request (MAIR-503), including those refused by `JwtMiddleware`; it
-            // continues the `traceparent` of the BFF.
-            .wrap(TracingLogger::default())
+            // continues the `traceparent` of the BFF. It records the path without the query
+            // string and no error `Debug` (MAIR-290, see `mairie360_api_lib::request_log`):
+            // `hide_query` runs before it, `restore_query` right after it.
+            .wrap(middleware::from_fn(restore_query))
+            .wrap(TracingLogger::<RedactedRootSpanBuilder>::new())
+            .wrap(middleware::from_fn(hide_query))
             // Every response is JSON or plain text: forbid browsers from sniffing it as HTML.
             .wrap(middleware::DefaultHeaders::new().add(("X-Content-Type-Options", "nosniff")))
             // 1. Swagger UI and API docs (public), only with SWAGGER_ENABLED=true

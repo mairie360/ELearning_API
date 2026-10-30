@@ -1,7 +1,8 @@
 //! OpenTelemetry tracing (MAIR-503, `mairie360_api_lib::logging::telemetry`): each request of
 //! this API yields a root span carrying the route and the status, continues an incoming
 //! `traceparent`, carries the SQL it ran as span events, and leaves without the query string.
-//! The redaction of the logs and spans themselves is tested in the lib.
+//! The redaction of the logs and spans themselves is tested in the lib; the tests below check that
+//! this API mounts it (MAIR-290: no query string, no value of a refused body in the request span).
 
 use actix_web::test::TestRequest;
 use actix_web::App;
@@ -11,6 +12,7 @@ use mairie360_api_lib::logging::telemetry::opentelemetry_sdk::trace::{
     InMemorySpanExporter, SdkTracerProvider, SimpleSpanProcessor, SpanData,
 };
 use mairie360_api_lib::logging::telemetry::{trace_layer, tracer_provider, TracingLogger};
+use mairie360_api_lib::request_log::{hide_query, restore_query, RedactedRootSpanBuilder};
 use mairie360_api_lib::test_setup::queries_setup::ADMIN_ID;
 use serial_test::serial;
 use tracing::subscriber::DefaultGuard;
@@ -21,13 +23,15 @@ use super::{jwt_for, TestContext};
 const FORMATIONS: &str = "/api/v1/formations/";
 const FORMATIONS_ROUTE: &str = "GET /api/v1/formations/";
 
-/// Same mounting as `main.rs`, `TracingLogger` around the `/api` scope.
+/// Same mounting as `main.rs`, the redacted `TracingLogger` around the `/api` scope.
 macro_rules! init_traced_app {
     ($ctx:expr) => {{
         let storage: std::sync::Arc<dyn elearning_api::storage::FileStorage> = $ctx.storage.clone();
         actix_web::test::init_service(
             App::new()
-                .wrap(TracingLogger::default())
+                .wrap(actix_web::middleware::from_fn(restore_query))
+                .wrap(TracingLogger::<RedactedRootSpanBuilder>::new())
+                .wrap(actix_web::middleware::from_fn(hide_query))
                 .app_data($ctx.state.clone())
                 .service(
                     actix_web::web::scope("/api")
@@ -143,4 +147,47 @@ async fn a_refused_request_still_gets_its_span() {
 
     let span = request_span(&exporter, &provider);
     assert_eq!(attribute(&span, "http.status_code"), Some(&Value::I64(401)));
+}
+
+/// MAIR-290: a refused body is described by its type in the request span, never by the value it
+/// held (`TracingLogger::default()` recorded the error `Debug`, where serde quotes the value).
+#[actix_web::test]
+#[serial]
+async fn mair_290_the_span_of_a_refused_body_holds_no_value_of_the_request() {
+    const MARKER: &str = "gdpr.marker@example.com";
+    const ENROL_ROUTE: &str = "POST /api/v1/admin/formations/{formation_id}/";
+    let (exporter, provider, _guard) = in_memory_tracing();
+    let ctx = TestContext::new().await;
+    let admin = *ADMIN_ID.get().expect("seeded admin");
+    let app = init_traced_app!(ctx);
+    exporter.reset();
+
+    let request = TestRequest::post()
+        .uri(&format!("/api/v1/admin/formations/1/?search={MARKER}"))
+        .insert_header(("Authorization", jwt_for(admin)))
+        .set_json(serde_json::json!({ "user_id": MARKER }))
+        .to_request();
+    let response = actix_web::test::call_service(&app, request).await;
+    assert_eq!(response.status(), 400);
+    drop(response);
+
+    provider.force_flush().expect("flush the spans");
+    let spans = exporter.get_finished_spans().unwrap();
+    let span = spans
+        .iter()
+        .find(|span| span.name.starts_with("POST /api/v1/admin/formations/"))
+        .unwrap_or_else(|| panic!("no span named {ENROL_ROUTE}: {spans:#?}"));
+    assert_eq!(
+        attribute(span, "http.target"),
+        Some(&Value::from("/api/v1/admin/formations/1/"))
+    );
+    let details = attribute(span, "exception.details").map(Value::as_str);
+    assert!(
+        details
+            .as_deref()
+            .is_some_and(|d| d.starts_with("Json deserialize error")),
+        "{details:?}"
+    );
+    let dump = format!("{:?} {:?}", span.attributes, span.events);
+    assert!(!dump.contains("gdpr.marker"), "{dump}");
 }

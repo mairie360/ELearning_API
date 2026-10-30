@@ -37,3 +37,9 @@ development.Dockerfile
 node_modules/
 generated/
 cicd-repo/
+
+# GDPR log marker test (MAIR-290)
+gdpr-report
+gdpr-marker.yaml
+gdpr_marker_test.sh
+docker-compose-gdpr-marker.yml
