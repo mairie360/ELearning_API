@@ -6,7 +6,7 @@ use mairie360_api_lib::smart_db::SmartDatabase;
 use crate::database::formations::check_module_access::view::{
     CheckModuleAccessQueryView, ModuleAccessRow,
 };
-use crate::logging::log_error;
+use crate::error::log_error;
 
 /// Why the caller may not reach a module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

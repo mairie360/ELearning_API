@@ -1,12 +1,11 @@
-use crate::common::get_smart_db;
+use crate::common::{fixture_db, get_smart_db};
 use crate::queries::fixtures::create_user;
 use elearning_api::database::admin::users::get_users::view::{GetUsersQueryView, UserRow};
-use mairie360_api_lib::test_setup::queries_setup::{get_shared_db, ALICE_ID, BOB_ID};
+use mairie360_api_lib::test_setup::queries_setup::{ALICE_ID, BOB_ID};
 
 #[tokio::test]
 async fn test_get_users_lists_active_users() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
     let alice_id = *ALICE_ID.get().expect("Alice ID missing");
     let bob_id = *BOB_ID.get().expect("Bob ID missing");
 
@@ -23,11 +22,11 @@ async fn test_get_users_lists_active_users() {
 
 #[tokio::test]
 async fn test_get_users_pages_in_id_order() {
-    let (_container, host) = get_shared_db().await;
-    let db = get_smart_db(host.to_string()).await;
+    let db = get_smart_db().await;
+    let fx = fixture_db().await;
     // At least three active users, whatever the other tests left.
     for _ in 0..3 {
-        create_user(&db).await;
+        create_user(&fx).await;
     }
 
     let first_page = db

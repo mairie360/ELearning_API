@@ -23,7 +23,7 @@ docker compose up --watch          # --watch syncs src/ + Cargo.* into the dev c
 # Bare cargo run needs env vars set: DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME
 #   REDIS_URL HOST PORT JWT_SECRET JWT_TIMEOUT
 #   S3_BUCKET S3_REGION S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY  (+ optional S3_PRESIGN_TTL_SECS)
-#   optional: SWAGGER_ENABLED RATE_LIMIT_PER_SECOND RATE_LIMIT_BURST RUST_LOG
+#   optional: SWAGGER_ENABLED RATE_LIMIT_PER_SECOND RATE_LIMIT_BURST RUST_LOG LOG_FORMAT OTEL_*
 #   (see x-common-env in docker-compose.yml)
 cargo run
 
@@ -108,6 +108,13 @@ spec's path examples (course 4, module 11, attachment 27, user 42) so ZAP reache
 routes answer `403` to a caller who is not enrolled, admins included. A new formation id used by
 either stack must be added to that enrolment.
 
+`GET /api/v1/formations/catalog/` (MAIR-506) returns the caller's formations with their modules and the
+files of each module in one answer (query `formations::get_my_catalog`: correlated subqueries aggregated
+into JSON, so the number of statements does not grow with the data). It is registered **before** the
+`/{formation_id}` scope in `formations/mod.rs`, which would otherwise try to read "catalog" as an id. It
+exposes the same fields as the three per-formation routes and no `file_url`; BFF_Elearning uses it instead of
+1 + 15 + 150 calls per catalogue page.
+
 Every leaf handler is mounted as `#[get("/")]` (etc.) inside its segment scope, so its URL ends with `/`: its
 `#[utoipa::path]` must say `path = "/"` when the parent `doc.rs` nests it without a trailing slash, otherwise the
 spec documents a URL actix answers `404` to (k6 caught it on `/admin/formations/{formation_id}/` and
@@ -118,7 +125,15 @@ spec documents a URL actix answers `404` to (k6 caught it on `/admin/formations/
 `mairie360_api_lib::test_setup::queries_setup::get_shared_db()`, which spins up the real
 `ghcr.io/mairie360/database` image, runs the Liquibase migrations against it once (`OnceCell`,
 shared across the whole test binary), and seeds a handful of users (`ALICE_ID`, `BOB_ID`,
-`ADMIN_ID`, `GROUP_OWNER_ID`). Only `users`/`sessions`/`groups`/`access_control` are truncated
+`ADMIN_ID`, `GROUP_OWNER_ID`). That superuser URL only serves the fixtures (`common::fixture_db`,
+`TestContext::db`): everything that runs the API's code connects as the `elearning_api` role, like in staging
+(MAIR-556): `common::get_smart_db()` (query views, `get_shared_db_as("elearning_api")`) and the `AppState` of
+`TestContext`, `readiness.rs` and `routing_test.rs`. A query outside the grants of Database's `api_grants.sql` then
+fails the test with `permission denied` (`tests/queries/db_role.rs` pins it): add the grant there, never connect
+the code under test as the superuser. `.cargo/config.toml` pins `TEST_DB_VERSION` to the compose files' Database
+tag, so the tests check the grants the stacks deploy. The compose stacks connect the API as `elearning_api` too
+(`-Delearning_api_password` passed to Liquibase); postgres, liquibase and the seeder keep the superuser.
+Only `users`/`sessions`/`groups`/`access_control` are truncated
 between runs — `courses`/`course_modules`/`course_attachments` accumulate, so each test creates
 its own course/module/attachment rows (see `tests/queries/fixtures.rs`) instead of assuming a
 clean table. `cargo cov_test` only excludes `main.rs` and `lib.rs` from the coverage count:
@@ -180,13 +195,36 @@ Runtime code and comments are a French/English mix. Write new text in English an
 French text you touch.
 
 Never swallow an error with `.map_err(|_| …)`: the endpoint error enums answer a generic body,
-so map through `crate::logging::log_error("<trigger fn>", Error::Variant)`, which logs the cause
-at the `error` level first (MAIR-395). Logging goes through the `log` facade, never
-`println!`/`eprintln!`: `main.rs` calls `logging::init()`, which installs `env_logger` writing one
-JSON object per line on stderr (`ts`, `level`, `target`, `message`; the target of `log_error` is
-the trigger fn), filtered by `RUST_LOG` (default `info`, which includes actix's per-request
-`Logger` line) (MAIR-421). Map the lib's typed errors before falling back to a logged `500`, like
-`register`/`complete` turn `DbError::ForeignKeyViolation` into a `404`.
+so map through `crate::error::log_error("<trigger fn>", Error::Variant)`, which logs the cause
+at the `error` level first, with the trigger fn as its `context` field (MAIR-395); never log
+the values of the request (MAIR-290). It stays local because the lib's
+`mairie360_api_lib::error::log_error` only takes an `ApiLibError`, while these call sites also map
+S3 and other errors into a `map_err` closure. Log with `tracing` (`tracing::info!` etc.), never
+`println!`/`eprintln!` nor the `log` crate. Map the lib's typed errors before falling back to a
+logged `500`, like `register`/`complete` turn `DbError::ForeignKeyViolation` into a `404`.
+
+### Logs and observability (MAIR-503)
+
+Logs and traces come from `mairie360_api_lib::logging::telemetry` (feature `otel`), shared by every API: `main.rs`
+only calls `init_telemetry("elearning-api")` and keeps the guard. Read the lib for the details.
+
+- Logs on stdout in the format of every API: coloured text (`RUST_LOG`, default `info`, which includes actix's
+  per-request `Logger` line), one JSON object per line with `LOG_FORMAT=json`. The request root span is hidden
+  from them (it holds the client address and query string).
+- Traces over OTLP/HTTP, opt-in: nothing is exported unless `OTEL_EXPORTER_OTLP_ENDPOINT` (or
+  `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) is set, `OTEL_SDK_DISABLED=true` forces it off, a failing exporter is
+  logged and never stops the API. The endpoint is an agent relaying to Scaleway Cockpit (OTel Collector or Grafana
+  Alloy, e.g. `http://alloy:4318`); `OTEL_SERVICE_NAME` defaults to `elearning-api`.
+- `main.rs` wraps the app in the lib's `TracingLogger`, inside the request log (`middleware::Logger`, kept), so
+  requests refused by `JwtMiddleware` get a span too. Root spans are named `<METHOD> <route pattern>` and continue
+  the BFF's `traceparent`. The SQL appears as span **events** (`db.statement` with `$n` placeholders, never the
+  values), the errors of `log_error` too. The lib's `Redact` drops `http.client_ip` and the query string before
+  export: build test providers with `telemetry::tracer_provider`, never `SdkTracerProvider::builder()`.
+- Never add `opentelemetry*` / `tracing-actix-web` / `tracing-subscriber` (outside dev-dependencies) to
+  `Cargo.toml`: use the lib's re-exports, its versions are coupled.
+- `tests/endpoints/telemetry.rs` asserts the span of a real route (status, route, continued trace id, no query
+  string, SQL events) and of a `401`; `tests/error_test.rs` covers `log_error`; the redaction of logs and spans is
+  tested in the lib.
 
 ### A leaf endpoint = a `get/` (or verb-named) directory with two or three files
 
@@ -290,7 +328,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 1.4.2)
+### External library: `mairie360_api_lib` (pinned to 4.2.0)
 
 - `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
   `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
@@ -324,9 +362,9 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
   `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:1.2.1` tag — keep them
   in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an
   nginx reverse proxy.
-- CI (`.github/workflows/cicd.yml`) delegates to the shared `mairie360/CICD` workflow, which runs
-  the three `*_test.sh` stacks on `main` with `IMAGE_REF` set to the `dev-<sha>` image it just
-  published. Same file as `API_template`: triggered by `pull_request` and by `push` on `main`
+- CI (`.github/workflows/cicd.yml`) delegates to the shared `mairie360/CICD` workflow and stops
+  after `release-dev` on a push to `main`; `promote-staging.yml` runs the three `*_test.sh` stacks
+  with `IMAGE_REF` set to the published `dev-<sha>` image. Same file as `API_template`: triggered by `pull_request` and by `push` on `main`
   only, passing only the secrets the reusable workflow declares (`CODECOV_TOKEN`,
   `N8N_WEBHOOK_SECRET`, no `secrets: inherit`). The `uses:` tag and `cicd_version` must stay
   equal: `renovate.json` groups them (`mairie360 CICD`) so they move in one PR. Renovate PRs are
@@ -335,3 +373,19 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 ## Pull request reviewers
 
 Every PR requests a review from the whole team, minus its author: `CarolinHugo`, `LAURETbenjamin`, `MathTek` and `Quentintnrl` (`gh pr create … --reviewer CarolinHugo,LAURETbenjamin,MathTek`). `.github/CODEOWNERS` makes GitHub request them automatically as well.
+
+## Postgres pool settings (MAIR-565)
+
+Since `mairie360_api_lib` 3.4.0, `Database` reads three optional env vars through `DbPoolConfig::from_env`:
+`DB_POOL_MIN_CONNECTIONS` (default 1, sqlx's was 0: the API keeps one connection open, so the first request after a
+pause no longer reconnects), `DB_POOL_MAX_CONNECTIONS` (default 10) and `DB_POOL_IDLE_TIMEOUT_SECS` (default 600). An
+invalid value falls back to its default with a `warn!`. Per-instance values are set by the `Deploiment` chart
+(`APIs.dbPool`); the compose stacks set none and use the defaults.
+
+## Promotion to staging and prod (MAIR-494)
+
+A push to `main` only releases dev (`cicd.yml` stops at `release-dev`). Staging and prod are manual:
+`gh workflow run promote-staging.yml -R mairie360/ELearning_API` (main's newest commit) or `gh workflow run promote-staging.yml -R mairie360/ELearning_API -f sha=SHA` (a given commit), then the same with `promote-prod.yml`
+(environments `Staging` / `Prod`). Staging refuses a commit without `dev-<sha>` and a green main run, and runs
+the integration, ZAP and k6 stacks on that image; prod refuses one without `staging-<sha>` and tags the version semantic-release computes
+for that commit. `cicd.yml`, `promote-staging.yml` and `promote-prod.yml` pin the same mairie360/CICD release.
