@@ -166,9 +166,11 @@ services:
     depends_on:
       elearning:
         condition: service_started
+    # Bounded wait (5 min): an API that never gets ready fails the stack instead of hanging it.
     command: >
-      sh -c 'until curl -fsS http://elearning:3006/ready >/dev/null; do
-      echo "waiting for elearning..."; sleep 2; done; echo "elearning ready"'
+      sh -c 'for i in $$(seq 150); do
+      curl -fsS http://elearning:3006/ready >/dev/null && echo "elearning ready" && exit 0;
+      echo "waiting for elearning..."; sleep 2; done; echo "elearning never got ready" >&2; exit 1'
     networks:
       - backend
 
