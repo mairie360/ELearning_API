@@ -51,6 +51,10 @@ operations:
     access: authenticated
     roles: [Admin, Maire, Responsable, User, Guest]
     note: "the caller's own enrolments"
+  GET /api/v1/formations/catalog/:
+    access: authenticated
+    roles: [Admin, Maire, Responsable, User, Guest]
+    note: "the caller's own enrolments with their modules, files and completion"
   GET /api/v1/formations/{formation_id}/: {access: authenticated, ownership: [learner]}
   GET /api/v1/formations/{formation_id}/{module_id}/: {access: authenticated, ownership: [learner]}
   PATCH /api/v1/formations/{formation_id}/{module_id}/:
