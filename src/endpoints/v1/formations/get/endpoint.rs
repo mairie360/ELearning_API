@@ -8,7 +8,7 @@ use crate::database::formations::get_my_formations::view::{
     FormationSummaryRow, GetMyFormationsQueryView,
 };
 use crate::endpoints::v1::formations::get::view::{Formation, GetFormationsResultView, Status};
-use crate::logging::log_error;
+use crate::error::log_error;
 
 fn map_formation(row: FormationSummaryRow) -> Formation {
     Formation::new(

@@ -47,11 +47,11 @@ pub async fn check_postgres(state: &AppState) -> Result<(), ReadinessError> {
     match tokio::time::timeout(DEPENDENCY_TIMEOUT, ping).await {
         Ok(Ok(_)) => Ok(()),
         Ok(Err(err)) => {
-            log::warn!(target: "readiness", "PostgreSQL ping failed: {err}");
+            tracing::warn!(target: "readiness", "PostgreSQL ping failed: {err}");
             Err(ReadinessError::Postgres)
         }
         Err(_) => {
-            log::warn!(target: "readiness", "PostgreSQL ping timed out");
+            tracing::warn!(target: "readiness", "PostgreSQL ping timed out");
             Err(ReadinessError::Postgres)
         }
     }
@@ -63,11 +63,11 @@ pub async fn check_redis(state: &AppState) -> Result<(), ReadinessError> {
     match tokio::time::timeout(DEPENDENCY_TIMEOUT, ping).await {
         Ok(Ok(_)) => Ok(()),
         Ok(Err(err)) => {
-            log::warn!(target: "readiness", "Redis ping failed: {err}");
+            tracing::warn!(target: "readiness", "Redis ping failed: {err}");
             Err(ReadinessError::Redis)
         }
         Err(_) => {
-            log::warn!(target: "readiness", "Redis ping timed out");
+            tracing::warn!(target: "readiness", "Redis ping timed out");
             Err(ReadinessError::Redis)
         }
     }

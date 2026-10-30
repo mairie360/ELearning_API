@@ -5,21 +5,24 @@
 pub mod access_denials;
 pub mod admin_guard;
 pub mod admin_reads;
+pub mod catalog;
 pub mod enrolment;
 pub mod formation_access;
 pub mod module_access;
 pub mod rate_limit;
 pub mod readiness;
+pub mod telemetry;
 pub mod token_refusals;
 
 use std::sync::{Arc, Mutex, Once};
 
 use actix_web::web;
+
+use crate::common::{elearning_db_url, fixture_db};
 use elearning_api::storage::{FileStorage, StorageError};
 use mairie360_api_lib::jwt_manager::generate_jwt;
 use mairie360_api_lib::smart_db::SmartDatabase;
 use mairie360_api_lib::state::AppState;
-use mairie360_api_lib::test_setup::queries_setup::get_shared_db;
 
 pub const PRESIGNED_URL: &str = "https://storage.test/presigned";
 
@@ -53,26 +56,35 @@ pub fn jwt_for(user_id: i32) -> String {
     format!("Bearer {token}")
 }
 
-/// The pieces a handler test needs: the app state (whose `SmartDatabase` also
-/// seeds fixtures) and the mock storage handed to the app.
+/// The pieces a handler test needs: the app state, connected as the API's
+/// Postgres role, the superuser database that seeds the fixtures, and the mock
+/// storage handed to the app.
 pub struct TestContext {
     pub state: web::Data<AppState>,
     pub storage: Arc<MockFileStorage>,
+    fixtures: SmartDatabase,
 }
 
 impl TestContext {
     pub async fn new() -> Self {
-        let (_container, pg_url) = get_shared_db().await;
-        // Redis is not needed: none of the query views declares a cache key.
-        let state = AppState::new("redis://127.0.0.1:6379".to_string(), pg_url.to_string()).await;
+        // The app runs as `elearning_api`, like in staging (MAIR-556). Redis is
+        // not needed: none of the query views declares a cache key.
+        let state = AppState::new(
+            "redis://127.0.0.1:6379".to_string(),
+            elearning_db_url().await,
+        )
+        .await;
         Self {
             state: web::Data::new(state),
             storage: Arc::new(MockFileStorage::default()),
+            fixtures: fixture_db().await,
         }
     }
 
+    /// Superuser database for the fixtures and the assertions on the seeded
+    /// rows; the code under test goes through `state` instead.
     pub fn db(&self) -> &SmartDatabase {
-        self.state.get_smart_db()
+        &self.fixtures
     }
 }
 

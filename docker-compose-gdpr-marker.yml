@@ -16,9 +16,11 @@ x-common-env: &common-env
   REDIS_URL: redis://redis:6379
   DB_TYPE: postgres
   DB_NAME: mairie_360_database
-  DB_USER: postgres
+  # ELearning connects with its own role, like in staging/prod (MAIR-556). The superuser stays for
+  # postgres, liquibase and the seeder.
+  DB_USER: elearning_api
   DB_HOST: postgres
-  DB_PASSWORD: password
+  DB_PASSWORD: elearning-api-password
   DB_PORT: 5432
   # -- Scaleway Object Storage (S3) : placeholders dev, vraies valeurs en secrets CI --
   S3_BUCKET: mairie360-elearning
@@ -53,7 +55,7 @@ x-service: &service-template
 
 services:
   postgres:
-    image: ghcr.io/mairie360/database:3.0.0
+    image: ghcr.io/mairie360/database:3.3.0
     restart: always
     container_name: mairie360-db-elearning-api-gdpr
     environment:
@@ -73,7 +75,7 @@ services:
       retries: 5
 
   liquibase:
-    image: ghcr.io/mairie360/liquibase-migrations:3.0.0
+    image: ghcr.io/mairie360/liquibase-migrations:3.3.0
     container_name: mairie360-liquibase-elearning-api-gdpr
     depends_on:
       postgres:
@@ -90,6 +92,7 @@ services:
       --changelog-file=changelog.xml
       update
       -Dallow_template_admin=true
+      -Delearning_api_password=elearning-api-password
     networks:
       - backend
 

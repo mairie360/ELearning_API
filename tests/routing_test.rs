@@ -2,20 +2,20 @@ use actix_web::{http::Method, test, web, App, HttpResponse};
 use elearning_api::endpoints::config;
 use elearning_api::endpoints::swagger::ApiDoc;
 use mairie360_api_lib::state::AppState;
-use mairie360_api_lib::test_setup::queries_setup::get_shared_db;
+use mairie360_api_lib::test_setup::queries_setup::get_shared_db_as;
 use utoipa::OpenApi;
 
 // Every operation published in the OpenAPI contract (the one @mairie360/elearning-api-openapi is generated
 // from) must hit an actix route that is really mounted. No database nor JWT is needed: a missing route
 // falls through to the default service (418), a routed one fails further on (data, JWT, body).
 // The lib's `AdminMiddleware` needs an `AppState` in the app data. Since lib 3.0.0 an `AppState`
-// refuses to start without a reachable Postgres, so it reuses the shared test database (Redis is
+// refuses to start without a reachable Postgres, so it reuses the shared test database, as the API's
+// `elearning_api` role like every code under test (MAIR-556) (Redis is
 // absent, its failures are silent); a request without JWT never reaches SQL anyway.
 #[actix_web::test]
 async fn every_published_operation_is_routed() {
-    let (_container, pg_url) = get_shared_db().await;
-    let state =
-        AppState::with_keycloak("redis://127.0.0.1:1".to_string(), pg_url.clone(), None).await;
+    let pg_url = get_shared_db_as("elearning_api").await;
+    let state = AppState::with_keycloak("redis://127.0.0.1:1".to_string(), pg_url, None).await;
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(state))
