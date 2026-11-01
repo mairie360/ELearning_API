@@ -350,7 +350,8 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 
 ### Deployment
 
-- `Dockerfile` — multi-stage release build → `gcr.io/distroless/cc-debian12:nonroot`, running as
+- `Dockerfile` — multi-stage release build → `gcr.io/distroless/cc-debian13:nonroot` (builder
+  `rust:1.99-slim-trixie`, same Debian as `development.Dockerfile`, MAIR-741), running as
   uid/gid `65532` (`USER 65532:65532`, numeric so Kubernetes can enforce `runAsNonRoot`). The API
   must keep needing neither root nor a writable filesystem. Like `API_template` (MAIR-427): both
   Dockerfiles use the template's Rust toolchain, every base image is pinned by tag **and**
