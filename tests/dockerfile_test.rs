@@ -12,12 +12,20 @@ fn from_images(file: &str) -> Vec<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(file);
     let content = std::fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("cannot read {}: {err}", path.display()));
-    content
+    // Docker accepts any whitespace (spaces or tabs) between `FROM` and the image.
+    let images: Vec<String> = content
         .lines()
-        .map(str::trim)
-        .filter(|line| line.to_ascii_uppercase().starts_with("FROM "))
-        .filter_map(|line| line.split_whitespace().nth(1).map(str::to_owned))
-        .collect()
+        .filter_map(|line| {
+            let mut tokens = line.split_whitespace();
+            let instruction = tokens.next()?;
+            instruction
+                .eq_ignore_ascii_case("FROM")
+                .then(|| tokens.next().map(str::to_owned))
+                .flatten()
+        })
+        .collect();
+    assert!(!images.is_empty(), "{file} has no FROM instruction");
+    images
 }
 
 /// Debian major version an image is built on, read from its tag (`trixie`, `debian13`…).
