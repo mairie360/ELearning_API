@@ -11,7 +11,7 @@
 // modules). Three scenarios:
 // - `reads`: the GET operations, ramping up to the read VUs of the profile (PROFILES). The admin lists read a random page (their
 //   OFFSET cost grows with it), the learner routes run as a random seeded learner on one of their
-//   formations, with a token signed here like the Admin's;
+//   formations, with the token performance_test.sh signed for them;
 // - `writes`: every other operation with the write VUs of the profile, each handler undoing what it did when the API
 //   allows it. Seeded learners complete module 6 of their formations (modules 1 to 5 are done),
 //   an idempotent upsert that locks their enrolment row;
@@ -24,8 +24,6 @@
 // Unenrolling an agent who is not enrolled answers 404, so the write VUs must never share an
 // agent: each one enrolls and unenrolls its own seeded learner in formation 1000, picked by its VU
 // id (unique across the scenarios, fewer than the 2 000 learners).
-import crypto from 'k6/crypto';
-import encoding from 'k6/encoding';
 import http from 'k6/http';
 import exec from 'k6/execution';
 import { check, fail, sleep } from 'k6';
@@ -33,21 +31,19 @@ import { createCoverage, loadSpec } from '/coverage.js';
 
 const BASE_URL = (__ENV.BASE_URL || 'http://localhost:3006').replace(/\/+$/, '');
 
-// HS256 admin JWT (sub=1, the Admin seeded by liquibase), signed at init with the stack's
-// JWT_SECRET and valid for 2 hours, like .zap/scan.sh and the Postman collection do. No token is
-// committed (MAIR-428): the repository is public. `JWT` still overrides it.
-function signJwt(sub, role, secret, ttlSeconds) {
-  const segment = (value) => encoding.b64encode(JSON.stringify(value), 'rawurl');
-  const header = segment({ alg: 'HS256', typ: 'JWT' });
-  const payload = segment({ sub: String(sub), role, exp: Math.floor(Date.now() / 1000) + ttlSeconds });
-  const signature = crypto.hmac('sha256', secret, `${header}.${payload}`, 'base64rawurl');
-  return `${header}.${payload}.${signature}`;
+// EdDSA tokens of the Admin seeded by liquibase (sub=1) and of the learners of init-perf.sql
+// ({ "<user id>": "<jwt>" }), signed by performance_test.sh with the run's key like Core signs them
+// (test_secrets.sh, MAIR-428, MAIR-680): k6 cannot sign Ed25519 itself, and no token is committed.
+const TOKENS = JSON.parse(open(__ENV.JWT_TOKENS_FILE || '/tokens.json'));
+
+/** EdDSA JWT of seeded user `id`, valid for the run. */
+function jwt(id) {
+  const token = TOKENS[String(id)];
+  if (!token) throw new Error(`No token for user ${id}: sign it in performance_test.sh`);
+  return token;
 }
 
-if (!__ENV.JWT && !__ENV.JWT_SECRET) {
-  throw new Error('Set JWT_SECRET (the API\'s secret) or JWT (a ready-made admin token)');
-}
-const TOKEN = __ENV.JWT || signJwt(1, 'admin', __ENV.JWT_SECRET, 2 * 3600);
+const TOKEN = jwt(1);
 const AUTH = { Authorization: `Bearer ${TOKEN}` };
 
 // Rows of init-perf.sql.
@@ -87,7 +83,7 @@ function randomLearner() {
   const rank = randomInt(LEARNERS.count);
   const id = LEARNERS.first + rank;
   if (!learnerTokens[id]) {
-    learnerTokens[id] = { Authorization: `Bearer ${signJwt(id, 'user', __ENV.JWT_SECRET, 2 * 3600)}` };
+    learnerTokens[id] = { Authorization: `Bearer ${jwt(id)}` };
   }
   const formationRank = (rank + 20 * randomInt(ENROLMENTS_PER_LEARNER)) % PERF_FORMATIONS.count;
   return {

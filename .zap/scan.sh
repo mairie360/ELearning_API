@@ -1,30 +1,14 @@
 #!/bin/bash
-# Entry point of the `security-scan` service (docker-compose-security.yml): signs a short-lived
-# admin JWT with the stack's JWT_SECRET, then runs zap-api-scan.py with the arguments of the
-# compose `command`, plus a replacer that injects the token on every request so the
-# authenticated routes are scanned instead of answering 401.
+# Entry point of the `security-scan` service (docker-compose-security.yml): runs zap-api-scan.py
+# with the arguments of the compose `command`, plus a replacer that injects the admin JWT on every
+# request so the authenticated routes are scanned instead of answering 401.
 #
-# No token is committed (MAIR-428): the repository is public, and a static token signed with the
-# test secret would be admin wherever that secret were ever reused, until its `exp`.
+# ADMIN_JWT is the EdDSA token (sub=1, valid 2 hours) that security_test.sh signs with the run's
+# Ed25519 key like Core does (test_secrets.sh, MAIR-680): the API only holds the public key and
+# refuses every HS256 token. No key or token is committed (MAIR-428).
 set -euo pipefail
 
-: "${JWT_SECRET:?must be the JWT_SECRET of the elearning service}"
-
-# HS256, sub=1 (the Admin seeded by liquibase), valid for 2 hours.
-TOKEN=$(python3 -c '
-import base64, hashlib, hmac, json, os, time
-
-def b64(data):
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
-
-header = b64(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
-claims = {"sub": "1", "role": "admin", "exp": int(time.time()) + 2 * 3600}
-payload = b64(json.dumps(claims).encode())
-signature = hmac.new(
-    os.environ["JWT_SECRET"].encode(), f"{header}.{payload}".encode(), hashlib.sha256
-).digest()
-print(f"{header}.{payload}.{b64(signature)}")
-')
+TOKEN="${ADMIN_JWT:?must be the admin JWT signed by security_test.sh}"
 
 # -silent: no add-on update check or telemetry at daemon start (it can hang the scan with
 #   "Failed to connect to ZAP after 600 seconds").
