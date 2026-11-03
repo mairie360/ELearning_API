@@ -21,7 +21,7 @@ that get handed to it.
 docker compose up --watch          # --watch syncs src/ + Cargo.* into the dev container
 
 # Bare cargo run needs env vars set: DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME
-#   REDIS_URL HOST PORT JWT_SECRET JWT_TIMEOUT
+#   REDIS_URL HOST PORT JWT_PUBLIC_KEY JWT_TIMEOUT
 #   S3_BUCKET S3_REGION S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY  (+ optional S3_PRESIGN_TTL_SECS)
 #   optional: SWAGGER_ENABLED RATE_LIMIT_PER_SECOND RATE_LIMIT_BURST RUST_LOG LOG_FORMAT OTEL_*
 #   (see x-common-env in docker-compose.yml)
@@ -61,9 +61,12 @@ polling `/ready`, and dependent services wait for it with `service_completed_suc
 
 `tests/postman/collection.json` is a Postman v2.1 collection (importable in the app) and
 `tests/postman/environment.json` its variables; the compose file overrides `baseUrl` with `--env-var` so the
-committed default (`http://localhost:3006`) stays usable from a host shell. There is no login route here, so the
-collection pre-request script forges the HS256 JWTs itself (claims `sub`/`role`/`exp`, signed with the stack's
-`JWT_SECRET`) for the seeded Admin (user 1) and a plain agent (user 2). The API has no route to create courses,
+committed default (`http://localhost:3006`) stays usable from a host shell. There is no login route here and the
+Postman sandbox cannot sign EdDSA, so `integration_test.sh` signs the JWTs with the run's key (`test_secrets.sh`)
+and the compose file passes them with `--env-var`: `jwt_admin` (the seeded Admin, user 1), `jwt_agent` (a plain
+agent, user 2), `jwt_forged` (Core's `kid`, another key) and `jwt_expired`; the pre-request script only forges
+`jwt_hs256` / `jwt_hs256_agent`, HS256 tokens that must be refused (MAIR-680). From a host shell, fill those
+variables yourself. The API has no route to create courses,
 so `init-test.sql` (run by the `seeder` service of that compose file) seeds user 2, course `1000` with modules
 `1001`/`1002` and attachment `1003`, and resets user 2's progress so the scenario replays. The S3 credentials in
 that file are placeholders: presigning is local, the bucket is never contacted.
@@ -73,15 +76,23 @@ standalone copies of the base stack plus a `seeder` (`init-test.sql`) and one ex
 `security-scan` / `newman`) — they don't `extends:` the
 main compose file, so env/image changes must be mirrored into all of them.
 
-`mairie360_api_lib` (2.0+) refuses to start with a missing, short (< 32 bytes) or well-known `JWT_SECRET`. The four
-compose stacks keep the public test value `b"secret"` and set `JWT_ALLOW_WEAK_SECRET: "true"` next to it; a
-deployment never sets that variable and gets its own random secret, distinct per instance. **No JWT is committed**
-(MAIR-428): the Postman pre-request script, `load-test.js` (k6 `JWT_SECRET` env) and `.zap/scan.sh` (the
-`security-scan` entry point) each sign a short-lived token at startup from the stack's secret — keep their
-`JWT_SECRET` equal to the `elearning` service's.
+**Session tokens (MAIR-680).** Only Core_API signs them, with its Ed25519 key (`EdDSA`, `kid` = RFC 7638
+thumbprint, `iss` `mairie360-core`, `aud` `mairie360`). This API only gets `JWT_PUBLIC_KEY` (Core's public key as
+PEM, several `PUBLIC KEY` blocks during a rotation, `\n`-escaped line breaks accepted) and checks them with the lib
+(4.3.0). No `JWT_SECRET`: while it is set the lib still accepts HS256 tokens signed with it (transition), so a
+deployment removes it once `JWT_PUBLIC_KEY` is in place, and every HS256 token is then refused.
 
-The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `.zap/scan.sh` signs a 2-hour admin JWT
-(`sub=1`) and runs `zap-api-scan.py` with a replacer injecting it on every request,
+Every `*_test.sh` sources `test_secrets.sh` (MAIR-428, MAIR-680): a fresh Ed25519 key pair per run (an exported
+`JWT_PRIVATE_KEY` + `JWT_PUBLIC_KEY` pair wins), the public key exported for the API, `ADMIN_JWT` (`sub=1`, 2 h) and
+`sign_jwt <sub> <role> <ttl> [key]` / `sign_jwt_file` to sign tokens like Core with the private key, which never
+reaches the API. The compose files require them (`${VAR:?}`); newman gets its tokens as `--env-var`, ZAP
+`ADMIN_JWT` (`.zap/scan.sh`), k6 a JSON file of tokens mounted at `/tokens.json` (neither newman nor k6 can sign
+Ed25519). **No key or token valid anywhere is committed.** The dev stack defaults `JWT_PUBLIC_KEY` to the lib's
+test public key with `JWT_ALLOW_WEAK_SECRET=true` (dev only); sign a dev token in a subshell with the lib's test key:
+`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.3.0/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
+
+The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `.zap/scan.sh` takes the 2-hour admin EdDSA JWT
+(`ADMIN_JWT`, `sub=1`, signed by `security_test.sh`) and runs `zap-api-scan.py` with a replacer injecting it on every request,
 waits for the `seeder` service (the same `init-test.sql`, which also makes user 2 a plain `User` account; user 1 is
 the Admin created by liquibase) and fails on any alert not set to `IGNORE` / `OUTOFSCOPE` in `.zap/rules.tsv` (no
 `-I`, file shared by every API). `-O http://elearning:3006` is required: the spec's `servers` are unreachable from
@@ -95,7 +106,7 @@ never reached, or when an operation declaring `security(("jwt" = []))` only got 
 stack's `seeder` also runs `init-perf.sql` (300 formations of 10 modules, 2 000 learners `200001`-`202000` enrolled
 in 15 formations each with their first 5 modules completed). GET handlers run in the `reads` scenario (up to 100
 VUs): the admin lists read a random page, the learner routes run as a random seeded learner on one of their
-formations (token signed in k6 like the Admin's). The other methods run in the `writes` scenario (10 VUs): learners
+formations (EdDSA tokens signed by `performance_test.sh` into the token file; a new seeded caller needs its id in that script). The other methods run in the `writes` scenario (10 VUs): learners
 complete their 6th module (idempotent), and each write VU enrolls/unenrolls its own learner in course `1000`
 (`200001 + VU id - 1`; unenrolling answers `404` when the user is not enrolled, so VUs never share one). A
 `formations_rush` scenario sends `GET /formations/` at a fixed 100 req/s. Thresholds: one `p(95)` per `op` tag,
@@ -145,14 +156,16 @@ operation is missing from it or unknown, and calls each operation as each non-en
 enrolled learner (an allowed caller never gets 401 / 403 / 404, the others get 403). **A new route goes into
 the matrix.**
 `tests/endpoints/token_refusals.rs` sweeps every operation of `ApiDoc` declaring `jwt` (`401` without a token, with
-another scheme, garbage, another secret, an expired token, `alg: none`, a swapped payload or an asymmetric
+another scheme, garbage, an HS256 token whatever its secret, an EdDSA token signed with another key under Core's
+`kid`, an expired token, `alg: none`, a swapped payload or an asymmetric
 algorithm; `404` for an unknown or archived account), and `rate_limit.rs` checks the production budget of
 `config_from_env()` (`429` past the burst, `Retry-After` of at least 1 s).
 
 The same binary holds handler-level tests in `tests/endpoints/`: `init_app!` mounts `/api` exactly
 like `main.rs` (`JwtMiddleware` + `endpoints::config` + a `MockFileStorage`) over an `AppState`
-built on the shared test DB (no Redis needed), and `jwt_for(user_id)` signs a JWT with a test
-secret. Use `fixtures::create_user` for a plain agent: the lib's seeded Alice holds the Admin
+built on the shared test DB (no Redis needed), and `jwt_for(user_id)` signs a JWT like Core (MAIR-680:
+`EdDSA` with the lib's test key pair; the harness sets `JWT_PUBLIC_KEY` and removes `JWT_SECRET`).
+`mair_680_session_keys.rs` checks that EdDSA tokens are accepted and HS256 ones refused, on a learner journey too. Use `fixtures::create_user` for a plain agent: the lib's seeded Alice holds the Admin
 role and Bob is archived; `ADMIN_ID` is the admin. `fixtures::enrol` enrols a user in a course.
 
 ## Architecture
@@ -328,7 +341,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 4.2.0)
+### External library: `mairie360_api_lib` (pinned to 4.3.0)
 
 - `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
   `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
