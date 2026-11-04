@@ -47,10 +47,11 @@ docker run --rm --network host -v "$PWD/tests/postman:/etc/newman:ro" postman/ne
 
 ## Deployment configuration
 
-- `JWT_SECRET` must be random, at least 32 bytes and distinct per instance: `mairie360_api_lib`
-  refuses to start with a short or well-known one. The compose stacks use the public test value
-  `b"secret"` with `JWT_ALLOW_WEAK_SECRET=true`; never set that variable in a deployment. No JWT
-  is committed: the test tools sign their tokens at startup from the stack's secret.
+- `JWT_PUBLIC_KEY` is Core_API's Ed25519 public key (PEM; several blocks during a rotation): only
+  Core signs session tokens (MAIR-680). Do not set `JWT_SECRET`: while it is set, HS256 tokens are
+  still accepted. The test stacks generate a fresh key pair per run (`test_secrets.sh`) and the dev
+  stack uses the lib's test key with `JWT_ALLOW_WEAK_SECRET=true`; never set that variable in a
+  deployment. No key or JWT is committed.
 - `SWAGGER_ENABLED=true` serves Swagger UI and `/api-docs/openapi.json`; leave it unset in
   production.
 - `RATE_LIMIT_PER_SECOND` (default 50) and `RATE_LIMIT_BURST` (default 100) bound the requests of

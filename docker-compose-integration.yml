@@ -73,7 +73,7 @@ services:
       - backend
 
   redis:
-    image: redis:8.4.0-bookworm
+    image: redis:8.4.0-bookworm@sha256:c22af04bb576503bf16b3e34a1fd2fd82de0f765afd866d2e380145e0af30d78
     container_name: mairie360-redis-elearning-api-integration
     restart: always
     expose:
@@ -91,7 +91,7 @@ services:
   # Seeds the test user (id 2) and a catalogue course with modules and an attachment (the API has
   # no route to create them), and resets user 2's progress so the collection is replayable.
   seeder:
-    image: postgres:18-alpine
+    image: postgres:18-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     container_name: mairie360-seeder-elearning-api-integration
     depends_on:
       liquibase:
@@ -122,11 +122,10 @@ services:
     environment:
       <<: *common-env
       PUBLIC_URL: http://elearning.development.mairie360.fr
-      JWT_SECRET: b"secret"
-      # Public test value, known to every reader of this repo: mairie360_api_lib refuses to start
-      # with it unless JWT_ALLOW_WEAK_SECRET is set. Dev/test stacks only, never a deployment, where
-      # JWT_SECRET is a random value of at least 32 bytes, distinct per instance (MAIR-428).
-      JWT_ALLOW_WEAK_SECRET: "true"
+      # MAIR-680: Core's public key only, no JWT_SECRET, so every HS256 token is refused. Fresh key
+      # pair per run from the matching *_test.sh script (test_secrets.sh), which also signs the
+      # runners' tokens with it: no key or token is committed.
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?JWT_PUBLIC_KEY must be set, run the matching *_test.sh script}
       JWT_TIMEOUT: 3600
       # Serves Swagger UI and /api-docs/openapi.json (off in production, MAIR-424).
       SWAGGER_ENABLED: "true"
@@ -140,7 +139,7 @@ services:
   # healthcheck: this sidecar polls /ready and the services that need the API wait for it to
   # complete instead.
   elearning-ready:
-    image: curlimages/curl:latest
+    image: curlimages/curl:latest@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
     depends_on:
       elearning:
         condition: service_started
@@ -154,7 +153,7 @@ services:
   # here so the committed environment stays usable from a host shell (http://localhost:3006).
   # `--bail` stops at the first failing request; the exit code is what integration_test.sh returns.
   newman:
-    image: postman/newman:6.1.3-alpine
+    image: postman/newman:6.1.3-alpine@sha256:d9b5e780ead0026bbb37f3759cd7b10fc8a88cd4030c8266a7c5e343d75a5198
     container_name: mairie360-newman-elearning-api
     networks:
       - backend
@@ -167,4 +166,8 @@ services:
       run /etc/newman/collection.json
       --environment /etc/newman/environment.json
       --env-var baseUrl=http://elearning:3006
+      --env-var jwt_admin=${JWT_ADMIN:?JWT_ADMIN must be set, run ./integration_test.sh}
+      --env-var jwt_agent=${JWT_AGENT:?JWT_AGENT must be set, run ./integration_test.sh}
+      --env-var jwt_forged=${JWT_FORGED:?JWT_FORGED must be set, run ./integration_test.sh}
+      --env-var jwt_expired=${JWT_EXPIRED:?JWT_EXPIRED must be set, run ./integration_test.sh}
       --bail
