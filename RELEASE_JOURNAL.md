@@ -1,49 +1,49 @@
 # Journal des releases — ELearning_API
 
-<!-- release-journal-state {"dev": "37b0f3721dc54f68b5ac6a2a010d6237a6a06167", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "12c5977817c325cfd8971f2b078d158c35a0157b", "updated": {"dev": "2026-11-04 18:19 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-10-21 03:21 UTC"}} -->
+<!-- release-journal-state {"dev": "f10ecb6bd10fbb9ce9b66208da2c80d04a50282c", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "12c5977817c325cfd8971f2b078d158c35a0157b", "updated": {"dev": "2026-11-05 02:23 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-10-21 03:21 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.2.0 | `12c5977` | 2026-10-21 09:11 UTC |
 | staging | — | `12c5977` | 2026-10-21 03:21 UTC |
-| dev | — | `37b0f37` | 2026-11-04 18:19 UTC |
+| dev | — | `f10ecb6` | 2026-11-05 02:23 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.2.0)
 
 #### Changements de comportement
+- Les jetons de session ne sont plus vérifiés avec un secret partagé : l'API lit `JWT_PUBLIC_KEY` (clé publique Ed25519 de Core_API) et n'a plus besoin de `JWT_SECRET`. Un jeton HS256 est refusé (401) dès que `JWT_SECRET` n'est pas défini ; les jetons EdDSA signés par Core restent acceptés. Un déploiement doit donc définir `JWT_PUBLIC_KEY` et retirer `JWT_SECRET`. (MAIR-680, [#200](https://github.com/mairie360/ELearning_API/pull/200))
 
-- Les jetons HS256 sont désormais refusés (401) : l'API ne lit plus `JWT_SECRET` et n'accepte que les jetons EdDSA signés par Core_API avec la clé publique `JWT_PUBLIC_KEY`. Tout appelant qui signait ses propres jetons HS256 doit être migré, et un déploiement doit retirer `JWT_SECRET` et définir `JWT_PUBLIC_KEY`. (MAIR-680, [#200](https://github.com/mairie360/ELearning_API/pull/200))
-- Les journaux de requêtes n'enregistrent plus la query string ni le `Referer` : seuls l'adresse du client, la méthode, le chemin sans query, le statut, la taille et la durée sont journalisés. Les erreurs de base de données sont décrites par SQLSTATE, contrainte, table et colonne, sans le message Postgres ni le `DETAIL`. (MAIR-290, [#134](https://github.com/mairie360/ELearning_API/pull/134))
+#### Corrections
+- Journaux de requêtes : avant, chaque requête journalisée contenait la query string et le `Referer` (des valeurs refusées comme `?limit=` se retrouvaient dans les logs). Maintenant seuls l'adresse client, la méthode, le chemin sans query string, le statut, la taille et la durée sont journalisés. Les erreurs de base de la lib sont décrites par SQLSTATE, contrainte, table et colonne, sans le message Postgres ni le détail. (MAIR-290, [#134](https://github.com/mairie360/ELearning_API/pull/134))
 
 #### Technique
-
-- Image d'exécution passée en `gcr.io/distroless/cc-debian13:nonroot`, builder et `development.Dockerfile` en `trixie` (même Debian partout). Test `dockerfile_test.rs` ajouté. (MAIR-741, [#192](https://github.com/mairie360/ELearning_API/pull/192))
-- Matrice d'accès `access-matrix.yaml` et test qui vérifie chaque opération de l'OpenAPI, sans changement du comportement de l'API. (MAIR-288, [#142](https://github.com/mairie360/ELearning_API/pull/142))
-- Contrôles RGPD en CI : simulation `gdpr-simulation.yaml`, compose et script dédiés. Les workflows passent à CICD v5.3.1. (MAIR-497, [#198](https://github.com/mairie360/ELearning_API/pull/198))
-- Workflows alignés sur CICD v5.2.2, avec `ANTHROPIC_WORKSPACE_ID` transmis, et test de cohérence de version. (MAIR-771, [#196](https://github.com/mairie360/ELearning_API/pull/196))
-- Checklist RGPD sur les PR via `gdpr-pr.yml`. (MAIR-295, [#138](https://github.com/mairie360/ELearning_API/pull/138))
-- Passage de CICD v4.4.0 à v4.4.3 dans les workflows de release. (MAIR-612, [#175](https://github.com/mairie360/ELearning_API/pull/175), [#177](https://github.com/mairie360/ELearning_API/pull/177), [#181](https://github.com/mairie360/ELearning_API/pull/181))
-- Corrections des alertes RustSec de `cargo audit` : zstd, zstd-safe, zstd-sys et ctutils mis à jour, et `RUSTSEC-2026-0387` ignoré. (MAIR-740, [#190](https://github.com/mairie360/ELearning_API/pull/190))
-- Mises à jour Renovate : images Docker épinglées par digest (curl, nginx, node, postgres, redis, zap, k6, newman), digests Rust, tokio 1.54.1, actix-web 4.18.1 (diff absent de la PR, à vérifier), et schéma Database / liquibase en 3.3.0 (le contenu des migrations n'apparaît pas dans ce diff). (MAIR-…, [#179](https://github.com/mairie360/ELearning_API/pull/179), [#184](https://github.com/mairie360/ELearning_API/pull/184), [#186](https://github.com/mairie360/ELearning_API/pull/186), [#194](https://github.com/mairie360/ELearning_API/pull/194), [#202](https://github.com/mairie360/ELearning_API/pull/202))
+- Test RGPD de bout en bout : simulation d'usage `gdpr-simulation.yaml`, `docker-compose-gdpr-simulation.yml` et `gdpr_simulation_test.sh` (MAIR-497, [#198](https://github.com/mairie360/ELearning_API/pull/198)) ; checklist RGPD sur les PR (MAIR-295, [#138](https://github.com/mairie360/ELearning_API/pull/138)).
+- Image d'exécution passée en `distroless/cc-debian13`, builder et `development.Dockerfile` en `trixie`, avec le test `dockerfile_test.rs` (MAIR-741, [#192](https://github.com/mairie360/ELearning_API/pull/192)).
+- Alertes RustSec corrigées (zstd 0.14.3, zstd-safe 8.2.0, zstd-sys 2.1.2, ctutils 0.4.7) et RUSTSEC-2026-0387 ignoré dans `.cargo/audit.toml` (MAIR-740, [#190](https://github.com/mairie360/ELearning_API/pull/190)).
+- Matrice d'accès `access-matrix.yaml` et test `access_matrix.rs`, sans effet à l'exécution (MAIR-288, [#142](https://github.com/mairie360/ELearning_API/pull/142)).
+- Lib `mairie360_api_lib` 4.2.0 → 4.3.0 (MAIR-680, [#200](https://github.com/mairie360/ELearning_API/pull/200)).
+- CICD : passage de v4.4.0 à v4.4.3 (MAIR-612, [#175](https://github.com/mairie360/ELearning_API/pull/175), [#177](https://github.com/mairie360/ELearning_API/pull/177), [#181](https://github.com/mairie360/ELearning_API/pull/181)), puis v5.2.2 avec `ANTHROPIC_WORKSPACE_ID` et le test `mair_771_cicd_version.rs` (MAIR-771, [#196](https://github.com/mairie360/ELearning_API/pull/196)), puis v5.3.1 (MAIR-497, [#198](https://github.com/mairie360/ELearning_API/pull/198)).
+- Images des stacks de test épinglées par digest (Renovate, [#194](https://github.com/mairie360/ELearning_API/pull/194), [#203](https://github.com/mairie360/ELearning_API/pull/203)), `rust:1.99` mis à jour ([#178](https://github.com/mairie360/ELearning_API/pull/178), [#183](https://github.com/mairie360/ELearning_API/pull/183), [#185](https://github.com/mairie360/ELearning_API/pull/185), [#202](https://github.com/mairie360/ELearning_API/pull/202)), schéma Database 3.2.0 → 3.3.0 ([#179](https://github.com/mairie360/ELearning_API/pull/179)).
+- Mises à jour `actix-web` 4.18.1 ([#186](https://github.com/mairie360/ELearning_API/pull/186)) et `tokio` 1.54.1 ([#184](https://github.com/mairie360/ELearning_API/pull/184)) : le diff n'est pas fourni, changement non vérifié.
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
 #### Changements de comportement
+- Les jetons de session ne sont plus vérifiés avec un secret partagé : l'API lit `JWT_PUBLIC_KEY` (clé publique Ed25519 de Core_API) et n'a plus besoin de `JWT_SECRET`. Un jeton HS256 est refusé (401) dès que `JWT_SECRET` n'est pas défini ; les jetons EdDSA signés par Core restent acceptés. Un déploiement doit donc définir `JWT_PUBLIC_KEY` et retirer `JWT_SECRET`. (MAIR-680, [#200](https://github.com/mairie360/ELearning_API/pull/200))
 
-- Les jetons HS256 sont désormais refusés (401) : l'API ne lit plus `JWT_SECRET` et n'accepte que les jetons EdDSA signés par Core_API avec la clé publique `JWT_PUBLIC_KEY`. Tout appelant qui signait ses propres jetons HS256 doit être migré, et un déploiement doit retirer `JWT_SECRET` et définir `JWT_PUBLIC_KEY`. (MAIR-680, [#200](https://github.com/mairie360/ELearning_API/pull/200))
-- Les journaux de requêtes n'enregistrent plus la query string ni le `Referer` : seuls l'adresse du client, la méthode, le chemin sans query, le statut, la taille et la durée sont journalisés. Les erreurs de base de données sont décrites par SQLSTATE, contrainte, table et colonne, sans le message Postgres ni le `DETAIL`. (MAIR-290, [#134](https://github.com/mairie360/ELearning_API/pull/134))
+#### Corrections
+- Journaux de requêtes : avant, chaque requête journalisée contenait la query string et le `Referer` (des valeurs refusées comme `?limit=` se retrouvaient dans les logs). Maintenant seuls l'adresse client, la méthode, le chemin sans query string, le statut, la taille et la durée sont journalisés. Les erreurs de base de la lib sont décrites par SQLSTATE, contrainte, table et colonne, sans le message Postgres ni le détail. (MAIR-290, [#134](https://github.com/mairie360/ELearning_API/pull/134))
 
 #### Technique
-
-- Image d'exécution passée en `gcr.io/distroless/cc-debian13:nonroot`, builder et `development.Dockerfile` en `trixie` (même Debian partout). Test `dockerfile_test.rs` ajouté. (MAIR-741, [#192](https://github.com/mairie360/ELearning_API/pull/192))
-- Matrice d'accès `access-matrix.yaml` et test qui vérifie chaque opération de l'OpenAPI, sans changement du comportement de l'API. (MAIR-288, [#142](https://github.com/mairie360/ELearning_API/pull/142))
-- Contrôles RGPD en CI : simulation `gdpr-simulation.yaml`, compose et script dédiés. Les workflows passent à CICD v5.3.1. (MAIR-497, [#198](https://github.com/mairie360/ELearning_API/pull/198))
-- Workflows alignés sur CICD v5.2.2, avec `ANTHROPIC_WORKSPACE_ID` transmis, et test de cohérence de version. (MAIR-771, [#196](https://github.com/mairie360/ELearning_API/pull/196))
-- Checklist RGPD sur les PR via `gdpr-pr.yml`. (MAIR-295, [#138](https://github.com/mairie360/ELearning_API/pull/138))
-- Passage de CICD v4.4.0 à v4.4.3 dans les workflows de release. (MAIR-612, [#175](https://github.com/mairie360/ELearning_API/pull/175), [#177](https://github.com/mairie360/ELearning_API/pull/177), [#181](https://github.com/mairie360/ELearning_API/pull/181))
-- Corrections des alertes RustSec de `cargo audit` : zstd, zstd-safe, zstd-sys et ctutils mis à jour, et `RUSTSEC-2026-0387` ignoré. (MAIR-740, [#190](https://github.com/mairie360/ELearning_API/pull/190))
-- Mises à jour Renovate : images Docker épinglées par digest (curl, nginx, node, postgres, redis, zap, k6, newman), digests Rust, tokio 1.54.1, actix-web 4.18.1 (diff absent de la PR, à vérifier), et schéma Database / liquibase en 3.3.0 (le contenu des migrations n'apparaît pas dans ce diff). (MAIR-…, [#179](https://github.com/mairie360/ELearning_API/pull/179), [#184](https://github.com/mairie360/ELearning_API/pull/184), [#186](https://github.com/mairie360/ELearning_API/pull/186), [#194](https://github.com/mairie360/ELearning_API/pull/194), [#202](https://github.com/mairie360/ELearning_API/pull/202))
+- Test RGPD de bout en bout : simulation d'usage `gdpr-simulation.yaml`, `docker-compose-gdpr-simulation.yml` et `gdpr_simulation_test.sh` (MAIR-497, [#198](https://github.com/mairie360/ELearning_API/pull/198)) ; checklist RGPD sur les PR (MAIR-295, [#138](https://github.com/mairie360/ELearning_API/pull/138)).
+- Image d'exécution passée en `distroless/cc-debian13`, builder et `development.Dockerfile` en `trixie`, avec le test `dockerfile_test.rs` (MAIR-741, [#192](https://github.com/mairie360/ELearning_API/pull/192)).
+- Alertes RustSec corrigées (zstd 0.14.3, zstd-safe 8.2.0, zstd-sys 2.1.2, ctutils 0.4.7) et RUSTSEC-2026-0387 ignoré dans `.cargo/audit.toml` (MAIR-740, [#190](https://github.com/mairie360/ELearning_API/pull/190)).
+- Matrice d'accès `access-matrix.yaml` et test `access_matrix.rs`, sans effet à l'exécution (MAIR-288, [#142](https://github.com/mairie360/ELearning_API/pull/142)).
+- Lib `mairie360_api_lib` 4.2.0 → 4.3.0 (MAIR-680, [#200](https://github.com/mairie360/ELearning_API/pull/200)).
+- CICD : passage de v4.4.0 à v4.4.3 (MAIR-612, [#175](https://github.com/mairie360/ELearning_API/pull/175), [#177](https://github.com/mairie360/ELearning_API/pull/177), [#181](https://github.com/mairie360/ELearning_API/pull/181)), puis v5.2.2 avec `ANTHROPIC_WORKSPACE_ID` et le test `mair_771_cicd_version.rs` (MAIR-771, [#196](https://github.com/mairie360/ELearning_API/pull/196)), puis v5.3.1 (MAIR-497, [#198](https://github.com/mairie360/ELearning_API/pull/198)).
+- Images des stacks de test épinglées par digest (Renovate, [#194](https://github.com/mairie360/ELearning_API/pull/194), [#203](https://github.com/mairie360/ELearning_API/pull/203)), `rust:1.99` mis à jour ([#178](https://github.com/mairie360/ELearning_API/pull/178), [#183](https://github.com/mairie360/ELearning_API/pull/183), [#185](https://github.com/mairie360/ELearning_API/pull/185), [#202](https://github.com/mairie360/ELearning_API/pull/202)), schéma Database 3.2.0 → 3.3.0 ([#179](https://github.com/mairie360/ELearning_API/pull/179)).
+- Mises à jour `actix-web` 4.18.1 ([#186](https://github.com/mairie360/ELearning_API/pull/186)) et `tokio` 1.54.1 ([#184](https://github.com/mairie360/ELearning_API/pull/184)) : le diff n'est pas fourni, changement non vérifié.
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
@@ -54,6 +54,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-05 02:23 UTC | dev | — | `f10ecb6` | [run](https://github.com/mairie360/ELearning_API/actions/runs/41954027223) |
 | 2026-11-04 18:19 UTC | dev | — | `37b0f37` | [run](https://github.com/mairie360/ELearning_API/actions/runs/41882887364) |
 | 2026-11-04 06:47 UTC | dev | — | `c6a0d58` | [run](https://github.com/mairie360/ELearning_API/actions/runs/41786987311) |
 | 2026-11-03 16:14 UTC | dev | — | `9498d6f` | [run](https://github.com/mairie360/ELearning_API/actions/runs/41669638867) |
