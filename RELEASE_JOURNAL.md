@@ -1,12 +1,12 @@
 # Journal des releases — ELearning_API
 
-<!-- release-journal-state {"dev": "7f790d5b0bf655737514d390926fd09292020b58", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "12c5977817c325cfd8971f2b078d158c35a0157b", "updated": {"dev": "2026-11-12 12:57 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-10-21 03:21 UTC"}} -->
+<!-- release-journal-state {"dev": "7f790d5b0bf655737514d390926fd09292020b58", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-12 12:57 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.2.0 | `12c5977` | 2026-10-21 09:11 UTC |
-| staging | — | `12c5977` | 2026-10-21 03:21 UTC |
+| staging | — | `7f790d5` | 2026-11-12 18:51 UTC |
 | dev | — | `7f790d5` | 2026-11-12 12:57 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.2.0)
@@ -40,6 +40,10 @@
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+_Rien._
+
+## Différence staging → prod (en staging, pas encore en prod)
+
 - fix: MAIR-262 Integration tests - API functional tests, BFF business tests and regression tests (#214) ([#214](https://github.com/mairie360/ELearning_API/pull/214))
 - chore(deps): update gcr.io/distroless/cc-debian13:nonroot docker digest to cc66d22 (#208) ([#208](https://github.com/mairie360/ELearning_API/pull/208))
 - fix(deps): MAIR-740 APIs: fix the cargo audit RustSec alerts (actix-http, libsqlite3-sys) (#213) ([#213](https://github.com/mairie360/ELearning_API/pull/213))
@@ -67,10 +71,6 @@
 - chore(deps): update rust:1.99-bookworm docker digest to 5c1a173 (#178) ([#178](https://github.com/mairie360/ELearning_API/pull/178))
 - ci: MAIR-612 Release prod: align internal versions and deploy (#175) ([#175](https://github.com/mairie360/ELearning_API/pull/175))
 
-## Différence staging → prod (en staging, pas encore en prod)
-
-_Rien._
-
 > Résumé Claude indisponible pour ce passage : listes brutes des commits.
 
 ## Historique des passages
@@ -78,6 +78,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-12 18:51 UTC | staging | — | `7f790d5` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43282726286) |
 | 2026-11-12 12:57 UTC | dev | — | `7f790d5` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43220719687) |
 | 2026-11-12 11:51 UTC | dev | — | `030df46` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43211645590) |
 | 2026-11-05 23:54 UTC | dev | — | `60cf5c1` | [run](https://github.com/mairie360/ELearning_API/actions/runs/42132075145) |
