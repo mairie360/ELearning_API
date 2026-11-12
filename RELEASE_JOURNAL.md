@@ -1,42 +1,17 @@
 # Journal des releases — ELearning_API
 
-<!-- release-journal-state {"dev": "7f790d5b0bf655737514d390926fd09292020b58", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-12 12:57 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
+<!-- release-journal-state {"dev": "7f790d5b0bf655737514d390926fd09292020b58", "prod": "7f790d5b0bf655737514d390926fd09292020b58", "prod_tag": "v1.3.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-12 12:57 UTC", "prod": "2026-11-12 23:53 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
-| prod | v1.2.0 | `12c5977` | 2026-10-21 09:11 UTC |
+| prod | v1.3.0 | `7f790d5` | 2026-11-12 23:53 UTC |
 | staging | — | `7f790d5` | 2026-11-12 18:51 UTC |
 | dev | — | `7f790d5` | 2026-11-12 12:57 UTC |
 
-## Ajouté sur main depuis la dernière release prod (v1.2.0)
+## Ajouté sur main depuis la dernière release prod (v1.3.0)
 
-- fix: MAIR-262 Integration tests - API functional tests, BFF business tests and regression tests (#214) ([#214](https://github.com/mairie360/ELearning_API/pull/214))
-- chore(deps): update gcr.io/distroless/cc-debian13:nonroot docker digest to cc66d22 (#208) ([#208](https://github.com/mairie360/ELearning_API/pull/208))
-- fix(deps): MAIR-740 APIs: fix the cargo audit RustSec alerts (actix-http, libsqlite3-sys) (#213) ([#213](https://github.com/mairie360/ELearning_API/pull/213))
-- chore(deps): update rust crate actix-web to v4.18.2 (#209) ([#209](https://github.com/mairie360/ELearning_API/pull/209))
-- chore(deps): update rust:1.99-trixie docker digest to 8a4e90c (#207) ([#207](https://github.com/mairie360/ELearning_API/pull/207))
-- chore(deps): update rust:1.99-trixie docker digest to bc2c4c2 (#205) ([#205](https://github.com/mairie360/ELearning_API/pull/205))
-- chore(deps): pin node.js to c86ecea (#203) ([#203](https://github.com/mairie360/ELearning_API/pull/203))
-- feat: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#198](https://github.com/mairie360/ELearning_API/pull/198))
-- chore(deps): update rust:1.99-trixie docker digest to 4c4c8ec (#202) ([#202](https://github.com/mairie360/ELearning_API/pull/202))
-- chore(deps): update rust crate actix-web to v4.18.1 (#186) ([#186](https://github.com/mairie360/ELearning_API/pull/186))
-- chore(deps): pin dependencies (#194) ([#194](https://github.com/mairie360/ELearning_API/pull/194))
-- fix: MAIR-680 [Audit 23/10] Toutes les APIs et BFFs : remplacer le secret JWT HS256 partagé par 12 services (A1) ([#200](https://github.com/mairie360/ELearning_API/pull/200))
-- ci: MAIR-771 APIs, BFFs, Database : monter CICD en v5.2.2 pour activer les contrôles RGPD (#196) ([#196](https://github.com/mairie360/ELearning_API/pull/196))
-- fix: MAIR-741 APIs : passer l'image d'exécution en distroless Debian 13 (CVE-2026-84782) (#192) ([#192](https://github.com/mairie360/ELearning_API/pull/192))
-- fix(deps): MAIR-740 APIs : corriger les alertes RustSec de cargo audit (crypto-bigint, ctutils, zstd) (#190) ([#190](https://github.com/mairie360/ELearning_API/pull/190))
-- feat: MAIR-288 Définir la matrice d'accès des APIs et la vérifier depuis l'OpenAPI (#142) ([#142](https://github.com/mairie360/ELearning_API/pull/142))
-- fix: MAIR-290 Détecter les données personnelles dans les journaux avec un test du marqueur (#134) ([#134](https://github.com/mairie360/ELearning_API/pull/134))
-- ci: MAIR-295 Ajouter une checklist RGPD aux PR et des rappels d'échéances automatiques (#138) ([#138](https://github.com/mairie360/ELearning_API/pull/138))
-- chore(deps): update rust:1.99-bookworm docker digest to 48b7f43 (#185) ([#185](https://github.com/mairie360/ELearning_API/pull/185))
-- chore(deps): update rust crate tokio to v1.54.1 (#184) ([#184](https://github.com/mairie360/ELearning_API/pull/184))
-- chore(deps): update rust:1.99-bookworm docker digest to edaa2a8 (#183) ([#183](https://github.com/mairie360/ELearning_API/pull/183))
-- ci: MAIR-612 Release prod: align internal versions and deploy (#181) ([#181](https://github.com/mairie360/ELearning_API/pull/181))
-- chore(deps): update mairie360 database schema to v3.3.0 (#179) ([#179](https://github.com/mairie360/ELearning_API/pull/179))
-- ci: MAIR-612 Release prod: align internal versions and deploy (#177) ([#177](https://github.com/mairie360/ELearning_API/pull/177))
-- chore(deps): update rust:1.99-bookworm docker digest to 5c1a173 (#178) ([#178](https://github.com/mairie360/ELearning_API/pull/178))
-- ci: MAIR-612 Release prod: align internal versions and deploy (#175) ([#175](https://github.com/mairie360/ELearning_API/pull/175))
+_Rien._
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
@@ -44,40 +19,14 @@ _Rien._
 
 ## Différence staging → prod (en staging, pas encore en prod)
 
-- fix: MAIR-262 Integration tests - API functional tests, BFF business tests and regression tests (#214) ([#214](https://github.com/mairie360/ELearning_API/pull/214))
-- chore(deps): update gcr.io/distroless/cc-debian13:nonroot docker digest to cc66d22 (#208) ([#208](https://github.com/mairie360/ELearning_API/pull/208))
-- fix(deps): MAIR-740 APIs: fix the cargo audit RustSec alerts (actix-http, libsqlite3-sys) (#213) ([#213](https://github.com/mairie360/ELearning_API/pull/213))
-- chore(deps): update rust crate actix-web to v4.18.2 (#209) ([#209](https://github.com/mairie360/ELearning_API/pull/209))
-- chore(deps): update rust:1.99-trixie docker digest to 8a4e90c (#207) ([#207](https://github.com/mairie360/ELearning_API/pull/207))
-- chore(deps): update rust:1.99-trixie docker digest to bc2c4c2 (#205) ([#205](https://github.com/mairie360/ELearning_API/pull/205))
-- chore(deps): pin node.js to c86ecea (#203) ([#203](https://github.com/mairie360/ELearning_API/pull/203))
-- feat: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#198](https://github.com/mairie360/ELearning_API/pull/198))
-- chore(deps): update rust:1.99-trixie docker digest to 4c4c8ec (#202) ([#202](https://github.com/mairie360/ELearning_API/pull/202))
-- chore(deps): update rust crate actix-web to v4.18.1 (#186) ([#186](https://github.com/mairie360/ELearning_API/pull/186))
-- chore(deps): pin dependencies (#194) ([#194](https://github.com/mairie360/ELearning_API/pull/194))
-- fix: MAIR-680 [Audit 23/10] Toutes les APIs et BFFs : remplacer le secret JWT HS256 partagé par 12 services (A1) ([#200](https://github.com/mairie360/ELearning_API/pull/200))
-- ci: MAIR-771 APIs, BFFs, Database : monter CICD en v5.2.2 pour activer les contrôles RGPD (#196) ([#196](https://github.com/mairie360/ELearning_API/pull/196))
-- fix: MAIR-741 APIs : passer l'image d'exécution en distroless Debian 13 (CVE-2026-84782) (#192) ([#192](https://github.com/mairie360/ELearning_API/pull/192))
-- fix(deps): MAIR-740 APIs : corriger les alertes RustSec de cargo audit (crypto-bigint, ctutils, zstd) (#190) ([#190](https://github.com/mairie360/ELearning_API/pull/190))
-- feat: MAIR-288 Définir la matrice d'accès des APIs et la vérifier depuis l'OpenAPI (#142) ([#142](https://github.com/mairie360/ELearning_API/pull/142))
-- fix: MAIR-290 Détecter les données personnelles dans les journaux avec un test du marqueur (#134) ([#134](https://github.com/mairie360/ELearning_API/pull/134))
-- ci: MAIR-295 Ajouter une checklist RGPD aux PR et des rappels d'échéances automatiques (#138) ([#138](https://github.com/mairie360/ELearning_API/pull/138))
-- chore(deps): update rust:1.99-bookworm docker digest to 48b7f43 (#185) ([#185](https://github.com/mairie360/ELearning_API/pull/185))
-- chore(deps): update rust crate tokio to v1.54.1 (#184) ([#184](https://github.com/mairie360/ELearning_API/pull/184))
-- chore(deps): update rust:1.99-bookworm docker digest to edaa2a8 (#183) ([#183](https://github.com/mairie360/ELearning_API/pull/183))
-- ci: MAIR-612 Release prod: align internal versions and deploy (#181) ([#181](https://github.com/mairie360/ELearning_API/pull/181))
-- chore(deps): update mairie360 database schema to v3.3.0 (#179) ([#179](https://github.com/mairie360/ELearning_API/pull/179))
-- ci: MAIR-612 Release prod: align internal versions and deploy (#177) ([#177](https://github.com/mairie360/ELearning_API/pull/177))
-- chore(deps): update rust:1.99-bookworm docker digest to 5c1a173 (#178) ([#178](https://github.com/mairie360/ELearning_API/pull/178))
-- ci: MAIR-612 Release prod: align internal versions and deploy (#175) ([#175](https://github.com/mairie360/ELearning_API/pull/175))
-
-> Résumé Claude indisponible pour ce passage : listes brutes des commits.
+_Rien._
 
 ## Historique des passages
 
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-12 23:53 UTC | prod | v1.3.0 | `7f790d5` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43330565399) |
 | 2026-11-12 18:51 UTC | staging | — | `7f790d5` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43282726286) |
 | 2026-11-12 12:57 UTC | dev | — | `7f790d5` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43220719687) |
 | 2026-11-12 11:51 UTC | dev | — | `030df46` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43211645590) |
