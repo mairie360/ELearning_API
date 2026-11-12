@@ -1,16 +1,20 @@
 # Journal des releases — ELearning_API
 
-<!-- release-journal-state {"dev": "60cf5c1f3576cf9f159c7eb9317846f02d37bba5", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "12c5977817c325cfd8971f2b078d158c35a0157b", "updated": {"dev": "2026-11-05 23:54 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-10-21 03:21 UTC"}} -->
+<!-- release-journal-state {"dev": "030df461d18e782ab8e058b45630167690d86d9e", "prod": "12c5977817c325cfd8971f2b078d158c35a0157b", "prod_tag": "v1.2.0", "staging": "12c5977817c325cfd8971f2b078d158c35a0157b", "updated": {"dev": "2026-11-12 11:51 UTC", "prod": "2026-10-21 09:11 UTC", "staging": "2026-10-21 03:21 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.2.0 | `12c5977` | 2026-10-21 09:11 UTC |
 | staging | — | `12c5977` | 2026-10-21 03:21 UTC |
-| dev | — | `60cf5c1` | 2026-11-05 23:54 UTC |
+| dev | — | `030df46` | 2026-11-12 11:51 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.2.0)
 
+- chore(deps): update gcr.io/distroless/cc-debian13:nonroot docker digest to cc66d22 (#208) ([#208](https://github.com/mairie360/ELearning_API/pull/208))
+- fix(deps): MAIR-740 APIs: fix the cargo audit RustSec alerts (actix-http, libsqlite3-sys) (#213) ([#213](https://github.com/mairie360/ELearning_API/pull/213))
+- chore(deps): update rust crate actix-web to v4.18.2 (#209) ([#209](https://github.com/mairie360/ELearning_API/pull/209))
+- chore(deps): update rust:1.99-trixie docker digest to 8a4e90c (#207) ([#207](https://github.com/mairie360/ELearning_API/pull/207))
 - chore(deps): update rust:1.99-trixie docker digest to bc2c4c2 (#205) ([#205](https://github.com/mairie360/ELearning_API/pull/205))
 - chore(deps): pin node.js to c86ecea (#203) ([#203](https://github.com/mairie360/ELearning_API/pull/203))
 - feat: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#198](https://github.com/mairie360/ELearning_API/pull/198))
@@ -35,6 +39,10 @@
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+- chore(deps): update gcr.io/distroless/cc-debian13:nonroot docker digest to cc66d22 (#208) ([#208](https://github.com/mairie360/ELearning_API/pull/208))
+- fix(deps): MAIR-740 APIs: fix the cargo audit RustSec alerts (actix-http, libsqlite3-sys) (#213) ([#213](https://github.com/mairie360/ELearning_API/pull/213))
+- chore(deps): update rust crate actix-web to v4.18.2 (#209) ([#209](https://github.com/mairie360/ELearning_API/pull/209))
+- chore(deps): update rust:1.99-trixie docker digest to 8a4e90c (#207) ([#207](https://github.com/mairie360/ELearning_API/pull/207))
 - chore(deps): update rust:1.99-trixie docker digest to bc2c4c2 (#205) ([#205](https://github.com/mairie360/ELearning_API/pull/205))
 - chore(deps): pin node.js to c86ecea (#203) ([#203](https://github.com/mairie360/ELearning_API/pull/203))
 - feat: MAIR-497 GDPR - Usage simulation and AI review of logs and database before prod ([#198](https://github.com/mairie360/ELearning_API/pull/198))
@@ -68,6 +76,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-12 11:51 UTC | dev | — | `030df46` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43211645590) |
 | 2026-11-05 23:54 UTC | dev | — | `60cf5c1` | [run](https://github.com/mairie360/ELearning_API/actions/runs/42132075145) |
 | 2026-11-05 02:23 UTC | dev | — | `f10ecb6` | [run](https://github.com/mairie360/ELearning_API/actions/runs/41954027223) |
 | 2026-11-04 18:19 UTC | dev | — | `37b0f37` | [run](https://github.com/mairie360/ELearning_API/actions/runs/41882887364) |
