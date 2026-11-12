@@ -112,7 +112,7 @@ reaches the API. The compose files require them (`${VAR:?}`); newman gets its to
 `ADMIN_JWT` (`.zap/scan.sh`), k6 a JSON file of tokens mounted at `/tokens.json` (neither newman nor k6 can sign
 Ed25519). **No key or token valid anywhere is committed.** The dev stack defaults `JWT_PUBLIC_KEY` to the lib's
 test public key with `JWT_ALLOW_WEAK_SECRET=true` (dev only); sign a dev token in a subshell with the lib's test key:
-`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.3.0/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
+`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.3.1/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
 
 The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `.zap/scan.sh` takes the 2-hour admin EdDSA JWT
 (`ADMIN_JWT`, `sub=1`, signed by `security_test.sh`) and runs `zap-api-scan.py` with a replacer injecting it on every request,
@@ -364,7 +364,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 4.3.0)
+### External library: `mairie360_api_lib` (pinned to 4.3.1)
 
 - `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
   `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
