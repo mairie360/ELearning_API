@@ -17,10 +17,9 @@ cov_test = ["llvm-cov", "--workspace", "--ignore-filename-regex", "main\\.rs|lib
 cov = ["llvm-cov", "--workspace", "--ignore-filename-regex", "main\\.rs|lib\\.rs", "--fail-under-lines", "60", "--codecov", "--output-path", "codecov.json"]
 
 # Version of the ghcr.io/mairie360/database and liquibase-migrations images the tests start
-# (mairie360_api_lib::test_setup), kept equal to the compose files: the latest release of
-# Devops/Database. Since MAIR-556 the tests connect as `elearning_api`, whose grants come from
-# that image's `api_grants.sql`, so a stale tag tests other grants than the stacks deploy.
-# An exported TEST_DB_VERSION still wins.
+# (mairie360_api_lib::test_setup), kept equal to the compose files and to every other API: the
+# Database release 3.4.0 (MAIR-243). mairie360_api_lib passes -Dallow_template_admin=true where the
+# migration needs it. An exported TEST_DB_VERSION still wins.
 [env]
 # renovate: datasource=docker depName=ghcr.io/mairie360/database
-TEST_DB_VERSION = "3.3.0"
+TEST_DB_VERSION = "3.4.0"

@@ -37,29 +37,12 @@ x-depends-on: &depends-on
   redis:
     condition: service_healthy
 
-x-healthcheck: &healthcheck
-  test: ["CMD", "curl", "-f", "http://localhost:3006"] #change port
-  interval: 10s
-  timeout: 5s
-  retries: 5
-
-x-service: &service-template
-  image: ghcr.io/mairie360/service_name:latest
-  pull_policy: always
-  restart: always
-  expose:
-    - "3006"
-  networks:
-    - backend
-  healthcheck:
-    <<: *healthcheck
-
 # Own project name: the default one (the folder) is shared with the repo's other compose files,
 # whose postgres-data / redis-data volumes `down -v` would otherwise delete.
 name: elearning-api-gdpr-sim
 services:
   postgres:
-    image: ghcr.io/mairie360/database:3.3.0
+    image: ghcr.io/mairie360/database:3.4.0
     restart: always
     container_name: mairie360-db-elearning-api-sim
     environment:
@@ -79,7 +62,7 @@ services:
       retries: 5
 
   liquibase:
-    image: ghcr.io/mairie360/liquibase-migrations:3.3.0
+    image: ghcr.io/mairie360/liquibase-migrations:3.4.0
     container_name: mairie360-liquibase-elearning-api-sim
     depends_on:
       postgres:
