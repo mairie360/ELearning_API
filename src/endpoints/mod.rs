@@ -3,6 +3,7 @@ pub mod health;
 pub mod ready;
 pub mod swagger;
 pub mod v1;
+pub mod validation;
 
 use actix_web::{error, web};
 
