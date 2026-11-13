@@ -1,6 +1,4 @@
-use actix_web::web;
-
-use crate::endpoints::v1::admin::formations::formation_id::register::endpoint::RegisterUserToFormationError;
+use crate::endpoints::validation::{check_user_id, Validate, ValidationError};
 
 /// Utilisateur à inscrire à la formation du chemin.
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
@@ -21,10 +19,8 @@ impl RegisterUserView {
     }
 }
 
-impl TryFrom<web::Json<RegisterUserView>> for RegisterUserView {
-    type Error = RegisterUserToFormationError;
-
-    fn try_from(params: web::Json<RegisterUserView>) -> Result<RegisterUserView, Self::Error> {
-        Ok(params.into_inner())
+impl Validate for RegisterUserView {
+    fn validate(&self) -> Result<(), ValidationError> {
+        check_user_id("user_id", self.user_id)
     }
 }

@@ -11,6 +11,7 @@ use crate::database::admin::formations::register_user_to_formation::view::{
 };
 use crate::endpoints::v1::admin::formations::formation_id::register::view::RegisterUserView;
 use crate::endpoints::v1::admin::formations::formation_id::AdminFormationIdParams;
+use crate::endpoints::validation::ValidatedJson;
 use crate::error::log_error;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -165,13 +166,10 @@ async fn trigger_register_user_to_formation(
 pub async fn register_user_to_formation(
     state: web::Data<AppState>,
     auth_user: AuthenticatedUser,
-    request_view: web::Json<RegisterUserView>,
+    request_view: ValidatedJson<RegisterUserView>,
     params: web::Path<AdminFormationIdParams>,
 ) -> Result<impl Responder, RegisterUserToFormationError> {
-    let view = match request_view.try_into() {
-        Ok(view) => view,
-        Err(_) => return Err(RegisterUserToFormationError::BadRequest),
-    };
+    let view = request_view.into_inner();
     trigger_register_user_to_formation(state, auth_user.id, view, params.formation_id).await?;
     Ok(HttpResponse::Ok())
 }

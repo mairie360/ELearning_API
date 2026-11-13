@@ -97,3 +97,34 @@ async fn user_list_is_paginated() {
         .insert_header(("Authorization", jwt.as_str()));
     assert_eq!(status_of!(app, req), StatusCode::BAD_REQUEST);
 }
+
+/// MAIR-243: the enrolment body goes through the shared `ValidatedJson` extractor, so a bad body
+/// is a `400` naming the field (it used to reach Postgres, where an id above `INTEGER` was a 500).
+#[actix_web::test]
+async fn enrolling_with_an_invalid_body_is_400_naming_the_field() {
+    let ctx = TestContext::new().await;
+    let app = init_app!(ctx);
+    let jwt = admin_jwt();
+    let course_id = create_course(ctx.db(), "RGPD", "Comprendre le RGPD").await;
+    let uri = format!("/api/v1/admin/formations/{course_id}/");
+
+    for user_id in [0_u64, 2_147_483_648] {
+        let req = TestRequest::post()
+            .uri(&uri)
+            .insert_header(("Authorization", jwt.as_str()))
+            .set_json(serde_json::json!({ "user_id": user_id }));
+        let resp = test::call_service(&app, req.to_request()).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "user_id {user_id}");
+        let body = test::read_body(resp).await;
+        assert!(
+            String::from_utf8_lossy(&body).contains("Invalid `user_id`"),
+            "user_id {user_id}: {body:?}"
+        );
+    }
+
+    let req = TestRequest::post()
+        .uri(&uri)
+        .insert_header(("Authorization", jwt.as_str()))
+        .set_json(serde_json::json!({ "user": 1 }));
+    assert_eq!(status_of!(app, req), StatusCode::BAD_REQUEST);
+}
