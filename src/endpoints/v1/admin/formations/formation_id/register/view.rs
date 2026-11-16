@@ -1,9 +1,8 @@
-use actix_web::web;
-
-use crate::endpoints::v1::admin::formations::formation_id::register::endpoint::RegisterUserToFormationError;
+use crate::endpoints::validation::{check_user_id, Validate, ValidationError};
 
 /// User to enrol in the formation of the path.
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RegisterUserView {
     /// Core API id of the agent to enrol, as returned by `GET /api/v1/user/`
     /// of Core API.
@@ -21,10 +20,8 @@ impl RegisterUserView {
     }
 }
 
-impl TryFrom<web::Json<RegisterUserView>> for RegisterUserView {
-    type Error = RegisterUserToFormationError;
-
-    fn try_from(params: web::Json<RegisterUserView>) -> Result<RegisterUserView, Self::Error> {
-        Ok(params.into_inner())
+impl Validate for RegisterUserView {
+    fn validate(&self) -> Result<(), ValidationError> {
+        check_user_id("user_id", self.user_id)
     }
 }
