@@ -71,6 +71,29 @@ so `init-test.sql` (run by the `seeder` service of that compose file) seeds user
 `1001`/`1002` and attachment `1003`, and resets user 2's progress so the scenario replays. The S3 credentials in
 that file are placeholders: presigning is local, the bucket is never contacted.
 
+Split of the tests (MAIR-262): `cargo test` (unit and handler tests) validates the code, newman validates that the
+running image works. The collection holds, for **every operation of the spec**, its success case and one case per
+documented `400` / `401` / `403` / `404`, chained in business journeys (catalogue → refusals before enrolment →
+registration → agent side, modules and attachments, completion → admin progress → unregistration), each case
+checking the status and what the front relies on. The `429` / `500` / `502` cannot be produced on purpose on a
+healthy stack and stay in the handler tests. Three collection-level scripts, identical in every API collection,
+back it:
+
+- the collection pre-request loads `/api-docs/openapi.json` once (the stack sets `SWAGGER_ENABLED=true`), and the
+  collection test checks every answer against it: documented operation, documented status, content type, and the
+  JSON body against the response schema (`$ref`s inlined);
+- `Every secured operation refuses a missing JWT` replays every `jwt`-secured operation of the spec without a token
+  and expects a documented `401 text/plain`;
+- `OpenAPI coverage`, the last request, fails when an operation has no success case or a documented status above
+  was never answered, and when an entry of the collection variable `openapi_coverage_exceptions` (`"METHOD /path
+  STATUS": "reason"`, `2xx` for the success) is no longer needed. There is none in this API.
+
+A new endpoint therefore fails the integration stack until the collection tests it. The contract checks found that
+`completed_at` / `finished_at` of the admin progress were documented as non-nullable strings while unfinished items
+answer `null` (`value_type = String` on an `Option`): use `value_type = Option<String>`, guarded by
+`tests/swagger_test.rs::unfinished_progress_dates_are_nullable_in_the_contract`. Plain-text answers without a content
+type get `text/plain; charset=utf-8` from `endpoints::headers::default_headers()` (with `nosniff`), wired in `main.rs`.
+
 `docker-compose-performance.yml` / `docker-compose-security.yml` / `docker-compose-integration.yml` are
 standalone copies of the base stack plus a `seeder` (`init-test.sql`) and one extra service (`k6-perf-test` /
 `security-scan` / `newman`) — they don't `extends:` the
@@ -89,7 +112,7 @@ reaches the API. The compose files require them (`${VAR:?}`); newman gets its to
 `ADMIN_JWT` (`.zap/scan.sh`), k6 a JSON file of tokens mounted at `/tokens.json` (neither newman nor k6 can sign
 Ed25519). **No key or token valid anywhere is committed.** The dev stack defaults `JWT_PUBLIC_KEY` to the lib's
 test public key with `JWT_ALLOW_WEAK_SECRET=true` (dev only); sign a dev token in a subshell with the lib's test key:
-`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.3.0/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
+`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.3.1/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
 
 The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `.zap/scan.sh` takes the 2-hour admin EdDSA JWT
 (`ADMIN_JWT`, `sub=1`, signed by `security_test.sh`) and runs `zap-api-scan.py` with a replacer injecting it on every request,
@@ -341,7 +364,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 4.3.0)
+### External library: `mairie360_api_lib` (pinned to 4.3.1)
 
 - `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
   `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
