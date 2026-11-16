@@ -1,16 +1,17 @@
 # Journal des releases — ELearning_API
 
-<!-- release-journal-state {"dev": "54a3128aca0b4025b2378f13101cdcffea07d8e9", "prod": "7f790d5b0bf655737514d390926fd09292020b58", "prod_tag": "v1.3.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-16 17:24 UTC", "prod": "2026-11-12 23:53 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
+<!-- release-journal-state {"dev": "db5a9408951737ff74519634b59dfb887acc734b", "prod": "7f790d5b0bf655737514d390926fd09292020b58", "prod_tag": "v1.3.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-16 23:07 UTC", "prod": "2026-11-12 23:53 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.3.0 | `7f790d5` | 2026-11-12 23:53 UTC |
 | staging | — | `7f790d5` | 2026-11-12 18:51 UTC |
-| dev | — | `54a3128` | 2026-11-16 17:24 UTC |
+| dev | — | `db5a940` | 2026-11-16 23:07 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.3.0)
 
+- chore(deps): update rust crate mairie360_api_lib to v4.4.0 (#210) ([#210](https://github.com/mairie360/ELearning_API/pull/210))
 - fix: MAIR-247 Translate the APIs' OpenAPI descriptions and messages into English (#222) ([#222](https://github.com/mairie360/ELearning_API/pull/222))
 - chore(deps): MAIR-243 Bump quinn-udp to the patched 0.5.16 (RUSTSEC-2026-0538) (#224) ([#224](https://github.com/mairie360/ELearning_API/pull/224))
 - docs: MAIR-245 Rewrite the APIs' README and API.md (#212) ([#212](https://github.com/mairie360/ELearning_API/pull/212))
@@ -19,6 +20,7 @@
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+- chore(deps): update rust crate mairie360_api_lib to v4.4.0 (#210) ([#210](https://github.com/mairie360/ELearning_API/pull/210))
 - fix: MAIR-247 Translate the APIs' OpenAPI descriptions and messages into English (#222) ([#222](https://github.com/mairie360/ELearning_API/pull/222))
 - chore(deps): MAIR-243 Bump quinn-udp to the patched 0.5.16 (RUSTSEC-2026-0538) (#224) ([#224](https://github.com/mairie360/ELearning_API/pull/224))
 - docs: MAIR-245 Rewrite the APIs' README and API.md (#212) ([#212](https://github.com/mairie360/ELearning_API/pull/212))
@@ -36,6 +38,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-16 23:07 UTC | dev | — | `db5a940` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43974696052) |
 | 2026-11-16 17:24 UTC | dev | — | `54a3128` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43916567791) |
 | 2026-11-16 16:52 UTC | dev | — | `87daa38` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43909728844) |
 | 2026-11-16 16:29 UTC | dev | — | `15d53c6` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43905412758) |
