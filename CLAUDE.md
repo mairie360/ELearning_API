@@ -164,8 +164,8 @@ shared across the whole test binary), and seeds a handful of users (`ALICE_ID`, 
 (MAIR-556): `common::get_smart_db()` (query views, `get_shared_db_as("elearning_api")`) and the `AppState` of
 `TestContext`, `readiness.rs` and `routing_test.rs`. A query outside the grants of Database's `api_grants.sql` then
 fails the test with `permission denied` (`tests/queries/db_role.rs` pins it): add the grant there, never connect
-the code under test as the superuser. `.cargo/config.toml` pins `TEST_DB_VERSION` to the compose files' Database
-tag, so the tests check the grants the stacks deploy. The compose stacks connect the API as `elearning_api` too
+the code under test as the superuser. `.cargo/config.toml` sets `TEST_DB_VERSION` to `dev`, the Database
+the compose files run outside the promotions (`${UPSTREAM_TAG:-dev}`, MAIR-998), so the tests check the grants the stacks deploy. The compose stacks connect the API as `elearning_api` too
 (`-Delearning_api_password` passed to Liquibase); postgres, liquibase and the seeder keep the superuser.
 Only `users`/`sessions`/`groups`/`access_control` are truncated
 between runs — `courses`/`course_modules`/`course_attachments` accumulate, so each test creates
