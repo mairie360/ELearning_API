@@ -1,9 +1,9 @@
 use crate::endpoints::v1::admin::users::UsersFormationModule;
 
-/// Avancement d'un agent, module par module, dans une formation.
+/// Progress of an agent, module by module, in a formation.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GetUserFormation {
-    /// Modules de la formation, avec la progression de l'agent sur chacun.
+    /// Modules of the formation, with the agent's progress on each.
     pub modules: Vec<UsersFormationModule>,
 }
 

@@ -1,9 +1,9 @@
 use crate::endpoints::v1::admin::formations::AdminFormationModule;
 use utoipa::ToSchema;
 
-/// Modules d'une formation, vue administrateur.
+/// Modules of a formation, admin view.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetFormationByIdResultView {
-    /// Modules de la formation, dans l'ordre du cours.
+    /// Modules of the formation, in the order of the course.
     pub modules: Vec<AdminFormationModule>,
 }

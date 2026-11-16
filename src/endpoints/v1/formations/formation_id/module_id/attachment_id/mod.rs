@@ -1,17 +1,17 @@
 pub mod doc;
 pub mod get;
 
-/// Paramètres de chemin des routes d'une pièce jointe de module.
+/// Path parameters of the routes of a module attachment.
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Path)]
 pub struct AttachmentIdParams {
-    /// Identifiant de la formation.
+    /// Id of the formation.
     #[param(example = 4)]
     formation_id: u64,
-    /// Identifiant du module, dans la formation du chemin.
+    /// Id of the module, in the formation of the path.
     #[param(example = 11)]
     module_id: u64,
-    /// Identifiant de la pièce jointe, dans le module du chemin.
+    /// Id of the attachment, in the module of the path.
     #[param(example = 27)]
     attachment_id: u64,
 }

@@ -2,20 +2,20 @@ pub mod doc;
 pub mod formation_id;
 pub mod get;
 
-/// Formation du catalogue, vue administrateur.
+/// Formation of the catalogue, admin view.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminFormation {
-    /// Identifiant de la formation.
+    /// Id of the formation.
     #[schema(example = 4)]
     id: u64,
-    /// Intitulé de la formation.
-    #[schema(example = "RGPD pour les agents territoriaux")]
+    /// Title of the formation.
+    #[schema(example = "GDPR for local government staff")]
     name: String,
-    /// Description de la formation.
-    #[schema(example = "Obligations et bonnes pratiques")]
+    /// Description of the formation.
+    #[schema(example = "Obligations and good practices")]
     description: String,
-    /// Modules de la formation, ou `null` si `details` n'a pas été demandé. Un `null` ici veut
-    /// dire « non demandé », pas « aucun module ».
+    /// Modules of the formation, or `null` if `details` was not asked for. A `null` here means
+    /// "not asked for", not "no module".
     modules: Option<Vec<AdminFormationModule>>,
 }
 
@@ -51,19 +51,19 @@ impl AdminFormation {
     }
 }
 
-/// Module d'une formation, vue administrateur.
+/// Module of a formation, admin view.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminFormationModule {
-    /// Identifiant du module.
+    /// Id of the module.
     #[schema(example = 11)]
     id: u64,
-    /// Intitulé du module.
-    #[schema(example = "Les principes du RGPD")]
+    /// Title of the module.
+    #[schema(example = "The principles of the GDPR")]
     name: String,
-    /// Description du module.
-    #[schema(example = "Licéité, minimisation, durée de conservation")]
+    /// Description of the module.
+    #[schema(example = "Lawfulness, minimisation, retention period")]
     description: String,
-    /// Pièces jointes du module, ou `null` si `details` n'a pas été demandé.
+    /// Attachments of the module, or `null` if `details` was not asked for.
     content: Option<Vec<AdminModuleContent>>,
 }
 
@@ -99,16 +99,16 @@ impl AdminFormationModule {
     }
 }
 
-/// Pièce jointe d'un module, vue administrateur.
+/// Attachment of a module, admin view.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminModuleContent {
-    /// Identifiant de la pièce jointe.
+    /// Id of the attachment.
     #[schema(example = 31)]
     id: u64,
-    /// Nom du fichier.
+    /// Name of the file.
     #[schema(example = "rgpd-principes.pdf")]
     file_name: String,
-    /// Type du fichier, tel qu'il est stocké en base : `video` ou `pdf`.
+    /// Type of the file, as stored in the database: `video` or `pdf`.
     #[schema(example = "pdf")]
     file_type: String,
 }

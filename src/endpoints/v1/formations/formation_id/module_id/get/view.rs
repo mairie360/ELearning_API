@@ -1,7 +1,7 @@
 use utoipa::ToSchema;
 
-/// Type d'une pièce jointe : `Video` ou `Pdf`.
-/// `Error` couvre tout autre type stocké en base (`document`, `link`, `quiz`, `audio`, `other`), que l'API n'expose pas encore.
+/// Type of an attachment: `Video` or `Pdf`.
+/// `Error` covers any other type stored in the database (`document`, `link`, `quiz`, `audio`, `other`), which the API does not expose yet.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub enum FileType {
     Video,
@@ -29,26 +29,26 @@ impl std::fmt::Display for FileType {
     }
 }
 
-/// Pièce jointe d'un module.
+/// Attachment of a module.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct File {
-    /// Identifiant de la pièce jointe, à passer à
-    /// `/api/v1/formations/{formation_id}/{module_id}/{attachment_id}/` pour obtenir son URL.
+    /// Id of the attachment, to pass to
+    /// `/api/v1/formations/{formation_id}/{module_id}/{attachment_id}/` to get its URL.
     #[schema(example = 31)]
     pub id: u64,
-    /// Nom du fichier tel qu'il sera présenté à l'agent.
+    /// Name of the file as shown to the agent.
     #[schema(example = "rgpd-principes.pdf")]
     pub file_name: String,
-    /// Type du fichier. `Error` signale un type stocké en base que l'API ne sait pas interpréter.
+    /// Type of the file. `Error` flags a type stored in the database that the API cannot interpret.
     pub file_type: FileType,
-    /// Taille en octets, ou `null` si elle n'a pas été enregistrée.
+    /// Size in bytes, or `null` if it was not recorded.
     #[schema(example = 482913)]
     pub file_size_bytes: Option<i64>,
 }
 
-/// Pièces jointes d'un module.
+/// Attachments of a module.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetModuleResponseView {
-    /// Pièces jointes du module. Vide si le module n'en a aucune.
+    /// Attachments of the module. Empty if the module has none.
     pub files: Vec<File>,
 }

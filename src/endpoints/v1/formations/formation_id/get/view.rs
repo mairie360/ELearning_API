@@ -1,25 +1,25 @@
 use utoipa::ToSchema;
 
-/// Module d'une formation de l'utilisateur connecté, avec son état d'achèvement.
+/// Module of a formation of the signed-in user, with its completion state.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct Module {
-    /// Identifiant du module, à réutiliser dans `/api/v1/formations/{formation_id}/{module_id}/`.
+    /// Id of the module, to reuse in `/api/v1/formations/{formation_id}/{module_id}/`.
     #[schema(example = 11)]
     pub id: u64,
-    /// Intitulé du module.
-    #[schema(example = "Les principes du RGPD")]
+    /// Title of the module.
+    #[schema(example = "The principles of the GDPR")]
     pub name: String,
-    /// Description du module.
-    #[schema(example = "Licéité, minimisation, durée de conservation")]
+    /// Description of the module.
+    #[schema(example = "Lawfulness, minimisation, retention period")]
     pub description: String,
-    /// `true` si l'utilisateur connecté a terminé ce module.
+    /// `true` if the signed-in user completed this module.
     #[schema(example = true)]
     pub completed: bool,
 }
 
-/// Modules d'une formation de l'utilisateur connecté.
+/// Modules of a formation of the signed-in user.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetFormationResponseView {
-    /// Modules de la formation. Vide si l'appelant n'est pas inscrit à cette formation.
+    /// Modules of the formation. Empty if the formation has no module (a caller who is not enrolled gets `403`).
     pub modules: Vec<Module>,
 }

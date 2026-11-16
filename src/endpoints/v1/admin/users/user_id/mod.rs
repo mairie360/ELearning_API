@@ -2,11 +2,11 @@ pub mod doc;
 pub mod formation_id;
 pub mod get;
 
-/// Paramètres de chemin des routes d'administration d'un utilisateur.
+/// Path parameters of the admin routes of a user.
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Path)]
 pub struct AdminUserIdParams {
-    /// Identifiant Core API de l'utilisateur.
+    /// Core API id of the user.
     #[param(example = 42)]
     user_id: u64,
 }

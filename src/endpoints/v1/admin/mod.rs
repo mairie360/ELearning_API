@@ -40,9 +40,10 @@ impl AdminPageQuery {
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct AdminUserDetailsQuery {
-    /// `true` fait descendre la réponse d'un niveau supplémentaire (modules, puis pièces
-    /// jointes). Par défaut `false`, auquel cas les champs imbriqués valent `null` — ce qui
-    /// signifie « non demandé », pas « vide ».
+    /// `true` makes the answer go down one more level (modules, then
+    /// attachments). Defaults to `false`, in which case the nested fields are `null`. With
+    /// `true`, a module without attachment also has `content: null`: `null` alone does not tell
+    /// "not asked for" from "none".
     #[serde(default)]
     #[param(example = true)]
     details: bool,
