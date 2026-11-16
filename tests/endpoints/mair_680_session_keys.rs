@@ -8,7 +8,6 @@ use actix_web::test::{self, TestRequest};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use mairie360_api_lib::jwt_manager::Claims;
 use mairie360_api_lib::test_setup::queries_setup::ADMIN_ID;
-use serial_test::serial;
 
 use crate::endpoints::{jwt_for, now, TestContext};
 use crate::queries::fixtures::{create_course, create_user};
@@ -32,7 +31,6 @@ fn admin_id() -> i32 {
 }
 
 #[actix_web::test]
-#[serial]
 async fn mair_680_runs_without_jwt_secret() {
     let _ctx = TestContext::new().await;
     assert!(std::env::var_os("JWT_SECRET").is_none());
@@ -41,7 +39,6 @@ async fn mair_680_runs_without_jwt_secret() {
 }
 
 #[actix_web::test]
-#[serial]
 async fn mair_680_eddsa_token_signed_with_core_key_is_accepted() {
     let ctx = TestContext::new().await;
     let app = init_app!(ctx);
@@ -58,7 +55,6 @@ async fn mair_680_eddsa_token_signed_with_core_key_is_accepted() {
 }
 
 #[actix_web::test]
-#[serial]
 async fn mair_680_hs256_token_is_refused_without_jwt_secret() {
     let ctx = TestContext::new().await;
     let app = init_app!(ctx);
@@ -86,7 +82,6 @@ async fn mair_680_hs256_token_is_refused_without_jwt_secret() {
 /// agent finds it in their catalog, the administrator unenrols them; the administrator's HS256
 /// token is refused on the same routes.
 #[actix_web::test]
-#[serial]
 async fn mair_680_admin_enrols_and_unenrols_an_agent_with_core_tokens_only() {
     let ctx = TestContext::new().await;
     let app = init_app!(ctx);

@@ -31,7 +31,7 @@ cargo lint_check     # alias: fmt --all -- --check          (CI gate)
 cargo lint_fix       # alias: fmt --all
 cargo check_code     # alias: clippy --all-targets --all-features -- -D warnings   (CI gate)
 
-cargo test                        # dev-deps: serial_test (#[serial]), once_cell
+cargo test                        # dev-deps: once_cell, serial_test (only the tests that set an env var)
 cargo test <name>                 # single test by substring
 cargo test <name> -- --exact      # single test, exact match
 cargo test --test views           # fast: view/QueryView unit tests, no Docker needed
@@ -112,7 +112,7 @@ reaches the API. The compose files require them (`${VAR:?}`); newman gets its to
 `ADMIN_JWT` (`.zap/scan.sh`), k6 a JSON file of tokens mounted at `/tokens.json` (neither newman nor k6 can sign
 Ed25519). **No key or token valid anywhere is committed.** The dev stack defaults `JWT_PUBLIC_KEY` to the lib's
 test public key with `JWT_ALLOW_WEAK_SECRET=true` (dev only); sign a dev token in a subshell with the lib's test key:
-`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.3.1/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
+`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.4.0/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
 
 The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `.zap/scan.sh` takes the 2-hour admin EdDSA JWT
 (`ADMIN_JWT`, `sub=1`, signed by `security_test.sh`) and runs `zap-api-scan.py` with a replacer injecting it on every request,
@@ -183,6 +183,16 @@ another scheme, garbage, an HS256 token whatever its secret, an EdDSA token sign
 `kid`, an expired token, `alg: none`, a swapped payload or an asymmetric
 algorithm; `404` for an unknown or archived account), and `rate_limit.rs` checks the production budget of
 `config_from_env()` (`429` past the burst, `Retry-After` of at least 1 s).
+
+Tests run in parallel (MAIR-1002): there is no `#[serial]`. The tests share the seeded database of
+`get_shared_db()` and keep to rows of their own (unique markers). A test that depends on, or changes, what the
+others see (a count of rows of a table, a sequence reset, anything that reads every row) takes a database of its
+own with `mairie360_api_lib::test_setup::isolated::isolated_db()`: a copy of the seeded template (about 0.2 s),
+dropped when the guard is dropped, whose URLs are `db.url()` (superuser, fixtures) and `db.url_as("<role>")`.
+`isolated_redis()` gives a Redis client with its own key prefix on one container shared by the process. Only a
+test that sets a process environment variable keeps `#[serial(<group>)]`. The dependencies are compiled with
+`opt-level = 3` (`[profile.dev.package."*"]`): the code of the crate stays in debug, which is what the coverage
+measures, while argon2 and the TLS stack no longer dominate the run.
 
 The same binary holds handler-level tests in `tests/endpoints/`: `init_app!` mounts `/api` exactly
 like `main.rs` (`JwtMiddleware` + `endpoints::config` + a `MockFileStorage`) over an `AppState`
@@ -364,7 +374,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 4.3.1)
+### External library: `mairie360_api_lib` (pinned to 4.4.0)
 
 - `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
   `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so

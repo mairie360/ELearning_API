@@ -4,7 +4,6 @@ use actix_governor::Governor;
 use actix_web::http::StatusCode;
 use actix_web::test::{self, TestRequest};
 use elearning_api::rate_limit;
-
 use serial_test::serial;
 
 use crate::endpoints::{jwt_for, TestContext};
@@ -66,7 +65,7 @@ async fn each_user_has_its_own_bucket() {
 /// A user gets the whole burst of `DEFAULT_BURST`, then `429` with a numeric `Retry-After`, while
 /// another user is still served.
 #[actix_web::test]
-#[serial]
+#[serial(rate_limit_env)]
 async fn the_production_budget_refuses_a_user_past_its_burst() {
     std::env::remove_var("RATE_LIMIT_PER_SECOND");
     std::env::remove_var("RATE_LIMIT_BURST");
@@ -134,7 +133,7 @@ async fn the_production_budget_refuses_a_user_past_its_burst() {
 }
 
 #[test]
-#[serial]
+#[serial(rate_limit_env)]
 #[should_panic(expected = "RATE_LIMIT_BURST must be a positive integer")]
 fn a_malformed_burst_is_refused_at_startup() {
     std::env::set_var("RATE_LIMIT_BURST", "a lot");
