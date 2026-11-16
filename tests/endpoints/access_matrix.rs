@@ -15,7 +15,6 @@ use mairie360_api_lib::smart_db::SmartDatabase;
 use mairie360_api_lib::test_setup::queries_setup::ADMIN_ID;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use serial_test::serial;
 use utoipa::OpenApi;
 
 use super::{jwt_for, TestContext};
@@ -204,7 +203,6 @@ fn request(name: &str, f: &Fixtures, target: i32, joiner: i32) -> TestRequest {
 }
 
 #[actix_web::test]
-#[serial]
 async fn every_role_and_relation_gets_what_the_matrix_says() {
     let ctx = TestContext::new().await;
     let app = init_app!(ctx);

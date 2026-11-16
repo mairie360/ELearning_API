@@ -10,7 +10,7 @@ async-trait = "0.1.89"
 chrono = { version = "0.4", features = ["serde"] }
 futures-util = "0.3"
 # `tracing-actix`: the request span without the query string nor the error `Debug` (MAIR-290).
-mairie360_api_lib = { version = "4.3.2", features = ["otel", "tracing-actix"] }
+mairie360_api_lib = { version = "4.4.0", features = ["otel", "tracing-actix"] }
 percent-encoding = "2.3"
 rust-s3 = { version = "0.38.0", default-features = false, features = ["tokio-rustls-tls"] }
 serde = { version = "1.0.219", features = ["derive"] }
@@ -22,7 +22,7 @@ utoipa = { version = "6", features = ["actix_extras", "yaml"] }
 utoipa-swagger-ui = { version = "10", features = ["actix-web"] }
 
 [dev-dependencies]
-mairie360_api_lib = { version = "4.3.2", features = ["test-utils"] }
+mairie360_api_lib = { version = "4.4.0", features = ["test-utils"] }
 serial_test = "4.0.0"
 url = "2.5"
 # Forges the tokens the refusal sweep sends (same version and features as mairie360_api_lib).
@@ -35,6 +35,11 @@ yaml_serde = "0.10"
 
 [profile.dev]
 opt-level = 0
+
+# MAIR-1002: the dependencies are optimised, only the code of this API stays in debug (what the coverage
+# measures): argon2, TLS and the other crypto of the lib are about ten times faster.
+[profile.dev.package."*"]
+opt-level = 3
 
 [profile.release]
 opt-level = 3

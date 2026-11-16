@@ -4,7 +4,6 @@ use actix_web::http::StatusCode;
 use actix_web::test::{self, TestRequest};
 use actix_web::App;
 use elearning_api::endpoints::swagger::{self, SWAGGER_ENABLED_ENV};
-use serial_test::serial;
 
 async fn status_of(enabled: bool, uri: &str) -> StatusCode {
     let app = test::init_service(App::new().configure(|cfg| swagger::config(cfg, enabled))).await;
@@ -32,7 +31,6 @@ async fn spec_and_ui_are_only_mounted_when_enabled() {
 }
 
 #[test]
-#[serial]
 fn swagger_is_off_unless_explicitly_enabled() {
     std::env::remove_var(SWAGGER_ENABLED_ENV);
     assert!(!swagger::is_enabled());
