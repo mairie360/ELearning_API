@@ -93,34 +93,34 @@ async fn trigger_get_catalog(
 #[utoipa::path(
     get,
     path = "",
-    summary = "Lister ses formations avec leurs modules et leurs fichiers",
-    description = "Renvoie, en un seul appel, les formations auxquelles l'utilisateur porté par le \
-                   JWT est inscrit, avec pour chacune son avancement, ses modules (et si \
-                   l'utilisateur les a terminés) et les fichiers de chaque module (nom, type, taille).\n\n\
-                   C'est la réunion de `GET /api/v1/formations/`, de `GET /api/v1/formations/{formation_id}/` \
-                   et de `GET /api/v1/formations/{formation_id}/{module_id}/` pour toutes les formations de \
-                   l'utilisateur, calculée en un nombre fixe de requêtes quel que soit le nombre de formations \
-                   ou de modules. Mêmes règles d'accès que ces routes : seules les inscriptions de l'appelant \
-                   sont visibles, admins compris.\n\n\
-                   Le contenu des fichiers n'est **pas** renvoyé : pour en ouvrir un, demander une URL signée à \
+    summary = "List one's formations with their modules and files",
+    description = "Returns, in one call, the formations the user of the JWT is enrolled in, \
+                   with for each its progress, its modules (and whether the user completed \
+                   them) and the files of each module (name, type, size).\n\n\
+                   It merges `GET /api/v1/formations/`, `GET /api/v1/formations/{formation_id}/` \
+                   and `GET /api/v1/formations/{formation_id}/{module_id}/` for every formation of \
+                   the user, computed in a fixed number of queries whatever the number of formations \
+                   or modules. Same access rules as these routes: only the caller's enrolments \
+                   are visible, admins included.\n\n\
+                   The content of the files is **not** returned: to open one, ask for a signed URL from \
                    `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`.",
     responses(
         (
             status = 200,
-            description = "Formations de l'utilisateur connecté avec leurs modules et leurs fichiers. Liste vide s'il n'est inscrit à aucune formation.",
+            description = "Formations of the signed-in user with their modules and files. Empty list if they are enrolled in no formation.",
             body = GetCatalogResultView,
             example = json!({
                 "formations": [
                     {
                         "id": 4,
-                        "name": "RGPD pour les agents territoriaux",
-                        "description": "Obligations et bonnes pratiques",
+                        "name": "GDPR for local government staff",
+                        "description": "Obligations and good practices",
                         "status": "InProgress",
                         "modules": [
                             {
                                 "id": 11,
-                                "name": "Les principes du RGPD",
-                                "description": "Licéité, minimisation, durée de conservation",
+                                "name": "The principles of the GDPR",
+                                "description": "Lawfulness, minimisation, retention period",
                                 "completed": true,
                                 "files": [
                                     { "id": 31, "file_name": "rgpd-principes.pdf", "file_type": "Pdf", "file_size_bytes": 482913 }
@@ -128,7 +128,7 @@ async fn trigger_get_catalog(
                             },
                             {
                                 "id": 12,
-                                "name": "Les droits des personnes",
+                                "name": "The rights of individuals",
                                 "description": "",
                                 "completed": false,
                                 "files": []
@@ -140,7 +140,7 @@ async fn trigger_get_catalog(
         ),
         (
             status = 401,
-            description = "En-tête `Authorization` absent, JWT invalide ou expiré, ou session révoquée.",
+            description = "Missing `Authorization` header, invalid or expired JWT, or revoked session.",
             body = String,
             content_type = "text/plain",
             example = json!("Jeton expiré")
@@ -154,7 +154,7 @@ async fn trigger_get_catalog(
         ),
         (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")

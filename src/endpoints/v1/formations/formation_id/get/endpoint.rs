@@ -112,8 +112,8 @@ async fn trigger_get_my_formation_by_id(
             body = GetFormationResponseView,
             example = json!({
                 "modules": [
-                    { "id": 11, "name": "Les principes du RGPD", "description": "Licéité, minimisation, durée de conservation", "completed": true },
-                    { "id": 12, "name": "Gérer une demande d'accès", "description": "Procédure et délais", "completed": false }
+                    { "id": 11, "name": "The principles of the GDPR", "description": "Lawfulness, minimisation, retention period", "completed": true },
+                    { "id": 12, "name": "Handling an access request", "description": "Procedure and deadlines", "completed": false }
                 ]
             })
         ),

@@ -112,7 +112,7 @@ async fn trigger_get_formations(
             body = GetFormationsResultView,
             example = json!({
                 "formations": [
-                    { "id": 4, "name": "RGPD pour les agents territoriaux", "description": "Obligations et bonnes pratiques", "modules": null },
+                    { "id": 4, "name": "GDPR for local government staff", "description": "Obligations and good practices", "modules": null },
                     { "id": 9, "name": "Accueil du public en situation de handicap", "description": "", "modules": null }
                 ]
             })

@@ -83,22 +83,22 @@ Statuses returned across the API, before the handler runs:
 | `500` | Database or Redis failure. |
 ",
         contact(
-            name = "Équipe Mairie 360",
+            name = "Mairie 360 team",
             url = "https://github.com/mairie360"
         ),
         license(
-            name = "Propriétaire",
+            name = "Proprietary",
             identifier = "LicenseRef-mairie360-proprietary"
         )
     ),
     servers(
-        (url = "http://localhost:3006", description = "Développement local (cargo run)"),
-        (url = "http://development.mairie360.fr", description = "Pile Docker de développement (nginx)")
+        (url = "http://localhost:3006", description = "Local development (cargo run)"),
+        (url = "http://development.mairie360.fr", description = "Development Docker stack (nginx)")
     ),
     tags(
-        (name = "Formations", description = "Vue de l'agent connecté : ses formations, ses modules, sa progression et les URL de ses pièces jointes."),
-        (name = "Admin - Formations", description = "Catalogue complet des formations et inscription des agents."),
-        (name = "Admin - Users", description = "Progression des agents et désinscription."),
+        (name = "Formations", description = "View of the signed-in agent: their formations, modules, progress and the URLs of their attachments."),
+        (name = "Admin - Formations", description = "Full catalogue of the formations and enrolment of the agents."),
+        (name = "Admin - Users", description = "Progress of the agents and unenrolment."),
         (name = "Service", description = "Unauthenticated technical probes used by Docker and Kubernetes: `/health` (liveness) and `/ready` (readiness).")
     ),
     nest(
@@ -110,9 +110,9 @@ Statuses returned across the API, before the handler runs:
 )]
 pub struct ApiDoc;
 
-/// Sans ce modifier, les opérations qui déclarent `security(("jwt" = []))` référencent un schéma
-/// absent du contrat : Swagger UI n'offre pas de bouton « Authorize » et les clients générés
-/// pointent dans le vide.
+/// Without this modifier, the operations declaring `security(("jwt" = []))` reference a scheme
+/// missing from the contract: Swagger UI shows no "Authorize" button and generated clients
+/// point to nothing.
 struct SecurityAddon;
 
 impl Modify for SecurityAddon {
@@ -124,7 +124,7 @@ impl Modify for SecurityAddon {
                 Http::builder()
                     .scheme(HttpAuthScheme::Bearer)
                     .bearer_format("JWT")
-                    .description(Some("JWT émis par Core API (`POST /api/v1/auth/login`)."))
+                    .description(Some("JWT issued by Core API (`POST /api/v1/auth/login`)."))
                     .build(),
             ),
         )

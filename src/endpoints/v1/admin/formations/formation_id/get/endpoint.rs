@@ -102,12 +102,12 @@ async fn trigger_get_formation_by_id(
         AdminFormationIdParams,
     ),
     path = "/",
-    summary = "Lister les modules d'une formation du catalogue",
-    description = "Renvoie les modules d'une formation, sans rapport avec la progression de qui \
-                   que ce soit : c'est la structure du cours, pas son suivi. Pour la progression \
-                   d'un agent donné, voir `GET /api/v1/admin/users/{user_id}/{formation_id}/`.\n\n\
-                   `details=true` fait descendre la réponse jusqu'aux pièces jointes de chaque \
-                   module. Sans ce paramètre, `content` est `null` et non un tableau vide.\n\n\
+    summary = "List the modules of a catalogue formation",
+    description = "Returns the modules of a formation, regardless of anyone's progress: it is \
+                   the structure of the course, not its follow-up. For the progress of a given \
+                   agent, see `GET /api/v1/admin/users/{user_id}/{formation_id}/`.\n\n\
+                   `details=true` makes the answer go down to the attachments of each \
+                   module. Without it, `content` is `null`, not an empty array.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
@@ -118,8 +118,8 @@ async fn trigger_get_formation_by_id(
                 "modules": [
                     {
                         "id": 11,
-                        "name": "Les principes du RGPD",
-                        "description": "Licéité, minimisation, durée de conservation",
+                        "name": "The principles of the GDPR",
+                        "description": "Lawfulness, minimisation, retention period",
                         "content": [
                             { "id": 31, "file_name": "rgpd-principes.pdf", "file_type": "pdf" }
                         ]
@@ -129,7 +129,7 @@ async fn trigger_get_formation_by_id(
         ),
         (
             status = 400,
-            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            description = "A URL segment is not an integer, or the JSON body is malformed.",
             body = String,
             content_type = "text/plain",
             example = json!("Path deserialize error: can not parse `abc` to a u64")
@@ -157,14 +157,14 @@ async fn trigger_get_formation_by_id(
         ),
         (
             status = 404,
-            description = "Aucune formation ne porte cet identifiant.",
+            description = "No formation has this id.",
             body = String,
             content_type = "text/plain",
             example = json!("The formation was not found.")
         ),
         (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")

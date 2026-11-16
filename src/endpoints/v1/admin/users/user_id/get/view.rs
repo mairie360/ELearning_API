@@ -1,9 +1,9 @@
 use crate::endpoints::v1::admin::users::UsersFormation;
 
-/// Formations auxquelles un agent est inscrit.
+/// Formations an agent is enrolled in.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GetUserByIdResultView {
-    /// Formations auxquelles l'agent est inscrit. Vide s'il n'en suit aucune, ou si l'identifiant
-    /// ne correspond à personne.
+    /// Formations the agent is enrolled in. Empty if they follow none, or if the id
+    /// matches nobody.
     pub formations: Vec<UsersFormation>,
 }

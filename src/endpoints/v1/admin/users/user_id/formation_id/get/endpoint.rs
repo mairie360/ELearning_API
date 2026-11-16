@@ -101,24 +101,24 @@ async fn trigger_get_user_formation(
     get,
     params(AdminUserDetailsQuery, AdminUserFormationIdParams),
     path = "/",
-    summary = "Consulter la progression d'un agent sur une formation",
-    description = "Renvoie les modules d'une formation avec, pour chacun, l'état d'achèvement de \
-                   l'agent visé et la date à laquelle il l'a terminé. Vue la plus fine du suivi : \
-                   elle descend jusqu'à la date de consultation de chaque pièce jointe.\n\n\
-                   `completed_at` et `finished_at` sont `null` tant que l'élément n'a pas été \
-                   terminé.\n\n\
+    summary = "Read the progress of an agent on a formation",
+    description = "Returns the modules of a formation with, for each one, whether the targeted \
+                   agent completed it and when. Finest view of the follow-up: it goes \
+                   down to the date each attachment was viewed.\n\n\
+                   `completed_at` and `finished_at` are `null` until the item is \
+                   completed.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
-            description = "Modules de la formation et progression de l'agent sur chacun.",
+            description = "Modules of the formation and the agent's progress on each.",
             body = GetUserFormation,
             example = json!({
                 "modules": [
                     {
                         "id": 11,
-                        "name": "Les principes du RGPD",
-                        "description": "Licéité, minimisation, durée de conservation",
+                        "name": "The principles of the GDPR",
+                        "description": "Lawfulness, minimisation, retention period",
                         "content": [
                             { "id": 31, "file_name": "rgpd-principes.pdf", "file_type": "pdf", "finished_at": "2026-09-03T14:22:00Z" }
                         ],
@@ -130,7 +130,7 @@ async fn trigger_get_user_formation(
         ),
         (
             status = 400,
-            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            description = "A URL segment is not an integer, or the JSON body is malformed.",
             body = String,
             content_type = "text/plain",
             example = json!("Path deserialize error: can not parse `abc` to a u64")
@@ -158,14 +158,14 @@ async fn trigger_get_user_formation(
         ),
         (
             status = 404,
-            description = "Aucun module trouvé pour ce couple agent / formation.",
+            description = "No module found for this agent / formation pair.",
             body = String,
             content_type = "text/plain",
             example = json!("Module not found.")
         ),
         (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")

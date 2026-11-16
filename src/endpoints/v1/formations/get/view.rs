@@ -1,5 +1,5 @@
-/// Avancement de l'utilisateur connecté dans une formation : `NotStarted`, `InProgress` ou `Completed`.
-/// `Error` signale une valeur en base que l'API ne sait pas interpréter.
+/// Progress of the signed-in user in a formation: `NotStarted`, `InProgress` or `Completed`.
+/// `Error` flags a stored value the API cannot interpret.
 #[derive(Debug, Default, serde::Serialize, utoipa::ToSchema)]
 pub enum Status {
     Completed,
@@ -31,20 +31,20 @@ impl From<Status> for String {
     }
 }
 
-/// Formation à laquelle l'utilisateur connecté est inscrit.
+/// Formation the signed-in user is enrolled in.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct Formation {
-    /// Identifiant de la formation, à réutiliser dans `/api/v1/formations/{formation_id}/`.
+    /// Id of the formation, to reuse in `/api/v1/formations/{formation_id}/`.
     #[schema(example = 4)]
     id: u64,
-    /// Intitulé de la formation.
-    #[schema(example = "RGPD pour les agents territoriaux")]
+    /// Title of the formation.
+    #[schema(example = "GDPR for local government staff")]
     name: String,
-    /// Description de la formation. Chaîne vide s'il n'y en a pas — jamais `null`.
-    #[schema(example = "Obligations et bonnes pratiques")]
+    /// Description of the formation. Empty string if it has none — never `null`.
+    #[schema(example = "Obligations and good practices")]
     description: String,
-    /// Avancement de l'utilisateur connecté. `Error` signale une valeur en base que l'API ne
-    /// sait pas interpréter.
+    /// Progress of the signed-in user. `Error` flags a stored value the API cannot
+    /// interpret.
     status: Status,
 }
 
@@ -59,10 +59,10 @@ impl Formation {
     }
 }
 
-/// Formations de l'utilisateur connecté.
+/// Formations of the signed-in user.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct GetFormationsResultView {
-    /// Formations auxquelles l'utilisateur connecté est inscrit. Vide s'il n'en suit aucune.
+    /// Formations the signed-in user is enrolled in. Empty if they follow none.
     formations: Vec<Formation>,
 }
 

@@ -10,10 +10,10 @@ pub struct CatalogModule {
     #[schema(example = 11)]
     pub id: u64,
     /// Title of the module.
-    #[schema(example = "Les principes du RGPD")]
+    #[schema(example = "The principles of the GDPR")]
     pub name: String,
     /// Description of the module. Empty string when there is none — never `null`.
-    #[schema(example = "Licéité, minimisation, durée de conservation")]
+    #[schema(example = "Lawfulness, minimisation, retention period")]
     pub description: String,
     /// `true` when the caller completed this module.
     #[schema(example = true)]
@@ -31,10 +31,10 @@ pub struct CatalogFormation {
     #[schema(example = 4)]
     pub id: u64,
     /// Title of the formation.
-    #[schema(example = "RGPD pour les agents territoriaux")]
+    #[schema(example = "GDPR for local government staff")]
     pub name: String,
     /// Description of the formation. Empty string when there is none — never `null`.
-    #[schema(example = "Obligations et bonnes pratiques")]
+    #[schema(example = "Obligations and good practices")]
     pub description: String,
     /// Progress of the caller. `Error` is a value stored in the database that the API cannot
     /// interpret.

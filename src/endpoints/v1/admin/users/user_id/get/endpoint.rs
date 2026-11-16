@@ -107,30 +107,29 @@ async fn trigger_get_user(
     get,
     params(AdminUserDetailsQuery, AdminUserIdParams),
     path = "",
-    summary = "Consulter la progression d'un agent",
-    description = "Renvoie les formations auxquelles un agent est inscrit, avec ses dates de début \
-                   et de fin et son statut d'avancement. C'est l'équivalent de \
-                   `GET /api/v1/formations/` mais pour un agent quelconque, pas pour \
-                   l'appelant.\n\n\
-                   `started_at` reste `null` tant que l'agent n'a terminé aucun module : la date \
-                   est posée par un déclencheur en base au premier module achevé, pas à \
-                   l'inscription. `completed_at` reste `null` tant que la formation n'est pas \
-                   entièrement terminée.\n\n\
-                   `details=true` fait descendre la réponse jusqu'aux modules et à leurs pièces \
-                   jointes ; sans ce paramètre, `modules` est `null`.\n\n\
-                   Un agent inconnu ou sans inscription renvoie une liste vide, pas une erreur.\n\n\
+    summary = "Read the progress of an agent",
+    description = "Returns the formations an agent is enrolled in, with their start and end \
+                   dates and progress status. Same as `GET /api/v1/formations/`, but for \
+                   any agent, not for the caller.\n\n\
+                   `started_at` stays `null` until the agent completes a module: the date \
+                   is set by a database trigger on the first completed module, not on \
+                   enrolment. `completed_at` stays `null` until the formation is fully \
+                   completed.\n\n\
+                   `details=true` makes the answer go down to the modules and their \
+                   attachments; without it, `modules` is `null`.\n\n\
+                   An unknown agent, or one without enrolment, gets an empty list, not an error.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",
     responses(
         (
             status = 200,
-            description = "Formations de l'agent et son avancement sur chacune.",
+            description = "Formations of the agent and their progress on each.",
             body = GetUserByIdResultView,
             example = json!({
                 "formations": [
                     {
                         "id": 4,
-                        "name": "RGPD pour les agents territoriaux",
-                        "description": "Obligations et bonnes pratiques",
+                        "name": "GDPR for local government staff",
+                        "description": "Obligations and good practices",
                         "modules": null,
                         "started_at": "2026-09-02T08:30:00Z",
                         "completed_at": null,
@@ -141,7 +140,7 @@ async fn trigger_get_user(
         ),
         (
             status = 400,
-            description = "Un segment de l'URL n'est pas un entier, ou le corps JSON est malformé.",
+            description = "A URL segment is not an integer, or the JSON body is malformed.",
             body = String,
             content_type = "text/plain",
             example = json!("Path deserialize error: can not parse `abc` to a u64")
@@ -169,7 +168,7 @@ async fn trigger_get_user(
         ),
         (
             status = 500,
-            description = "Erreur de base de données.",
+            description = "Database error.",
             body = String,
             content_type = "text/plain",
             example = json!("An error occurred while accessing the database.")

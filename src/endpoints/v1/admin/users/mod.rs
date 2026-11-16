@@ -2,8 +2,8 @@ pub mod doc;
 pub mod get;
 pub mod user_id;
 
-/// Avancement d'un agent dans une formation : `NotStarted`, `InProgress` ou `Completed`.
-/// `Error` signale une valeur en base que l'API ne sait pas interpréter.
+/// Progress of an agent in a formation: `NotStarted`, `InProgress` or `Completed`.
+/// `Error` flags a stored value the API cannot interpret.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub enum ProgressStatus {
     NotStarted,
@@ -23,31 +23,31 @@ impl From<String> for ProgressStatus {
     }
 }
 
-/// Formation à laquelle un agent est inscrit, avec son avancement.
+/// Formation an agent is enrolled in, with their progress.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UsersFormation {
-    /// Identifiant de la formation.
+    /// Id of the formation.
     #[schema(example = 4)]
     id: u64,
-    /// Intitulé de la formation.
-    #[schema(example = "RGPD pour les agents territoriaux")]
+    /// Title of the formation.
+    #[schema(example = "GDPR for local government staff")]
     name: String,
     /// Description de la formation.
-    #[schema(example = "Obligations et bonnes pratiques")]
+    #[schema(example = "Obligations and good practices")]
     description: String,
-    /// Modules de la formation, ou `null` si `details` n'a pas été demandé.
+    /// Modules of the formation, or `null` if `details` was not asked for.
     modules: Option<Vec<UsersFormationModule>>,
     // `user_courses.started_at` has no default and is only set by the
     // `fn_update_user_course_progress` trigger once the user completes their
     // first module, so a freshly-registered formation has none yet.
-    /// Date du premier module terminé, ou `null` si l'agent n'en a terminé aucun. Posée par un
-    /// déclencheur en base, pas à l'inscription.
+    /// Date of the first completed module, or `null` if the agent completed none. Set by a
+    /// database trigger, not on enrolment.
     #[schema(value_type = Option<String>, format = DateTime, example = "2026-09-02T08:30:00Z")]
     started_at: Option<chrono::DateTime<chrono::Utc>>,
-    /// Date d'achèvement de la formation entière, ou `null` si elle n'est pas terminée.
+    /// Completion date of the whole formation, or `null` if it is not completed.
     #[schema(value_type = Option<String>, format = DateTime, example = "2026-09-20T16:45:00Z")]
     completed_at: Option<chrono::DateTime<chrono::Utc>>,
-    /// Avancement de l'agent sur cette formation, recalculé automatiquement en base.
+    /// Progress of the agent on this formation, recomputed by the database.
     progress_status: ProgressStatus,
 }
 
@@ -101,24 +101,24 @@ impl UsersFormation {
     }
 }
 
-/// Module d'une formation et son avancement pour l'agent.
+/// Module of a formation and its progress for the agent.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UsersFormationModule {
-    /// Identifiant du module.
+    /// Id of the module.
     #[schema(example = 11)]
     id: u64,
-    /// Intitulé du module.
-    #[schema(example = "Les principes du RGPD")]
+    /// Title of the module.
+    #[schema(example = "The principles of the GDPR")]
     name: String,
     /// Description du module.
-    #[schema(example = "Licéité, minimisation, durée de conservation")]
+    #[schema(example = "Lawfulness, minimisation, retention period")]
     description: String,
-    /// Pièces jointes du module, avec la date à laquelle l'agent les a consultées.
+    /// Attachments of the module, with the date the agent viewed them.
     content: Vec<UsersModuleContent>,
-    /// `true` si l'agent a terminé ce module.
+    /// `true` if the agent completed this module.
     #[schema(example = true)]
     is_completed: bool,
-    /// Date d'achèvement du module par l'agent, ou `null` s'il ne l'a pas terminé.
+    /// Completion date of the module by the agent, or `null` if they did not complete it.
     #[schema(value_type = Option<String>, format = DateTime, example = "2026-09-03T14:25:00Z")]
     completed_at: Option<chrono::DateTime<chrono::Utc>>,
 }
@@ -163,20 +163,20 @@ impl UsersFormationModule {
     }
 }
 
-/// Pièce jointe d'un module et sa date de consultation par l'agent.
+/// Attachment of a module and the date the agent viewed it.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UsersModuleContent {
-    /// Identifiant de la pièce jointe.
+    /// Id of the attachment.
     #[schema(example = 31)]
     id: u64,
     /// Nom du fichier.
     #[schema(example = "rgpd-principes.pdf")]
     file_name: String,
-    /// Type du fichier, tel qu'il est stocké en base : `video` ou `pdf`.
+    /// Type of the file, as stored in the database: `video` or `pdf`.
     #[schema(example = "pdf")]
     file_type: String,
-    /// Date à laquelle l'agent a terminé cette pièce jointe, ou `null` s'il ne l'a pas encore
-    /// consultée.
+    /// Date the agent completed this attachment, or `null` if they have not viewed it
+    /// yet.
     #[schema(value_type = Option<String>, format = DateTime, example = "2026-09-03T14:22:00Z")]
     finished_at: Option<chrono::DateTime<chrono::Utc>>,
 }

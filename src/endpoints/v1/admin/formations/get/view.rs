@@ -1,9 +1,9 @@
 use crate::endpoints::v1::admin::formations::AdminFormation;
 use utoipa::ToSchema;
 
-/// Catalogue des formations, vue administrateur.
+/// Catalogue of the formations, admin view.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetFormationsResultView {
-    /// Toutes les formations du catalogue.
+    /// Every formation of the catalogue.
     pub formations: Vec<AdminFormation>,
 }
