@@ -2,6 +2,7 @@ use crate::endpoints::validation::{check_user_id, Validate, ValidationError};
 
 /// Utilisateur à inscrire à la formation du chemin.
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RegisterUserView {
     /// Identifiant Core API de l'agent à inscrire, tel que le renvoie `GET /api/v1/user/`
     /// de Core API.

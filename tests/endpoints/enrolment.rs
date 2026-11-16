@@ -122,9 +122,25 @@ async fn enrolling_with_an_invalid_body_is_400_naming_the_field() {
         );
     }
 
-    let req = TestRequest::post()
-        .uri(&uri)
-        .insert_header(("Authorization", jwt.as_str()))
-        .set_json(serde_json::json!({ "user": 1 }));
-    assert_eq!(status_of!(app, req), StatusCode::BAD_REQUEST);
+    // A missing field, an unknown one next to a valid id, and a wrong type: each is a 400 that
+    // names the field.
+    for (body, field) in [
+        (serde_json::json!({}), "missing field `user_id`"),
+        (serde_json::json!({ "user": 1 }), "unknown field"),
+        (
+            serde_json::json!({ "user_id": 1, "unexpected": true }),
+            "unknown field",
+        ),
+        (serde_json::json!({ "user_id": "abc" }), "user_id"),
+        (serde_json::json!({ "user_id": null }), "user_id"),
+    ] {
+        let req = TestRequest::post()
+            .uri(&uri)
+            .insert_header(("Authorization", jwt.as_str()))
+            .set_json(&body);
+        let resp = test::call_service(&app, req.to_request()).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{body}");
+        let text = String::from_utf8_lossy(&test::read_body(resp).await).into_owned();
+        assert!(text.contains(field), "{body}: {text}");
+    }
 }
