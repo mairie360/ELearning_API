@@ -1,20 +1,24 @@
 # Journal des releases — ELearning_API
 
-<!-- release-journal-state {"dev": "953c8f261c436f07a99e94ea0dcc9b4b28821005", "prod": "7f790d5b0bf655737514d390926fd09292020b58", "prod_tag": "v1.3.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-13 06:34 UTC", "prod": "2026-11-12 23:53 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
+<!-- release-journal-state {"dev": "15d53c6fb9fca9b65e7298876531c957a6e63720", "prod": "7f790d5b0bf655737514d390926fd09292020b58", "prod_tag": "v1.3.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-16 16:29 UTC", "prod": "2026-11-12 23:53 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.3.0 | `7f790d5` | 2026-11-12 23:53 UTC |
 | staging | — | `7f790d5` | 2026-11-12 18:51 UTC |
-| dev | — | `953c8f2` | 2026-11-13 06:34 UTC |
+| dev | — | `15d53c6` | 2026-11-16 16:29 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.3.0)
 
+- docs: MAIR-245 Rewrite the APIs' README and API.md (#212) ([#212](https://github.com/mairie360/ELearning_API/pull/212))
+- fix: MAIR-243 Align the test Database version and validate the enrolment body (#217) ([#217](https://github.com/mairie360/ELearning_API/pull/217))
 - chore(deps): update mairie360 database schema to v3.4.0 (#219) ([#219](https://github.com/mairie360/ELearning_API/pull/219))
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+- docs: MAIR-245 Rewrite the APIs' README and API.md (#212) ([#212](https://github.com/mairie360/ELearning_API/pull/212))
+- fix: MAIR-243 Align the test Database version and validate the enrolment body (#217) ([#217](https://github.com/mairie360/ELearning_API/pull/217))
 - chore(deps): update mairie360 database schema to v3.4.0 (#219) ([#219](https://github.com/mairie360/ELearning_API/pull/219))
 
 ## Différence staging → prod (en staging, pas encore en prod)
@@ -28,6 +32,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-16 16:29 UTC | dev | — | `15d53c6` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43905412758) |
 | 2026-11-13 06:34 UTC | dev | — | `953c8f2` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43377187160) |
 | 2026-11-12 23:53 UTC | prod | v1.3.0 | `7f790d5` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43330565399) |
 | 2026-11-12 18:51 UTC | staging | — | `7f790d5` | [run](https://github.com/mairie360/ELearning_API/actions/runs/43282726286) |
