@@ -112,7 +112,7 @@ async fn trigger_get_formation_by_id(
     responses(
         (
             status = 200,
-            description = "Modules de la formation.",
+            description = "Modules of the formation.",
             body = GetFormationByIdResultView,
             example = json!({
                 "modules": [

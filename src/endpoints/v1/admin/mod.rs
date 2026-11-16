@@ -41,8 +41,9 @@ impl AdminPageQuery {
 #[into_params(parameter_in = Query)]
 pub struct AdminUserDetailsQuery {
     /// `true` makes the answer go down one more level (modules, then
-    /// attachments). Defaults to `false`, in which case the nested fields are `null`, which
-    /// means "not asked for", not "empty".
+    /// attachments). Defaults to `false`, in which case the nested fields are `null`. With
+    /// `true`, a module without attachment also has `content: null`: `null` alone does not tell
+    /// "not asked for" from "none".
     #[serde(default)]
     #[param(example = true)]
     details: bool,

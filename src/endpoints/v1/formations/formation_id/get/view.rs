@@ -9,7 +9,7 @@ pub struct Module {
     /// Title of the module.
     #[schema(example = "The principles of the GDPR")]
     pub name: String,
-    /// Description du module.
+    /// Description of the module.
     #[schema(example = "Lawfulness, minimisation, retention period")]
     pub description: String,
     /// `true` if the signed-in user completed this module.
@@ -20,6 +20,6 @@ pub struct Module {
 /// Modules of a formation of the signed-in user.
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct GetFormationResponseView {
-    /// Modules of the formation. Empty if the caller is not enrolled in this formation.
+    /// Modules of the formation. Empty if the formation has no module (a caller who is not enrolled gets `403`).
     pub modules: Vec<Module>,
 }

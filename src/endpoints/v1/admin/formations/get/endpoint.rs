@@ -113,7 +113,7 @@ async fn trigger_get_formations(
             example = json!({
                 "formations": [
                     { "id": 4, "name": "GDPR for local government staff", "description": "Obligations and good practices", "modules": null },
-                    { "id": 9, "name": "Accueil du public en situation de handicap", "description": "", "modules": null }
+                    { "id": 9, "name": "Welcoming visitors with disabilities", "description": "", "modules": null }
                 ]
             })
         ),
@@ -122,7 +122,7 @@ async fn trigger_get_formations(
             description = "`details` is not a boolean, or `limit` / `offset` is not a non-negative integer.",
             body = String,
             content_type = "text/plain",
-            example = json!("Query deserialize error: invalid type: string \"oui\", expected a boolean")
+            example = json!("Query deserialize error: invalid type: string \"yes\", expected a boolean")
         ),
         (
             status = 401,

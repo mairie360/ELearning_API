@@ -32,7 +32,7 @@ pub struct UsersFormation {
     /// Title of the formation.
     #[schema(example = "GDPR for local government staff")]
     name: String,
-    /// Description de la formation.
+    /// Description of the formation.
     #[schema(example = "Obligations and good practices")]
     description: String,
     /// Modules of the formation, or `null` if `details` was not asked for.
@@ -110,7 +110,7 @@ pub struct UsersFormationModule {
     /// Title of the module.
     #[schema(example = "The principles of the GDPR")]
     name: String,
-    /// Description du module.
+    /// Description of the module.
     #[schema(example = "Lawfulness, minimisation, retention period")]
     description: String,
     /// Attachments of the module, with the date the agent viewed them.
@@ -169,7 +169,7 @@ pub struct UsersModuleContent {
     /// Id of the attachment.
     #[schema(example = 31)]
     id: u64,
-    /// Nom du fichier.
+    /// Name of the file.
     #[schema(example = "rgpd-principes.pdf")]
     file_name: String,
     /// Type of the file, as stored in the database: `video` or `pdf`.

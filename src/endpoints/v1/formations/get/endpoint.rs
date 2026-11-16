@@ -84,7 +84,7 @@ async fn trigger_get_my_formations(
             example = json!({
                 "formations": [
                     { "id": 4, "name": "GDPR for local government staff", "description": "Obligations and good practices", "status": "InProgress" },
-                    { "id": 9, "name": "Accueil du public en situation de handicap", "description": "", "status": "NotStarted" }
+                    { "id": 9, "name": "Welcoming visitors with disabilities", "description": "", "status": "NotStarted" }
                 ]
             })
         ),
