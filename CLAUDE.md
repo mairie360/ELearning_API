@@ -189,8 +189,10 @@ Tests run in parallel (MAIR-1002): there is no `#[serial]`. The tests share the 
 others see (a count of rows of a table, a sequence reset, anything that reads every row) takes a database of its
 own with `mairie360_api_lib::test_setup::isolated::isolated_db()`: a copy of the seeded template (about 0.2 s),
 dropped when the guard is dropped, whose URLs are `db.url()` (superuser, fixtures) and `db.url_as("<role>")`.
-`isolated_redis()` gives a Redis client with its own key prefix on one container shared by the process. Only a
-test that sets a process environment variable keeps `#[serial(<group>)]`. The dependencies are compiled with
+`isolated_redis()` gives a Redis client with its own key prefix on one container shared by the process. A test
+that sets a process environment variable takes a named `#[serial(<group>)]` (`serial_test` is a dev-dependency here:
+the `RATE_LIMIT_*` tests use `rate_limit_env`); a test that only reads that variable (`rate_limit::config_from_env()`)
+joins the same group, or it can observe the value a writer is setting. The dependencies are compiled with
 `opt-level = 3` (`[profile.dev.package."*"]`): the code of the crate stays in debug, which is what the coverage
 measures, while argon2 and the TLS stack no longer dominate the run.
 
