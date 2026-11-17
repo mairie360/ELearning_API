@@ -408,7 +408,7 @@ Upload/delete are not implemented — they would be new async methods on `FileSt
 - `development.Dockerfile` + `entrypoint.sh` — `cargo watch` hot-reload in `/usr/src/elearning`,
   the directory `docker-compose.yml` syncs `src/` and `Cargo.*` into (keep the three in step).
 - `docker-compose.yml` — pulls `ghcr.io/mairie360/database` and
-  `ghcr.io/mairie360/liquibase-migrations` (both pinned to the same `:1.2.1` tag — keep them
+  `ghcr.io/mairie360/liquibase-migrations` (both tagged `${UPSTREAM_TAG:-dev}` — keep them
   in lockstep; schema applied by the `liquibase` service before the API starts), Redis, and an
   nginx reverse proxy.
 - CI (`.github/workflows/cicd.yml`) delegates to the shared `mairie360/CICD` workflow and stops
