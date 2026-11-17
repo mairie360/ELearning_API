@@ -34,7 +34,6 @@ cargo check_code     # alias: clippy --all-targets --all-features -- -D warnings
 cargo test                        # dev-deps: once_cell, serial_test (only the tests that set an env var)
 cargo test <name>                 # single test by substring
 cargo test <name> -- --exact      # single test, exact match
-cargo test --test views           # fast: view/QueryView unit tests, no Docker needed
 cargo test --test integration_test  # DB-backed query + handler tests (needs Docker, see below)
 
 cargo cov_test       # alias: llvm-cov --workspace --ignore-filename-regex 'main\.rs|lib\.rs' --fail-under-lines 60
