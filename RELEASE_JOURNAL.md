@@ -1,16 +1,17 @@
 # Journal des releases — ELearning_API
 
-<!-- release-journal-state {"dev": "6356d27ef7970e43762ffe8e3a68737f1d876294", "prod": "7f790d5b0bf655737514d390926fd09292020b58", "prod_tag": "v1.3.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-17 17:10 UTC", "prod": "2026-11-12 23:53 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
+<!-- release-journal-state {"dev": "4376f90799dd797dfa308696c07f77d39b0ec23d", "prod": "7f790d5b0bf655737514d390926fd09292020b58", "prod_tag": "v1.3.0", "staging": "7f790d5b0bf655737514d390926fd09292020b58", "updated": {"dev": "2026-11-17 17:10 UTC", "prod": "2026-11-12 23:53 UTC", "staging": "2026-11-12 18:51 UTC"}} -->
 > Tenu à jour par la CI (`mairie360/CICD`, action `release/release-journal`) à chaque passage en dev, staging et prod. Ne pas modifier à la main : le fichier est réécrit au passage suivant.
 
 | Environnement | Version | Commit | Mis à jour |
 | --- | --- | --- | --- |
 | prod | v1.3.0 | `7f790d5` | 2026-11-12 23:53 UTC |
 | staging | — | `7f790d5` | 2026-11-12 18:51 UTC |
-| dev | — | `6356d27` | 2026-11-17 17:10 UTC |
+| dev | — | `4376f90` | 2026-11-17 17:10 UTC |
 
 ## Ajouté sur main depuis la dernière release prod (v1.3.0)
 
+- test: MAIR-534 Add the missing business negative cases of the APIs ([#236](https://github.com/mairie360/ELearning_API/pull/236))
 - test: MAIR-533 Remove or reactivate the dead tests of the APIs ([#234](https://github.com/mairie360/ELearning_API/pull/234))
 - feat: MAIR-998 Test stacks follow the moving upstream tag of the stage (#230) ([#230](https://github.com/mairie360/ELearning_API/pull/230))
 - chore(deps): pin actions/checkout action to 3d3c42e (#232) ([#232](https://github.com/mairie360/ELearning_API/pull/232))
@@ -25,6 +26,7 @@
 
 ## Différence dev → staging (en dev, pas encore en staging)
 
+- test: MAIR-534 Add the missing business negative cases of the APIs ([#236](https://github.com/mairie360/ELearning_API/pull/236))
 - test: MAIR-533 Remove or reactivate the dead tests of the APIs ([#234](https://github.com/mairie360/ELearning_API/pull/234))
 - feat: MAIR-998 Test stacks follow the moving upstream tag of the stage (#230) ([#230](https://github.com/mairie360/ELearning_API/pull/230))
 - chore(deps): pin actions/checkout action to 3d3c42e (#232) ([#232](https://github.com/mairie360/ELearning_API/pull/232))
@@ -48,6 +50,7 @@ _Rien._
 <!-- release-journal-history:start -->
 | Date | Environnement | Version | Commit | Run |
 | --- | --- | --- | --- | --- |
+| 2026-11-17 17:10 UTC | dev | — | `4376f90` | [run](https://github.com/mairie360/ELearning_API/actions/runs/44131711029) |
 | 2026-11-17 17:10 UTC | dev | — | `6356d27` | [run](https://github.com/mairie360/ELearning_API/actions/runs/44131696130) |
 | 2026-11-17 15:05 UTC | dev | — | `cec6a57` | [run](https://github.com/mairie360/ELearning_API/actions/runs/44107658605) |
 | 2026-11-17 11:49 UTC | dev | — | `1511e02` | [run](https://github.com/mairie360/ELearning_API/actions/runs/44075420913) |
