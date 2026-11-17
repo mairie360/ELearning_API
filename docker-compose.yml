@@ -40,7 +40,7 @@ x-depends-on: &depends-on
 services:
   postgres:
     image: ghcr.io/mairie360/database:${UPSTREAM_TAG:-dev}
-    pull_policy: always
+    pull_policy: ${UPSTREAM_PULL_POLICY:-always}
     restart: always
     container_name: mairie360-db-elearning-api
     environment:
@@ -61,7 +61,7 @@ services:
 
   liquibase:
     image: ghcr.io/mairie360/liquibase-migrations:${UPSTREAM_TAG:-dev}
-    pull_policy: always
+    pull_policy: ${UPSTREAM_PULL_POLICY:-always}
     container_name: mairie360-liquibase-elearning-api
     depends_on:
       postgres:
