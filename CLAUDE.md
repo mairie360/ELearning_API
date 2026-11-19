@@ -111,7 +111,7 @@ reaches the API. The compose files require them (`${VAR:?}`); newman gets its to
 `ADMIN_JWT` (`.zap/scan.sh`), k6 a JSON file of tokens mounted at `/tokens.json` (neither newman nor k6 can sign
 Ed25519). **No key or token valid anywhere is committed.** The dev stack defaults `JWT_PUBLIC_KEY` to the lib's
 test public key with `JWT_ALLOW_WEAK_SECRET=true` (dev only); sign a dev token in a subshell with the lib's test key:
-`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.4.0/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
+`(export JWT_PRIVATE_KEY="$(openssl pkey -inform DER -in ~/.cargo/registry/src/*/mairie360_api_lib-4.5.0/src/test_setup/fixtures/session_test_key.der)"; export JWT_PUBLIC_KEY="$(printf '%s\n' "$JWT_PRIVATE_KEY" | openssl pkey -pubout)"; source ./test_secrets.sh && sign_jwt 1 admin 3600)`.
 
 The ZAP scan targets `/api-docs/openapi.json` and is authenticated: `.zap/scan.sh` takes the 2-hour admin EdDSA JWT
 (`ADMIN_JWT`, `sub=1`, signed by `security_test.sh`) and runs `zap-api-scan.py` with a replacer injecting it on every request,
@@ -181,7 +181,8 @@ the matrix.**
 another scheme, garbage, an HS256 token whatever its secret, an EdDSA token signed with another key under Core's
 `kid`, an expired token, `alg: none`, a swapped payload or an asymmetric
 algorithm; `404` for an unknown or archived account), and `rate_limit.rs` checks the production budget of
-`config_from_env()` (`429` past the burst, `Retry-After` of at least 1 s).
+the lib's `RateLimiter::from_env()` (`429` past the burst, `Retry-After` of at least 1 s) and that a disabled limiter
+lets everything through.
 
 Tests run in parallel (MAIR-1002): there is no `#[serial]`. The tests share the seeded database of
 `get_shared_db()` and keep to rows of their own (unique markers). A test that depends on, or changes, what the
@@ -190,7 +191,7 @@ own with `mairie360_api_lib::test_setup::isolated::isolated_db()`: a copy of the
 dropped when the guard is dropped, whose URLs are `db.url()` (superuser, fixtures) and `db.url_as("<role>")`.
 `isolated_redis()` gives a Redis client with its own key prefix on one container shared by the process. A test
 that sets a process environment variable takes a named `#[serial(<group>)]` (`serial_test` is a dev-dependency here:
-the `RATE_LIMIT_*` tests use `rate_limit_env`); a test that only reads that variable (`rate_limit::config_from_env()`)
+the `RATE_LIMIT_*` tests use `rate_limit_env`); a test that only reads that variable (`RateLimiter::from_env()`)
 joins the same group, or it can observe the value a writer is setting. The dependencies are compiled with
 `opt-level = 3` (`[profile.dev.package."*"]`): the code of the crate stays in debug, which is what the coverage
 measures, while argon2 and the TLS stack no longer dominate the run.
@@ -216,8 +217,9 @@ Swagger UI at `/swagger-ui/` and the spec at `/api-docs/openapi.json` **only whe
 `SWAGGER_ENABLED=true`** (`endpoints::swagger::config`; off by default, so off in production; the
 dev, ZAP and k6 compose files set it, MAIR-424), then everything under `/api` wrapped in `JwtMiddleware`.
 Inside `JwtMiddleware`, the `/api` scope is rate limited **per authenticated user**
-(`src/rate_limit.rs`, `actix-governor`; `429` + `Retry-After`; `RATE_LIMIT_PER_SECOND`, default
-50, and `RATE_LIMIT_BURST`, default 100, built once in `main.rs` so workers share the buckets).
+(the lib's `rate_limit_middleware`; `429` + `Retry-After`; `RATE_LIMIT_PER_SECOND`, default
+20, `0` disables it, and `RATE_LIMIT_BURST`, default 50, built once in `main.rs` so workers share the buckets;
+the counters are per pod; the chart sets 50 and 100 for this API).
 The ZAP and k6 stacks lift both limits: they hammer the API as a single user (MAIR-425). The
 admin lists (`/admin/users/`, `/admin/formations/`) are paginated with the shared
 `admin::AdminPageQuery` (`limit` default 50, capped to 200, `offset`); every `/api` operation
@@ -375,7 +377,7 @@ it is unit-tested offline in `tests/storage.rs` (with a `MockFileStorage` double
 The module-file **list** endpoint (`.../{module_id}`) deliberately no longer exposes the key.
 Upload/delete are not implemented — they would be new async methods on `FileStorage`.
 
-### External library: `mairie360_api_lib` (pinned to 4.4.0)
+### External library: `mairie360_api_lib` (pinned to 4.5.0)
 
 - `state::AppState` — built in `main.rs` from env vars (the Postgres URL goes through
   `database::pg_url::build_pg_url`, which percent-encodes user, password and database name, so
