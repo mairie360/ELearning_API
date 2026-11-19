@@ -40,8 +40,8 @@ Optional:
 | --- | --- |
 | `SWAGGER_ENABLED` | `true` serves Swagger UI and `/api-docs/openapi.json`; leave it unset in production. |
 | `S3_PRESIGN_TTL_SECS` | Lifetime of a presigned file URL (default 900). |
-| `RATE_LIMIT_PER_SECOND` | Per-user quota of `/api` (default 50). |
-| `RATE_LIMIT_BURST` | Burst of that quota (default 100). |
+| `RATE_LIMIT_PER_SECOND` | Per-user quota of `/api`, per instance of the API (default 20, `0` disables). |
+| `RATE_LIMIT_BURST` | Burst of that quota (default 50). |
 | `DB_CONNECT_TIMEOUT` | Seconds to wait for Postgres at startup before panicking (lib, default 30). |
 | `DB_POOL_MIN_CONNECTIONS` / `DB_POOL_MAX_CONNECTIONS` / `DB_POOL_IDLE_TIMEOUT_SECS` | Postgres pool sizing (lib, defaults 1 / 10 / 600). |
 | `RUST_LOG` / `LOG_FORMAT` | Log level (default `info`); `LOG_FORMAT=json` for one JSON object per line. |
@@ -107,6 +107,6 @@ docker run --rm --network host -v "$PWD/tests/postman:/etc/newman:ro" postman/ne
   deployment. No key or JWT is committed.
 - `SWAGGER_ENABLED=true` serves Swagger UI and `/api-docs/openapi.json`; leave it unset in
   production.
-- `RATE_LIMIT_PER_SECOND` (default 50) and `RATE_LIMIT_BURST` (default 100) bound the requests of
-  each authenticated user on `/api`.
+- `RATE_LIMIT_PER_SECOND` (default 20, `0` disables) and `RATE_LIMIT_BURST` (default 50) bound the requests of
+  each authenticated user on `/api`, per instance of the API.
 - Probes: `GET /health` (liveness) and `GET /ready` (readiness: Postgres and Redis answer).

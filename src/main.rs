@@ -1,11 +1,9 @@
-use actix_governor::Governor;
 use actix_web::{middleware, web, App, HttpServer};
 
 use std::sync::Arc;
 
 use elearning_api::database::pg_url::build_pg_url;
 use elearning_api::endpoints::{config, health, ready, swagger};
-use elearning_api::rate_limit;
 use elearning_api::storage::{FileStorage, S3FileStorage};
 
 use mairie360_api_lib::env_manager::get_critical_env_var;
@@ -13,7 +11,7 @@ use mairie360_api_lib::logging::telemetry::{init_telemetry, TracingLogger};
 use mairie360_api_lib::request_log::{
     hide_query, request_logger, restore_query, RedactedRootSpanBuilder,
 };
-use mairie360_api_lib::security::JwtMiddleware;
+use mairie360_api_lib::security::{rate_limit_middleware, JwtMiddleware, RateLimiter};
 use mairie360_api_lib::state::AppState;
 
 /// Attempts of the startup check, 2 s apart.
@@ -65,8 +63,9 @@ async fn main() -> std::io::Result<()> {
     let port = get_critical_env_var("PORT");
     let bind_address = format!("{}:{}", host, port);
 
-    // Built once so that every worker shares the same per-user buckets.
-    let rate_limit = rate_limit::config_from_env();
+    // Built once so that every worker shares the same per-user buckets (counters are per pod).
+    // `RATE_LIMIT_PER_SECOND=0` disables it.
+    let rate_limiter = RateLimiter::from_env();
 
     let swagger_enabled = swagger::is_enabled();
     tracing::info!("Swagger UI and /api-docs/openapi.json mounted: {swagger_enabled}");
@@ -74,6 +73,7 @@ async fn main() -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
+            .app_data(rate_limiter.clone())
             // Method and path only, never the query string nor the `Referer` (MAIR-290).
             .wrap(request_logger())
             // One span per request (MAIR-503), including those refused by `JwtMiddleware`; it
@@ -95,7 +95,7 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/api")
                     .app_data(storage_data.clone())
                     // Inside JwtMiddleware: the limiter keys on the authenticated user.
-                    .wrap(Governor::new(&rate_limit))
+                    .wrap(middleware::from_fn(rate_limit_middleware))
                     .wrap(JwtMiddleware)
                     .configure(config),
             )
