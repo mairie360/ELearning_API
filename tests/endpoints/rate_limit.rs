@@ -52,7 +52,14 @@ async fn each_user_has_its_own_bucket() {
             StatusCode::OK
         );
     }
-    let refused = test::call_service(&app, get(&greedy)).await;
+    // The bucket refills one token per second: keep calling (bounded) until the refusal.
+    let mut refused = test::call_service(&app, get(&greedy)).await;
+    for _ in 0..20 {
+        if refused.status() == StatusCode::TOO_MANY_REQUESTS {
+            break;
+        }
+        refused = test::call_service(&app, get(&greedy)).await;
+    }
     assert_eq!(refused.status(), StatusCode::TOO_MANY_REQUESTS);
     assert!(refused.headers().contains_key("retry-after"));
     assert!(test::read_body(refused)

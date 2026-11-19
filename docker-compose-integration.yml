@@ -131,6 +131,8 @@ services:
       JWT_TIMEOUT: 3600
       # Serves Swagger UI and /api-docs/openapi.json (off in production, MAIR-424).
       SWAGGER_ENABLED: "true"
+      # The collection replays hundreds of calls as a few users: no per-user quota.
+      RATE_LIMIT_PER_SECOND: "0"
     depends_on:
       seeder:
         condition: service_completed_successfully
