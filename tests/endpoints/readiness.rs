@@ -9,12 +9,7 @@ use mairie360_api_lib::state::AppState;
 
 /// An `AppState` connected as the API's Postgres role, whose Redis listens nowhere (port 1).
 async fn state_without_redis() -> AppState {
-    AppState::with_keycloak(
-        "redis://127.0.0.1:1".to_string(),
-        elearning_db_url().await,
-        None,
-    )
-    .await
+    AppState::new("redis://127.0.0.1:1".to_string(), elearning_db_url().await).await
 }
 
 #[actix_web::test]
