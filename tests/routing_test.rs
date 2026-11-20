@@ -15,7 +15,7 @@ use utoipa::OpenApi;
 #[actix_web::test]
 async fn every_published_operation_is_routed() {
     let pg_url = get_shared_db_as("elearning_api").await;
-    let state = AppState::with_keycloak("redis://127.0.0.1:1".to_string(), pg_url, None).await;
+    let state = AppState::new("redis://127.0.0.1:1".to_string(), pg_url).await;
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(state))
