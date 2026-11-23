@@ -36,6 +36,9 @@ pub struct CatalogFormation {
     /// Description of the formation. Empty string when there is none — never `null`.
     #[schema(example = "Obligations and good practices")]
     pub description: String,
+    /// Date the formation should be completed by (`YYYY-MM-DD`), `null` when it has none.
+    #[schema(value_type = Option<String>, format = Date, example = "2026-12-15")]
+    pub deadline: Option<chrono::NaiveDate>,
     /// Progress of the caller. `Error` is a value stored in the database that the API cannot
     /// interpret.
     pub status: Status,

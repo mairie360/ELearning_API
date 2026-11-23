@@ -1914,6 +1914,10 @@
                   "    const formation = pm.response.json().formations.find((f) => f.id === Number(pm.environment.get('course_id')));",
                   "    pm.expect(formation).to.be.an('object');",
                   "    pm.expect(formation.modules.map((m) => m.id)).to.include(Number(pm.environment.get('module_1_id')));",
+                  "});",
+                  "pm.test(\"The deadline of the formation is returned (MAIR-1110)\", function () {",
+                  "    const formation = pm.response.json().formations.find((f) => f.id === Number(pm.environment.get('course_id')));",
+                  "    pm.expect(formation.deadline).to.eql('2026-12-15');",
                   "});"
                 ]
               }
