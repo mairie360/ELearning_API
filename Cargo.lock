@@ -2407,9 +2407,9 @@ dependencies = [
 
 [[package]]
 name = "mairie360_api_lib"
-version = "5.0.1"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ca009bfb055d200bc56e5412a505c3d39c285dacc8056793c82f6d7e428a358"
+checksum = "99dafa186d215258a79cf1ed94d8166c6a07d6ba0c2c2edfe5022fbc87077025"
 dependencies = [
  "actix-web",
  "anyhow",
