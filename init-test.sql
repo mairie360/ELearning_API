@@ -97,10 +97,11 @@ ON CONFLICT DO NOTHING;
 
 -- MAIR-1149: the Admin completed formation 4 (its only module), so the rating, the attestation and
 -- the attestations of the year answer 2xx to the scanning user of ZAP and k6. The progress trigger
--- marks the enrolment completed.
+-- marks the enrolment completed. A replay dates the completion again, so the attestations of the
+-- current year (no `year`, load-test.js) still find it after a new year.
 INSERT INTO user_modules (user_id, module_id, is_completed, completed_at)
 VALUES (1, 11, TRUE, CURRENT_TIMESTAMP)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (user_id, module_id) DO UPDATE SET is_completed = TRUE, completed_at = EXCLUDED.completed_at;
 UPDATE course_attachments SET duration_seconds = 900 WHERE id = 27;
 
 -- MAIR-1150: formation 1010 is mandatory and its deadline is past; user 42 is enrolled and has

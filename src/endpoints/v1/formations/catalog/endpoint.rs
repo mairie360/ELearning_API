@@ -135,8 +135,10 @@ async fn trigger_get_catalog(
                    the user, computed in a fixed number of queries whatever the number of formations \
                    or modules. Same access rules as these routes: only the caller's enrolments \
                    are visible, admins included.\n\n\
-                   The content of the files is **not** returned: to open one, ask for a signed URL from \
-                   `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`.",
+                   The content of the stored files is **not** returned: to open one, ask for a signed URL \
+                   from `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`. A `link` \
+                   is opened at its `url` directly, and a content without a file (`quiz`, `other`) \
+                   has nothing to open: the signed-URL route answers `404` to both.",
     responses(
         (
             status = 200,

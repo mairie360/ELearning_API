@@ -180,7 +180,12 @@ pub fn check_https_url(field: &str, value: &str) -> Result<(), ValidationError> 
     if !valid_host {
         return refuse();
     }
-    Ok(())
+    // The whole URL must parse: a port that is not a number or above 65535, or an IPv6 literal
+    // without its `]`, passes the checks above but is no link.
+    match url::Url::parse(value) {
+        Ok(parsed) if parsed.host().is_some() => Ok(()),
+        _ => refuse(),
+    }
 }
 
 fn bad_request(error: &ValidationError) -> actix_web::Error {
@@ -329,6 +334,9 @@ mod tests {
             "https://example.org/\u{0}",
             "https://example.org\\@evil.org",
             "ftp://example.org",
+            "https://example.org:abc/",
+            "https://example.org:70000/",
+            "https://[::1",
             "",
         ] {
             let error = check_https_url("modules[0].files[1].url", url).unwrap_err();

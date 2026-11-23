@@ -52,7 +52,8 @@ async fn the_admin_routes_of_the_v2_refuse_a_plain_agent() {
 
 #[actix_web::test]
 async fn the_indicators_count_enrolments_progress_and_late_agents() {
-    let ctx = TestContext::new().await;
+    // The indicators read every row and keep the 500 latest agents: a database of its own.
+    let ctx = TestContext::isolated().await;
     let app = init_app!(ctx);
     let course = create_course(ctx.db(), "Indicateurs", "Indicateurs").await;
     let first = create_module(ctx.db(), course, "Module 1", "Contenu", 1).await;

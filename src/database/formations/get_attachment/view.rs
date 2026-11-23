@@ -4,7 +4,8 @@ use mairie360_api_lib::database::db_interface::{
 
 /// Fetches a single attachment, scoped to its parent module *and* course so a
 /// mismatched `(formation_id, module_id, attachment_id)` triple simply returns
-/// no row (mapped to a 404 by the endpoint).
+/// no row (mapped to a 404 by the endpoint). Only a stored file has a key to sign: a `link` (its
+/// `file_url` is the external URL) and a content without a file (`quiz`, `other`) give no row.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GetAttachmentQueryView {
     params: Vec<QueryParam>,
@@ -41,6 +42,7 @@ impl ApiRequestDto for GetAttachmentQueryView {
             FROM course_attachments ca \
             JOIN course_modules cm ON cm.id = ca.module_id \
             WHERE ca.id = $1 AND ca.module_id = $2 AND cm.course_id = $3 \
+                AND ca.file_type <> 'link' AND ca.file_url IS NOT NULL \
          ) t"
     }
 

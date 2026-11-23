@@ -157,7 +157,7 @@ async fn trigger_get_attachment_url(
         ),
         (
             status = 404,
-            description = "The module does not belong to this formation, or no attachment with this id exists in this module.",
+            description = "The module does not belong to this formation, no attachment with this id exists in this module, or it has no stored file to sign (a `link`, opened at the `url` of the catalogue, or a `quiz` / `other` content).",
             body = String,
             content_type = "text/plain",
             example = json!("The attachment was not found.")

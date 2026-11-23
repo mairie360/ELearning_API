@@ -183,6 +183,34 @@ async fn get_attachment_url_outside_the_formation_is_404() {
     assert!(ctx.storage.calls.lock().unwrap().is_empty());
 }
 
+/// MAIR-1150 review: a `link` holds an external URL, not an object key: nothing is signed for it.
+#[actix_web::test]
+async fn get_attachment_url_of_a_link_is_404_and_signs_nothing() {
+    let ctx = TestContext::new().await;
+    let app = init_app!(ctx);
+    let course = seed_course(&ctx).await;
+    let link_id = create_attachment(
+        ctx.db(),
+        course.module_id,
+        "Lien",
+        "link",
+        "https://example.org/guide",
+        1,
+    )
+    .await;
+    let agent_id = create_user(ctx.db()).await;
+    enrol(ctx.db(), agent_id, course.id).await;
+
+    let req = TestRequest::get()
+        .uri(&format!(
+            "/api/v1/formations/{}/{}/{}/",
+            course.id, course.module_id, link_id
+        ))
+        .insert_header(("Authorization", jwt_for(agent_id)));
+    assert_eq!(status_of!(app, req), StatusCode::NOT_FOUND);
+    assert!(ctx.storage.calls.lock().unwrap().is_empty());
+}
+
 // ---------------------------------------------------------------------------
 // PATCH /api/v1/formations/{formation_id}/{module_id}/ (complete)
 // ---------------------------------------------------------------------------
