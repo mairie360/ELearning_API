@@ -38,6 +38,34 @@ pub async fn create_course(db: &SmartDatabase, title: &str, description: &str) -
 }
 
 #[derive(serde::Deserialize)]
+struct SetCourseDeadline {
+    params: Vec<QueryParam>,
+}
+
+impl ApiRequestDto for SetCourseDeadline {
+    fn query_sql(&self) -> &'static str {
+        "UPDATE courses SET deadline = $2::date WHERE id = $1"
+    }
+
+    fn query_params(&self) -> &[QueryParam] {
+        &self.params
+    }
+}
+
+/// Sets `courses.deadline` (`YYYY-MM-DD`) of a test course.
+pub async fn set_course_deadline(db: &SmartDatabase, course_id: i32, deadline: &str) {
+    let view = SetCourseDeadline {
+        params: vec![
+            QueryParam::I32(course_id),
+            QueryParam::Text(deadline.to_string()),
+        ],
+    };
+    db.execute(view)
+        .await
+        .expect("failed to set the test course deadline");
+}
+
+#[derive(serde::Deserialize)]
 struct CreateModule {
     params: Vec<QueryParam>,
 }

@@ -6,7 +6,7 @@ use actix_web::test::{self, TestRequest};
 
 use crate::endpoints::{jwt_for, TestContext};
 use crate::queries::fixtures::{
-    create_attachment, create_course, create_module, create_user, enrol,
+    create_attachment, create_course, create_module, create_user, enrol, set_course_deadline,
 };
 use crate::{init_app, status_of};
 
@@ -121,4 +121,37 @@ async fn catalog_matches_the_per_formation_routes() {
             assert_eq!(&nested[key], value, "{key}");
         }
     }
+}
+
+#[actix_web::test]
+async fn catalog_returns_the_deadline_of_each_formation() {
+    let ctx = TestContext::new().await;
+    let app = init_app!(ctx);
+    let dated = create_course(ctx.db(), "Accueil", "Accueil du public").await;
+    let undated = create_course(ctx.db(), "RGPD", "Comprendre le RGPD").await;
+    set_course_deadline(ctx.db(), dated, "2026-12-15").await;
+    let agent_id = create_user(ctx.db()).await;
+    enrol(ctx.db(), agent_id, dated).await;
+    enrol(ctx.db(), agent_id, undated).await;
+
+    let req = TestRequest::get()
+        .uri(URI)
+        .insert_header(("Authorization", jwt_for(agent_id)))
+        .to_request();
+    let body: serde_json::Value = test::call_and_read_body_json(&app, req).await;
+
+    let formations = body["formations"].as_array().expect("formations");
+    let deadline_of = |id: i32| {
+        formations
+            .iter()
+            .find(|f| f["id"] == id)
+            .map(|f| f["deadline"].clone())
+            .expect("formation in the catalogue")
+    };
+    assert_eq!(
+        deadline_of(dated),
+        serde_json::json!("2026-12-15"),
+        "{body}"
+    );
+    assert_eq!(deadline_of(undated), serde_json::Value::Null, "{body}");
 }

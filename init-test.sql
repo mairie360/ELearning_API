@@ -42,6 +42,9 @@ INSERT INTO courses (id, title, description)
 VALUES (1000, 'Formation RGPD Collectivités (newman)', 'Comprendre les enjeux du RGPD en mairie.')
 ON CONFLICT (id) DO NOTHING;
 
+-- The catalogue exposes the deadline of a formation (MAIR-1110): the newman journey checks it.
+UPDATE courses SET deadline = DATE '2026-12-15' WHERE id = 1000;
+
 INSERT INTO course_modules (id, course_id, title, content, sort_order) VALUES
     (1001, 1000, 'Introduction et définitions', 'Licéité, minimisation, durée de conservation', 1),
     (1002, 1000, 'Les obligations de la collectivité', 'Registre des traitements et DPO', 2)
