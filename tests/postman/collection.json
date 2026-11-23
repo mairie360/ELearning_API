@@ -3721,6 +3721,484 @@
       ]
     },
     {
+      "name": "Learners and agent search (MAIR-817)",
+      "item": [
+        {
+          "name": "An agent cannot list the learners of a formation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/formations/{{course_id}}/learners/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "formations",
+                "{{course_id}}",
+                "learners",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "List the learners of the course",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The agent is listed with their progress\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.formation_id).to.eql(Number(pm.environment.get(\"course_id\")));",
+                  "    pm.expect(body.limit).to.eql(50);",
+                  "    pm.expect(body.offset).to.eql(0);",
+                  "    pm.expect(body.total).to.be.at.least(body.learners.length);",
+                  "    const agent = body.learners.find(l => l.user_id === Number(pm.environment.get(\"agent_user_id\")));",
+                  "    pm.expect(agent, \"agent\").to.exist;",
+                  "    pm.expect(agent.first_name).to.eql(\"Test\");",
+                  "    pm.expect(agent.last_name).to.eql(\"User\");",
+                  "    pm.expect(agent.status).to.eql(\"Completed\");",
+                  "    pm.expect(agent.progress).to.eql(100);",
+                  "    pm.expect(agent.completed_at).to.be.a(\"string\");",
+                  "});",
+                  "pm.test(\"Learners are ordered by last name, first name and id\", function () {",
+                  "    const keys = pm.response.json().learners.map(l => [l.last_name, l.first_name, l.user_id]);",
+                  "    const sorted = [...keys].sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : a[2] - b[2]);",
+                  "    pm.expect(keys).to.eql(sorted);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/formations/{{course_id}}/learners/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "formations",
+                "{{course_id}}",
+                "learners",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "A learners page past the end is empty",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"No learner, the total is kept\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.learners).to.eql([]);",
+                  "    pm.expect(body.limit).to.eql(1);",
+                  "    pm.expect(body.total).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/formations/{{course_id}}/learners/?limit=1&offset=100000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "formations",
+                "{{course_id}}",
+                "learners",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "1"
+                },
+                {
+                  "key": "offset",
+                  "value": "100000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Learners of an unknown formation answer 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/formations/999999999/learners/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "formations",
+                "999999999",
+                "learners",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Learners of a formation id that is not an integer are rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/formations/abc/learners/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "formations",
+                "abc",
+                "learners",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "A learners list with a negative limit is rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/formations/{{course_id}}/learners/?limit=-1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "formations",
+                "{{course_id}}",
+                "learners",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "-1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search the agents by name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The agent is found with their names\", function () {",
+                  "    const users = pm.response.json().users;",
+                  "    const agent = users.find(u => u.id === Number(pm.environment.get(\"agent_user_id\")));",
+                  "    pm.expect(agent, \"agent\").to.exist;",
+                  "    pm.expect(agent.first_name).to.eql(\"Test\");",
+                  "    pm.expect(agent.last_name).to.eql(\"User\");",
+                  "    pm.expect(agent.name).to.eql(\"Test User\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/?search=user%20test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "user%20test"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "The agents enrolled in the course are left out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The enrolled agent is not listed\", function () {",
+                  "    const users = pm.response.json().users;",
+                  "    pm.expect(users.map(u => u.id)).to.not.include(Number(pm.environment.get(\"agent_user_id\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/?limit=200&exclude_formation_id={{course_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "200"
+                },
+                {
+                  "key": "exclude_formation_id",
+                  "value": "{{course_id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "A blank agent search is rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/?search=%20%20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "%20%20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "An exclusion of formation 0 is rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/?exclude_formation_id=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "exclude_formation_id",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Indicators and reminders (MAIR-1150)",
       "item": [
         {

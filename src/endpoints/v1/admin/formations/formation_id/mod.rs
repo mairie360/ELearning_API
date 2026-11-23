@@ -1,6 +1,7 @@
 pub mod delete;
 pub mod doc;
 pub mod get;
+pub mod learners;
 pub mod patch;
 pub mod register;
 pub mod reminders;
@@ -45,6 +46,7 @@ pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
             .service(register::endpoint::register_user_to_formation)
             .service(patch::endpoint::update_formation)
             .service(delete::endpoint::delete_formation)
-            .service(reminders::endpoint::send_reminders),
+            .service(reminders::endpoint::send_reminders)
+            .service(learners::endpoint::get_formation_learners),
     );
 }

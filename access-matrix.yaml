@@ -41,6 +41,10 @@ operations:
     access: admin
     roles: [Admin]
     note: "records reminders for the unfinished agents of a mandatory formation"
+  GET /api/v1/admin/formations/{formation_id}/learners/:
+    access: admin
+    roles: [Admin]
+    personal: [learners.user_id, learners.first_name, learners.last_name, learners.status, learners.progress, learners.started_at, learners.completed_at, learners.last_activity_at, learners.last_reminder_at]
   GET /api/v1/admin/stats/:
     access: admin
     roles: [Admin]
@@ -48,7 +52,7 @@ operations:
   GET /api/v1/admin/users/:
     access: admin
     roles: [Admin]
-    personal: [users.id, users.name]
+    personal: [users.id, users.name, users.first_name, users.last_name]
   GET /api/v1/admin/users/{user_id}/:
     access: admin
     roles: [Admin]

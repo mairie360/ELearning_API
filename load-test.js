@@ -197,10 +197,30 @@ const readHandlers = {
       'catalog formation 200': (r) => r.status === 200,
       'catalog formation reads its modules': (r) => r.status === 200 && r.json('modules').length === MODULES_PER_FORMATION,
     }),
-  'GET /api/v1/admin/users/': ({ request }) =>
-    check(request({ query: { offset: randomPage(LEARNERS_SIZE) } }), {
-      'learners 200': (r) => r.status === 200,
-      'learners reads the seed': (r) => r.status === 200 && r.json('users').length > 0,
+  // One call in two searches a seeded learner by name and leaves out the agents of one of their
+  // formations (MAIR-817, the « add agents » picker); the others read a random page.
+  'GET /api/v1/admin/users/': ({ request }) => {
+    if (randomInt(2) === 0) {
+      check(request({ query: { offset: randomPage(LEARNERS_SIZE) } }), {
+        'learners 200': (r) => r.status === 200,
+        'learners reads the seed': (r) => r.status === 200 && r.json('users').length > 0,
+      });
+      return;
+    }
+    const learner = randomLearner();
+    const other = LEARNERS.first + ((learner.id - LEARNERS.first + 1) % LEARNERS.count);
+    check(request({ query: { search: `perf ${other}`, exclude_formation_id: learner.formationId } }), {
+      'learners search 200': (r) => r.status === 200,
+      'learners search finds the learner': (r) =>
+        r.status === 200 && r.json('users').some((u) => u.id === other && u.last_name === `Perf ${other}`),
+    });
+  },
+  // MAIR-817: one page of the learners of a seeded formation (about 100 learners each).
+  'GET /api/v1/admin/formations/{formation_id}/learners/': ({ request }) =>
+    check(request({ path: { formation_id: randomLearner().formationId }, query: { offset: randomInt(2) * ADMIN_PAGE } }), {
+      'formation learners 200': (r) => r.status === 200,
+      'formation learners read the seed': (r) =>
+        r.status === 200 && r.json('total') >= ADMIN_PAGE && r.json('learners').length > 0,
     }),
   'GET /api/v1/admin/users/{user_id}/': ({ request }) =>
     check(request({ path: { user_id: randomLearner().id }, query: { details: true } }), {
