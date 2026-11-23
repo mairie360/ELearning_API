@@ -28,7 +28,7 @@ impl ApiRequestDto for GetMyCatalogQueryView {
         // `file_url` (the S3 object key) is deliberately not selected: a viewable URL is only
         // issued by the single-attachment route.
         "SELECT to_jsonb(t) FROM ( \
-            SELECT c.id, c.title AS name, c.description, uc.status::text AS status, \
+            SELECT c.id, c.title AS name, c.description, c.deadline, uc.status::text AS status, \
                 COALESCE(( \
                     SELECT jsonb_agg( \
                         jsonb_build_object( \
@@ -128,6 +128,7 @@ pub struct CatalogFormationRow {
     id: i32,
     name: String,
     description: Option<String>,
+    deadline: Option<chrono::NaiveDate>,
     status: String,
     modules: Vec<CatalogModuleRow>,
 }
@@ -143,6 +144,11 @@ impl CatalogFormationRow {
 
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
+    }
+
+    /// Date the formation should be completed by (`courses.deadline`), `None` when it has none.
+    pub fn deadline(&self) -> Option<chrono::NaiveDate> {
+        self.deadline
     }
 
     pub fn status(&self) -> &str {

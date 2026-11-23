@@ -38,6 +38,7 @@ fn map_formation(row: CatalogFormationRow) -> CatalogFormation {
         id: id_from_sql(row.id()),
         name: row.name().to_string(),
         description: row.description().unwrap_or_default().to_string(),
+        deadline: row.deadline(),
         status: Status::from(row.status().to_string()),
         modules: row.modules().iter().map(map_module).collect(),
     }
@@ -115,6 +116,7 @@ async fn trigger_get_catalog(
                         "id": 4,
                         "name": "GDPR for local government staff",
                         "description": "Obligations and good practices",
+                        "deadline": "2026-12-15",
                         "status": "InProgress",
                         "modules": [
                             {
