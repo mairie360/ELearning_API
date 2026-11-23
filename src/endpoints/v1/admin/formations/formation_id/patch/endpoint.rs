@@ -136,13 +136,14 @@ async fn trigger_update_formation(
     ))
     .await
     .map_err(db_error())?;
-    save_modules(&mut tx, formation_id, &body)
+    // The modules saved just above, new ones included, are the ones the course keeps.
+    let saved_modules = save_modules(&mut tx, formation_id, &body)
         .await
         .map_err(db_error())?;
     tx.execute(&DeleteCourseContentQueryView::new(
         CourseContent::Modules,
         formation_id,
-        &module_ids,
+        &saved_modules,
     ))
     .await
     .map_err(db_error())?;

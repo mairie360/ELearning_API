@@ -55,11 +55,14 @@ fn position(index: usize) -> i32 {
 /// # Errors
 ///
 /// The error of the first query that fails; the caller drops the transaction.
+/// Saves the modules and files of `body` in order and returns the ids of the saved modules, new
+/// ones included: a course update keeps exactly these modules.
 pub async fn save_modules(
     tx: &mut SmartTransaction,
     formation_id: u64,
     body: &CourseBody,
-) -> Result<(), ApiLibError> {
+) -> Result<Vec<u64>, ApiLibError> {
+    let mut saved = Vec::with_capacity(body.modules.len());
     for (m, module) in body.modules.iter().enumerate() {
         let module_id: i32 = tx
             .fetch_scalar(&SaveModuleQueryView::new(
@@ -77,8 +80,9 @@ pub async fn save_modules(
                 ))
                 .await?;
         }
+        saved.push(id_from_sql(module_id));
     }
-    Ok(())
+    Ok(saved)
 }
 
 async fn trigger_create_formation(
