@@ -3113,10 +3113,20 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "pm.test(\"The year defaults to the current UTC year\", function () {",
-                  "    const year = Number(pm.collectionVariables.get('v2_year'));",
-                  "    // The year of the completion, or the next one when the run crossed midnight UTC on 31 December.",
-                  "    pm.expect(pm.response.json().year).to.be.oneOf([year, year + 1]);",
+                  "    // The UTC year read just before and just after the request: they differ only across midnight UTC on 31 December.",
+                  "    const before = Number(pm.collectionVariables.get('default_year_before'));",
+                  "    const after = new Date().getUTCFullYear();",
+                  "    pm.expect(pm.response.json().year).to.be.within(before, after);",
                   "});"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('default_year_before', String(new Date().getUTCFullYear()));"
                 ]
               }
             }
@@ -3329,6 +3339,67 @@
                   "key": "year",
                   "value": "{{v2_year}}"
                 }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Download my attestations without a year reads the current year",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('default_year_before', String(new Date().getUTCFullYear()));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The default year is the current UTC year: the year of the completion, so a PDF, unless the run crossed midnight",
+                  "// UTC on 31 December after the completion, in which case nothing was completed yet in the new year (404).",
+                  "const before = Number(pm.collectionVariables.get('default_year_before'));",
+                  "const after = new Date().getUTCFullYear();",
+                  "const completedIn = Number(pm.collectionVariables.get('v2_year'));",
+                  "pm.test(\"A PDF of the completion year, or 404 after a change of year\", function () {",
+                  "    if (before === completedIn && after === completedIn) {",
+                  "        pm.response.to.have.status(200);",
+                  "        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/pdf');",
+                  "        pm.expect(pm.response.headers.get('Content-Disposition')).to.include(`attestations-${completedIn}.pdf`);",
+                  "        pm.expect(pm.response.text().startsWith('%PDF-')).to.be.true;",
+                  "    } else {",
+                  "        pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/formations/certificates/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "formations",
+                "certificates",
+                ""
               ]
             }
           },
@@ -5206,7 +5277,8 @@
                   "// empty coverage instead of counting the answers of this one.",
                   "pm.collectionVariables.unset('openapi_spec');",
                   "pm.collectionVariables.unset('openapi_covered');",
-                  "pm.collectionVariables.unset('v2_year');"
+                  "pm.collectionVariables.unset('v2_year');",
+                  "pm.collectionVariables.unset('default_year_before');"
                 ]
               }
             }
