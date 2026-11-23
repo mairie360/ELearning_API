@@ -162,8 +162,12 @@ exposes the same fields as the three per-formation routes and no `file_url`; BFF
   the upsert are one CTE locking the enrolment `FOR SHARE`), `GET /formations/summary/?year=` (training time of a
   year: durations of the contents of the modules completed that year, `400` outside 2000-2100),
   `GET /formations/{formation_id}/certificate/` and `GET /formations/certificates/?year=` (`404` without completion):
-  PDF attestations in French written by `src/certificate/` (a minimal PDF 1.4 writer, Helvetica in
-  `WinAnsiEncoding`, no crate; unit-tested offline). `summary` and `certificates` are registered before
+  PDF attestations in French written by `src/certificate/` (a minimal PDF 1.4 writer embedding DejaVu Sans
+  and DejaVu Sans Bold from `src/certificate/fonts/` (Bitstream Vera licence, `fonts/LICENSE`) as `Type0` /
+  `Identity-H` fonts with a `/ToUnicode` CMap, subset to the glyphs used by `subsetter` and read by
+  `ttf-parser`, so Polish, Greek or Cyrillic names keep their characters (a glyph the fonts lack prints as
+  `.notdef`); the fonts live under `src/` because `development.Dockerfile` only copies `src`; tests read the
+  text back through `certificate::pdf::read_back`; unit-tested offline). `summary` and `certificates` are registered before
   `/{formation_id}`, `rating` and `certificate` before `/{module_id}`. `access_matrix.rs` takes the `404` of
   `GET /formations/certificates/` as an answer, not a refusal.
 - `GET /admin/stats/` (indicators in one statement over the non-archived accounts, `late_agents` capped at 500),

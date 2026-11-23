@@ -4,6 +4,7 @@
 use actix_web::http::{header, StatusCode};
 use actix_web::test::{self, TestRequest};
 use chrono::Datelike;
+use elearning_api::certificate::pdf::read_back;
 use serde_json::{json, Value};
 
 use crate::endpoints::{jwt_for, TestContext};
@@ -284,11 +285,16 @@ async fn the_attestation_needs_a_completed_enrolment() {
     assert!(pdf.starts_with(b"%PDF-"));
     assert!(pdf.ends_with(b"%%EOF\n"));
     let text = String::from_utf8_lossy(&pdf);
-    assert!(text.contains("(Agent Test) Tj"), "the fixture agent's name");
-    assert!(text.contains("(Attestation unitaire) Tj"));
-    assert!(text.contains("(Cat\\351gorie : S\\351curit\\351) Tj"));
-    assert!(text.contains("(Dur\\351e de la formation : 15 min) Tj"));
     assert!(text.contains("/Count 1"));
+    let texts = read_back::texts(&pdf);
+    for expected in [
+        "Agent Test",
+        "Attestation unitaire",
+        "Catégorie : Sécurité",
+        "Durée de la formation : 15 min",
+    ] {
+        assert!(texts.iter().any(|t| t == expected), "{expected}: {texts:?}");
+    }
 }
 
 #[actix_web::test]
@@ -322,9 +328,10 @@ async fn the_attestations_of_a_year_hold_one_page_per_completed_formation() {
     let text = String::from_utf8_lossy(&pdf);
     assert!(pdf.starts_with(b"%PDF-"));
     assert!(text.contains("/Count 2"));
-    assert!(text.contains("(Attestation annuelle 1) Tj"));
-    assert!(text.contains("(Attestation annuelle 2) Tj"));
-    assert!(!text.contains("en cours"));
+    let texts = read_back::texts(&pdf);
+    assert!(texts.iter().any(|t| t == "Attestation annuelle 1"));
+    assert!(texts.iter().any(|t| t == "Attestation annuelle 2"));
+    assert!(!texts.iter().any(|t| t.contains("en cours")));
 
     assert_eq!(status_of!(app, get("?year=2001")), StatusCode::NOT_FOUND);
     for invalid in ["?year=1999", "?year=2101", "?year=abc"] {

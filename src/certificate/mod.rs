@@ -1,5 +1,6 @@
 //! Training attestations (MAIR-1149): one A4 page per completed formation, in French, rendered
-//! with the minimal PDF writer of [`pdf`] (no PDF dependency).
+//! with the minimal PDF writer of [`pdf`], which embeds a Unicode font so every name and title
+//! keeps its characters.
 
 pub mod pdf;
 
@@ -137,15 +138,45 @@ mod tests {
             "Accueil du public (niveau 1)",
             Some("Relation usager"),
         )]);
-        let text = String::from_utf8_lossy(&pdf).into_owned();
         assert!(pdf.starts_with(b"%PDF-"));
-        assert!(text.contains("(Attestation de formation) Tj"));
-        assert!(text.contains("(H\\351l\\350ne Dupr\\351) Tj"), "{text}");
-        assert!(text.contains("(Accueil du public \\(niveau 1\\)) Tj"));
-        assert!(text.contains("(Cat\\351gorie : Relation usager) Tj"));
-        assert!(text.contains("(Dur\\351e de la formation : 1 h 30 min) Tj"));
-        assert!(text.contains("(Formation termin\\351e le 09/03/2026) Tj"));
+        let text = String::from_utf8_lossy(&pdf).into_owned();
         assert!(text.contains("/Count 1"));
+        let texts = pdf::read_back::texts(&pdf);
+        for expected in [
+            "Attestation de formation",
+            "Hélène Dupré",
+            "Accueil du public (niveau 1)",
+            "Catégorie : Relation usager",
+            "Durée de la formation : 1 h 30 min",
+            "Formation terminée le 09/03/2026",
+        ] {
+            assert!(texts.iter().any(|t| t == expected), "{expected}: {texts:?}");
+        }
+    }
+
+    #[test]
+    fn names_and_titles_outside_latin_1_are_kept() {
+        let mut polish = attestation("Bezpieczeństwo w pracy", None);
+        polish.first_name = "Łukasz".to_string();
+        polish.last_name = "Kowalski".to_string();
+        let mut greek = attestation("Ασφάλεια στην εργασία", None);
+        greek.first_name = "Νίκος".to_string();
+        greek.last_name = "Παπαδόπουλος".to_string();
+        let mut russian = attestation("Охрана труда", Some("Безопасность"));
+        russian.first_name = "Анна".to_string();
+        russian.last_name = "Иванова".to_string();
+        let texts = pdf::read_back::texts(&render(&[polish, greek, russian]));
+        for expected in [
+            "Łukasz Kowalski",
+            "Bezpieczeństwo w pracy",
+            "Νίκος Παπαδόπουλος",
+            "Ασφάλεια στην εργασία",
+            "Анна Иванова",
+            "Охрана труда",
+            "Catégorie : Безопасность",
+        ] {
+            assert!(texts.iter().any(|t| t == expected), "{expected}: {texts:?}");
+        }
     }
 
     #[test]
@@ -155,8 +186,29 @@ mod tests {
             attestation("Second", Some(" ")),
         ]);
         let text = String::from_utf8_lossy(&pdf).into_owned();
-        assert!(!text.contains("Cat\\351gorie"));
         assert!(text.contains("/Count 2"));
-        assert!(text.find("(Premier) Tj").unwrap() < text.find("(Second) Tj").unwrap());
+        let texts = pdf::read_back::texts(&pdf);
+        assert!(!texts.iter().any(|t| t.starts_with("Catégorie")));
+        let position = |title: &str| texts.iter().position(|t| t == title).unwrap();
+        assert!(position("Premier") < position("Second"));
+    }
+
+    /// Writes a sample attestation when `ATTESTATION_SAMPLE` names a file (manual check with a
+    /// PDF reader or `pdftotext`).
+    #[test]
+    fn writes_a_sample_when_asked() {
+        let Some(path) = std::env::var_os("ATTESTATION_SAMPLE") else {
+            return;
+        };
+        let mut polish = attestation("Bezpieczeństwo w pracy", Some("Sécurité"));
+        polish.first_name = "Łukasz".to_string();
+        polish.last_name = "Kowalski".to_string();
+        let mut greek = attestation("Ασφάλεια στην εργασία", None);
+        greek.first_name = "Νίκος".to_string();
+        greek.last_name = "Παπαδόπουλος".to_string();
+        let mut russian = attestation("Охрана труда", None);
+        russian.first_name = "Анна".to_string();
+        russian.last_name = "Иванова".to_string();
+        std::fs::write(path, render(&[polish, greek, russian])).unwrap();
     }
 }
