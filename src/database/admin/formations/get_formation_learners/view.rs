@@ -34,6 +34,9 @@ impl GetFormationLearnersQueryView {
 
 impl ApiRequestDto for GetFormationLearnersQueryView {
     fn query_sql(&self) -> &'static str {
+        // An enrolment made by an administrator has no `started_at` until the database sets one
+        // (its progress trigger only does on its own insert): the date of the first completed
+        // module stands for it then.
         "WITH course AS ( \
             SELECT id FROM courses WHERE id = $1 \
          ), module_count AS ( \
@@ -51,7 +54,11 @@ impl ApiRequestDto for GetFormationLearnersQueryView {
                 (SELECT count(*) FROM user_modules um \
                  JOIN course_modules cm ON cm.id = um.module_id \
                  WHERE cm.course_id = $1 AND um.user_id = e.user_id AND um.is_completed) \
-                    AS completed_modules \
+                    AS completed_modules, \
+                (SELECT min(um.completed_at) FROM user_modules um \
+                 JOIN course_modules cm ON cm.id = um.module_id \
+                 WHERE cm.course_id = $1 AND um.user_id = e.user_id AND um.is_completed) \
+                    AS first_completed_at \
             FROM enrolled e \
             ORDER BY e.last_name, e.first_name, e.user_id \
             LIMIT $2 OFFSET $3 \
@@ -71,7 +78,7 @@ impl ApiRequestDto for GetFormationLearnersQueryView {
                                 WHEN mc.modules = 0 THEN 0 \
                                 ELSE LEAST(100, 100 * p.completed_modules / mc.modules) \
                             END, \
-                            'started_at', p.started_at, \
+                            'started_at', COALESCE(p.started_at, p.first_completed_at), \
                             'completed_at', p.completed_at, \
                             'last_activity_at', p.last_activity_at, \
                             'last_reminder_at', p.last_reminder_at \
