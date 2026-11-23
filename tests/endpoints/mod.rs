@@ -10,6 +10,8 @@ pub mod admin_reads;
 pub mod catalog;
 pub mod enrolment;
 pub mod formation_access;
+pub mod mair_1150_admin;
+pub mod mair_1150_learner;
 pub mod mair_534_negative_cases;
 pub mod mair_680_session_keys;
 pub mod module_access;

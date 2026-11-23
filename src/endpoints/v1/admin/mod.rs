@@ -1,5 +1,6 @@
 pub mod doc;
 pub mod formations;
+pub mod stats;
 pub mod users;
 
 use mairie360_api_lib::security::AdminMiddleware;
@@ -63,6 +64,7 @@ pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
         actix_web::web::scope("/admin")
             .wrap(AdminMiddleware)
             .configure(formations::config)
+            .configure(stats::config)
             .configure(users::config),
     );
 }

@@ -112,5 +112,13 @@ async fn catalog_matches_the_per_formation_routes() {
     assert_eq!(nested["id"], modules["modules"][0]["id"]);
     assert_eq!(nested["name"], modules["modules"][0]["name"]);
     assert_eq!(nested["completed"], modules["modules"][0]["completed"]);
-    assert_eq!(nested["files"], files["files"]);
+    // The catalogue adds fields (MAIR-1150) to the ones of the per-module route, never changes them.
+    let nested_files = nested["files"].as_array().expect("files");
+    let module_files = files["files"].as_array().expect("files");
+    assert_eq!(nested_files.len(), module_files.len());
+    for (nested, file) in nested_files.iter().zip(module_files) {
+        for (key, value) in file.as_object().expect("file") {
+            assert_eq!(&nested[key], value, "{key}");
+        }
+    }
 }

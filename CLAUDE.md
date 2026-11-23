@@ -65,9 +65,11 @@ Postman sandbox cannot sign EdDSA, so `integration_test.sh` signs the JWTs with 
 and the compose file passes them with `--env-var`: `jwt_admin` (the seeded Admin, user 1), `jwt_agent` (a plain
 agent, user 2), `jwt_forged` (Core's `kid`, another key) and `jwt_expired`; the pre-request script only forges
 `jwt_hs256` / `jwt_hs256_agent`, HS256 tokens that must be refused (MAIR-680). From a host shell, fill those
-variables yourself. The API has no route to create courses,
+variables yourself. The API creates courses without stored files only (no upload, MAIR-817),
 so `init-test.sql` (run by the `seeder` service of that compose file) seeds user 2, course `1000` with modules
-`1001`/`1002` and attachment `1003`, and resets user 2's progress so the scenario replays. The S3 credentials in
+`1001`/`1002` and attachment `1003`, the mandatory course `1010` (deadline past) user 42 is late on, and resets
+user 2's progress and rating so the scenario replays. It moves the `courses` / `course_modules` /
+`course_attachments` sequences past its fixed ids, so the courses the API creates never collide with them. The S3 credentials in
 that file are placeholders: presigning is local, the bucket is never contacted.
 
 Split of the tests (MAIR-262): `cargo test` (unit and handler tests) validates the code, newman validates that the
@@ -147,6 +149,34 @@ into JSON, so the number of statements does not grow with the data). It is regis
 `/{formation_id}` scope in `formations/mod.rs`, which would otherwise try to read "catalog" as an id. It
 exposes the same fields as the three per-formation routes and no `file_url`; BFF_Elearning uses it instead of
 1 + 15 + 150 calls per catalogue page.
+
+**E-learning V2 (MAIR-1150, MAIR-1149, MAIR-1144, MAIR-1143, MAIR-817, MAIR-703)**, on Database 4.0.0
+(`courses.source`, `user_courses.last_activity_at`, `elearning_settings`, `course_reminders`):
+
+- the catalogue also carries, per formation, `category`, `level`, `is_mandatory`, `deadline`, `source`,
+  `instructor` (label, else the instructor account's name), the caller's `started_at` / `completed_at` /
+  `last_activity_at` / `last_reminder_at`, `rating_average` / `rating_count` / `my_rating`, `learners`; per module
+  `sort_order` and `duration_seconds` (sum of its files); per file `kind` (the stored type), `title`, `description`,
+  `duration_seconds`, `is_required`, `sort_order` and `url`, **only** for a `link` (never an S3 key). Still one statement.
+- `POST /formations/{formation_id}/rating/` (`{rating: 1..5}`, `403` not enrolled, `409` not completed: the checks and
+  the upsert are one CTE locking the enrolment `FOR SHARE`), `GET /formations/summary/?year=` (training time of a
+  year: durations of the contents of the modules completed that year, `400` outside 2000-2100),
+  `GET /formations/{formation_id}/certificate/` and `GET /formations/certificates/?year=` (`404` without completion):
+  PDF attestations in French written by `src/certificate/` (a minimal PDF 1.4 writer, Helvetica in
+  `WinAnsiEncoding`, no crate; unit-tested offline). `summary` and `certificates` are registered before
+  `/{formation_id}`, `rating` and `certificate` before `/{module_id}`. `access_matrix.rs` takes the `404` of
+  `GET /formations/certificates/` as an answer, not a refusal.
+- `GET /admin/stats/` (indicators in one statement over the non-archived accounts, `late_agents` capped at 500),
+  `POST /admin/formations/{formation_id}/reminders/` (`{user_ids?}`, absent = every late agent; one statement,
+  `404` unknown, `409` not mandatory), `POST /admin/formations/` (`201 {id}`), `PATCH` (full replacement; rows with
+  an `id` are kept, the others deleted; `400` for an id outside the formation or a stored file whose type changes)
+  and `DELETE /admin/formations/{formation_id}/` (`204`, `CASCADE`). Creation and replacement run in one transaction
+  (the update of the course row locks it first; files deleted, then modules and files saved, then modules deleted,
+  so a kept file can move). Without upload a new content is a `link`, a `quiz` or `other`; a link's `url` must be an
+  absolute `https://` URL with a host (`validation::check_https_url`, MAIR-703). The bodies are bound as JSON
+  (`$n::jsonb`) since `QueryParam` has no optional text. The `PATCH` / `DELETE` path example is course 7, a course of
+  the seed nothing else reads, because ZAP calls them on the examples; the Admin completed course 4 in the seed so
+  the attestations and the rating answer `2xx` to ZAP and k6.
 
 Every leaf handler is mounted as `#[get("/")]` (etc.) inside its segment scope, so its URL ends with `/`: its
 `#[utoipa::path]` must say `path = "/"` when the parent `doc.rs` nests it without a trailing slash, otherwise the

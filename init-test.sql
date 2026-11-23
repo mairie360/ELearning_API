@@ -1,6 +1,7 @@
 -- Fixtures run by the `seeder` service of docker-compose-integration.yml (newman),
--- docker-compose-security.yml (ZAP) and docker-compose-performance.yml (k6). The API has no route to create courses, modules or
--- attachments, so they are seeded here with fixed ids. User 1 (Admin) is created by the
+-- docker-compose-security.yml (ZAP) and docker-compose-performance.yml (k6). The API creates
+-- courses with links, quizzes and other contents since MAIR-817, but not stored files (no upload):
+-- the courses the journeys read are seeded here with fixed ids. User 1 (Admin) is created by the
 -- `create_admin` changeset of the liquibase-migrations image and is the `sub` of the JWT ZAP
 -- injects; user 2 is the plain agent the collection registers and progresses. Everything is
 -- idempotent and user 2's progress is reset so the scenario replays on a persistent database.
@@ -50,8 +51,13 @@ INSERT INTO course_attachments (id, module_id, title, file_name, file_type, file
 VALUES (1003, 1001, 'Guide RGPD', 'guide_rgpd_mairie.pdf', 'pdf', 'elearning/guides/guide_rgpd_mairie.pdf', 482913)
 ON CONFLICT (id) DO NOTHING;
 
+-- MAIR-1150: metadata of the V2 catalogue, and durations for the training time and attestations.
+UPDATE courses SET category = 'Protection des données', level = 'beginner' WHERE id IN (4, 1000);
+UPDATE course_attachments SET duration_seconds = 600 WHERE id = 1003;
+
 DELETE FROM user_modules WHERE (user_id = 2 OR user_id BETWEEN 3001 AND 3064)
     AND module_id IN (1001, 1002);
+DELETE FROM course_ratings WHERE user_id = 2 AND course_id = 1000;
 DELETE FROM user_courses WHERE (user_id = 2 OR user_id BETWEEN 3001 AND 3064)
     AND course_id = 1000;
 
@@ -85,3 +91,35 @@ ON CONFLICT DO NOTHING;
 -- enrols it again.
 INSERT INTO user_courses (user_id, course_id) VALUES (1, 4), (1, 1000)
 ON CONFLICT DO NOTHING;
+
+-- MAIR-1149: the Admin completed formation 4 (its only module), so the rating, the attestation and
+-- the attestations of the year answer 2xx to the scanning user of ZAP and k6. The progress trigger
+-- marks the enrolment completed.
+INSERT INTO user_modules (user_id, module_id, is_completed, completed_at)
+VALUES (1, 11, TRUE, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;
+UPDATE course_attachments SET duration_seconds = 900 WHERE id = 27;
+
+-- MAIR-1150: formation 1010 is mandatory and its deadline is past; user 42 is enrolled and has
+-- not completed it, so the reminders route has a late agent to remind (newman, k6) and the
+-- indicators list one. Nothing resets it: a reminder is only one more row.
+INSERT INTO courses (id, title, description, category, is_mandatory, deadline)
+VALUES (1010, 'Sécurité incendie (obligatoire)', 'Consignes et évacuation', 'Sécurité', TRUE, '2020-01-31')
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO course_modules (id, course_id, title, content, sort_order)
+VALUES (1011, 1010, 'Les consignes', 'Alerte et évacuation', 1)
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO user_courses (user_id, course_id) VALUES (42, 1010)
+ON CONFLICT DO NOTHING;
+
+-- Formation 7 is the path example of `PATCH` / `DELETE /api/v1/admin/formations/{formation_id}/`:
+-- ZAP replaces and deletes it, so it is a formation nothing else reads.
+INSERT INTO courses (id, title, description)
+VALUES (7, 'Formation jetable (scan)', 'Remplacée puis supprimée par le scan ZAP')
+ON CONFLICT (id) DO NOTHING;
+
+-- Explicit ids do not advance the SERIAL sequences: move them past the fixtures so the courses,
+-- modules and contents created by the API (MAIR-817) do not collide with them.
+SELECT setval(pg_get_serial_sequence('courses', 'id'), GREATEST((SELECT MAX(id) FROM courses), 1));
+SELECT setval(pg_get_serial_sequence('course_modules', 'id'), GREATEST((SELECT MAX(id) FROM course_modules), 1));
+SELECT setval(pg_get_serial_sequence('course_attachments', 'id'), GREATEST((SELECT MAX(id) FROM course_attachments), 1));

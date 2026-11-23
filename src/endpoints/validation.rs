@@ -82,6 +82,107 @@ pub fn check_user_id(field: &str, id: u64) -> Result<(), ValidationError> {
     Ok(())
 }
 
+/// A label (name, title, category): not blank, at most `max` characters, no control character.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] naming `field` when the value breaks one of these rules.
+pub fn check_label(field: &str, value: &str, max: usize) -> Result<(), ValidationError> {
+    if value.trim().is_empty() {
+        return Err(ValidationError::new(field, "must not be empty"));
+    }
+    check_length(field, value, max)?;
+    if value.chars().any(char::is_control) {
+        return Err(ValidationError::new(
+            field,
+            "must not contain control characters",
+        ));
+    }
+    Ok(())
+}
+
+/// A free text (description): at most `max` characters, line breaks and tabs allowed, no other
+/// control character.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] naming `field` when the value breaks one of these rules.
+pub fn check_text(field: &str, value: &str, max: usize) -> Result<(), ValidationError> {
+    check_length(field, value, max)?;
+    if value
+        .chars()
+        .any(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t'))
+    {
+        return Err(ValidationError::new(
+            field,
+            "must not contain control characters other than line breaks and tabs",
+        ));
+    }
+    Ok(())
+}
+
+fn check_length(field: &str, value: &str, max: usize) -> Result<(), ValidationError> {
+    if value.chars().count() > max {
+        return Err(ValidationError::new(
+            field,
+            &format!("must be at most {max} characters long"),
+        ));
+    }
+    Ok(())
+}
+
+/// Longest URL accepted for a link content.
+pub const MAX_URL_LENGTH: usize = 2048;
+
+/// The URL of a link content (MAIR-703): an absolute `https://` URL with a host, without user
+/// information, whitespace nor control character. `javascript:`, `data:`, `http:` and relative
+/// URLs are refused, so the front can put it in an `href` as is.
+///
+/// # Errors
+///
+/// Returns a [`ValidationError`] naming `field` when the value is not such a URL.
+pub fn check_https_url(field: &str, value: &str) -> Result<(), ValidationError> {
+    const SCHEME: &str = "https://";
+    let refuse = || {
+        Err(ValidationError::new(
+            field,
+            "must be an absolute https:// URL with a host",
+        ))
+    };
+    check_length(field, value, MAX_URL_LENGTH)?;
+    if value
+        .chars()
+        .any(|c| c.is_control() || c.is_whitespace() || c == '\\')
+    {
+        return refuse();
+    }
+    let Some(scheme) = value.get(..SCHEME.len()) else {
+        return refuse();
+    };
+    if !scheme.eq_ignore_ascii_case(SCHEME) {
+        return refuse();
+    }
+    let rest = &value[SCHEME.len()..];
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    // No `user@host`: `https://trusted.example@evil.example` reads as the first host.
+    if authority.contains('@') {
+        return refuse();
+    }
+    let host = match authority.strip_prefix('[') {
+        // IPv6 literal: `[::1]:8443`.
+        Some(v6) => v6.split(']').next().unwrap_or_default(),
+        None => authority.split(':').next().unwrap_or_default(),
+    };
+    let valid_host = !host.is_empty()
+        && host
+            .chars()
+            .all(|c| c.is_alphanumeric() || matches!(c, '-' | '.' | '_' | ':'));
+    if !valid_host {
+        return refuse();
+    }
+    Ok(())
+}
+
 fn bad_request(error: &ValidationError) -> actix_web::Error {
     actix_web::error::ErrorBadRequest(error.to_string())
 }
@@ -199,5 +300,59 @@ mod tests {
     fn the_error_names_the_field() {
         let error = check_user_id("user_id", 0).unwrap_err();
         assert!(error.to_string().starts_with("Invalid `user_id`"));
+    }
+
+    #[test]
+    fn mair_703_only_absolute_https_urls_are_accepted() {
+        for url in [
+            "https://www.example.org",
+            "https://www.example.org/path?query=1#anchor",
+            "HTTPS://example.org/",
+            "https://example.org:8443/video",
+            "https://[::1]:8443/",
+        ] {
+            assert!(check_https_url("url", url).is_ok(), "{url}");
+        }
+        for url in [
+            "javascript:alert(1)",
+            "JavaScript:alert(1)",
+            "data:text/html;base64,PHNjcmlwdD4=",
+            "http://example.org",
+            "//example.org/path",
+            "/relative/path",
+            "relative/path",
+            "https://",
+            "https:///path",
+            "https://user@example.org",
+            "https://exa mple.org",
+            "https://example.org/a b",
+            "https://example.org/\u{0}",
+            "https://example.org\\@evil.org",
+            "ftp://example.org",
+            "",
+        ] {
+            let error = check_https_url("modules[0].files[1].url", url).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .starts_with("Invalid `modules[0].files[1].url`"),
+                "{url}: {error}"
+            );
+        }
+        let long = format!("https://example.org/{}", "a".repeat(MAX_URL_LENGTH));
+        assert!(check_https_url("url", &long).is_err());
+    }
+
+    #[test]
+    fn labels_and_texts_are_bounded_and_without_control_characters() {
+        assert!(check_label("name", "Accueil du public", 255).is_ok());
+        assert!(check_label("name", "  ", 255).is_err());
+        assert!(check_label("name", "a\u{7}b", 255).is_err());
+        assert!(check_label("name", &"é".repeat(255), 255).is_ok());
+        assert!(check_label("name", &"é".repeat(256), 255).is_err());
+        assert!(check_text("description", "", 10).is_ok());
+        assert!(check_text("description", "line\nbreak\ttab", 20).is_ok());
+        assert!(check_text("description", "nul\u{0}", 20).is_err());
+        assert!(check_text("description", "too long", 3).is_err());
     }
 }

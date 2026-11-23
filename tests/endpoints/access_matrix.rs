@@ -26,6 +26,9 @@ use crate::{init_app, status_of};
 const MATRIX: &str = include_str!("../../access-matrix.yaml");
 const ROLES: [&str; 5] = ["Admin", "Maire", "Responsable", "User", "Guest"];
 const RELATIONS: [&str; 1] = ["learner"];
+/// Operations whose `404` is an answer, not a refusal: an allowed caller who completed no
+/// formation during the year has no attestation to download.
+const NOT_FOUND_IS_AN_ANSWER: [&str; 1] = ["GET /api/v1/formations/certificates/"];
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -185,6 +188,11 @@ fn request(name: &str, f: &Fixtures, target: i32, joiner: i32) -> TestRequest {
         .replace("{user_id}", &target.to_string());
     let body = match name {
         "POST /api/v1/admin/formations/{formation_id}/" => Some(json!({ "user_id": joiner })),
+        "POST /api/v1/admin/formations/" | "PATCH /api/v1/admin/formations/{formation_id}/" => {
+            Some(json!({ "name": "Matrice d'accès" }))
+        }
+        "POST /api/v1/admin/formations/{formation_id}/reminders/" => Some(json!({})),
+        "POST /api/v1/formations/{formation_id}/rating/" => Some(json!({ "rating": 4 })),
         _ => None,
     };
     let request = match method {
@@ -267,7 +275,9 @@ async fn every_role_and_relation_gets_what_the_matrix_says() {
                 request(name, &f, learner, joiner).insert_header(("Authorization", jwt_for(user)))
             )
             .as_u16();
-            let refused = got == 401 || got == 403 || got == 404;
+            let refused = got == 401
+                || got == 403
+                || (got == 404 && !NOT_FOUND_IS_AN_ANSWER.contains(&name.as_str()));
             if allowed && refused {
                 failures.push(format!(
                     "{name}: {who} is allowed by the matrix but got {got}"

@@ -1,3 +1,11 @@
+pub mod check_course_content;
+pub mod create_course;
+pub mod delete_course;
+pub mod delete_course_content;
 pub mod get_formation_modules;
 pub mod get_formations;
 pub mod register_user_to_formation;
+pub mod save_file;
+pub mod save_module;
+pub mod send_reminders;
+pub mod update_course;

@@ -161,3 +161,146 @@ pub async fn enrol(db: &SmartDatabase, user_id: i32, course_id: i32) {
     .await
     .expect("failed to enrol test user");
 }
+
+#[derive(serde::Deserialize)]
+struct SetCourseMeta {
+    params: Vec<QueryParam>,
+}
+
+impl ApiRequestDto for SetCourseMeta {
+    fn query_sql(&self) -> &'static str {
+        "UPDATE courses SET is_mandatory = $2, deadline = NULLIF($3, '')::date, \
+            category = NULLIF($4, ''), source = $5 WHERE id = $1"
+    }
+
+    fn query_params(&self) -> &[QueryParam] {
+        &self.params
+    }
+}
+
+/// Sets the MAIR-1150 metadata of a test course: `deadline` as `YYYY-MM-DD` (`""` for none),
+/// `category` (`""` for none), `source` (`internal` or `platform`).
+pub async fn set_course_meta(
+    db: &SmartDatabase,
+    course_id: i32,
+    is_mandatory: bool,
+    deadline: &str,
+    category: &str,
+    source: &str,
+) {
+    db.execute(SetCourseMeta {
+        params: vec![
+            QueryParam::I32(course_id),
+            QueryParam::Bool(is_mandatory),
+            QueryParam::Text(deadline.to_string()),
+            QueryParam::Text(category.to_string()),
+            QueryParam::Text(source.to_string()),
+        ],
+    })
+    .await
+    .expect("failed to set the course metadata");
+}
+
+#[derive(serde::Deserialize)]
+struct SetAttachmentDuration {
+    params: Vec<QueryParam>,
+}
+
+impl ApiRequestDto for SetAttachmentDuration {
+    fn query_sql(&self) -> &'static str {
+        "UPDATE course_attachments SET duration_seconds = $2 WHERE id = $1"
+    }
+
+    fn query_params(&self) -> &[QueryParam] {
+        &self.params
+    }
+}
+
+/// Sets the duration of a test attachment.
+pub async fn set_attachment_duration(db: &SmartDatabase, attachment_id: i32, seconds: i32) {
+    db.execute(SetAttachmentDuration {
+        params: vec![QueryParam::I32(attachment_id), QueryParam::I32(seconds)],
+    })
+    .await
+    .expect("failed to set the attachment duration");
+}
+
+/// Completes `module_id` of `course_id` for `user_id` through the API's own query (the database
+/// trigger then updates the enrolment, and completes it with its last module).
+pub async fn complete(db: &SmartDatabase, user_id: i32, course_id: i32, module_id: i32) {
+    use elearning_api::database::formations::complete_module::view::{
+        CompleteModuleQueryView, CompleteModuleRow,
+    };
+
+    let row: CompleteModuleRow = db
+        .fetch_one(&CompleteModuleQueryView::new(
+            user_id as u64,
+            course_id as u64,
+            module_id as u64,
+        ))
+        .await
+        .expect("failed to complete the test module");
+    assert!(row.completed(), "the test module could not be completed");
+}
+
+#[derive(serde::Deserialize)]
+struct ArchiveUser {
+    params: Vec<QueryParam>,
+}
+
+impl ApiRequestDto for ArchiveUser {
+    fn query_sql(&self) -> &'static str {
+        "UPDATE users SET is_archived = TRUE WHERE id = $1"
+    }
+
+    fn query_params(&self) -> &[QueryParam] {
+        &self.params
+    }
+}
+
+/// Archives a test user.
+pub async fn archive_user(db: &SmartDatabase, user_id: i32) {
+    db.execute(ArchiveUser {
+        params: vec![QueryParam::I32(user_id)],
+    })
+    .await
+    .expect("failed to archive the test user");
+}
+
+#[derive(serde::Deserialize)]
+struct CountRows {
+    params: Vec<QueryParam>,
+}
+
+impl ApiRequestDto for CountRows {
+    fn query_sql(&self) -> &'static str {
+        // `$1` picks the table, `$2` the course: only the tables the MAIR-1150 tests count.
+        "SELECT CASE $1 \
+            WHEN 'course_reminders' THEN \
+                (SELECT count(*) FROM course_reminders WHERE course_id = $2) \
+            WHEN 'course_modules' THEN \
+                (SELECT count(*) FROM course_modules WHERE course_id = $2) \
+            WHEN 'course_attachments' THEN \
+                (SELECT count(*) FROM course_attachments ca \
+                 JOIN course_modules cm ON cm.id = ca.module_id WHERE cm.course_id = $2) \
+            WHEN 'courses' THEN (SELECT count(*) FROM courses WHERE id = $2) \
+         END"
+    }
+
+    fn query_params(&self) -> &[QueryParam] {
+        &self.params
+    }
+}
+
+/// Rows of `table` (`course_reminders`, `course_modules`, `course_attachments` or `courses`)
+/// belonging to `course_id`.
+pub async fn count_rows(db: &SmartDatabase, table: &str, course_id: i32) -> i64 {
+    db.fetch_scalar::<i64, _>(&CountRows {
+        params: vec![
+            QueryParam::Text(table.to_string()),
+            QueryParam::I32(course_id),
+        ],
+    })
+    .await
+    .expect("failed to count the test rows")
+}
