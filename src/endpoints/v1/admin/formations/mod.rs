@@ -1,6 +1,7 @@
 pub mod doc;
 pub mod formation_id;
 pub mod get;
+pub mod post;
 
 /// Formation of the catalogue, admin view.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
@@ -139,6 +140,7 @@ pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(
         actix_web::web::scope("/formations")
             .service(get::endpoint::get_formations)
+            .service(post::endpoint::create_formation)
             .configure(formation_id::config),
     );
 }

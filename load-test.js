@@ -18,8 +18,10 @@
 // - `formations_rush`: `GET /formations/` as learners at the fixed arrival rate of the profile, failing if k6 has
 //   to drop iterations (the API no longer keeps up).
 //
-// The API cannot create formations, modules or attachments: they come from init-test.sql
-// (formation 1000, the enrolment writes) and init-perf.sql (the formations the reads use).
+// The formations the reads use come from init-test.sql (formation 1000, the enrolment writes;
+// formation 4, completed by the Admin for the attestations and the rating; mandatory formation 1010
+// with the late user 42 for the reminders) and init-perf.sql. The course administration handlers
+// (MAIR-817) create their own formation through the API and delete it.
 //
 // Unenrolling an agent who is not enrolled answers 404, so the write VUs must never share an
 // agent: each one enrolls and unenrolls its own seeded learner in formation 1000, picked by its VU
@@ -144,6 +146,40 @@ function unenroll(userId, formationId) {
   fixture('DELETE', `/api/v1/admin/users/${userId}/${formationId}/`);
 }
 
+// Formation the Admin completed (init-test.sql): its attestation and rating answer 2xx.
+const COMPLETED_FORMATION_ID = 4;
+// Mandatory formation whose deadline is past, user 42 late on it (init-test.sql).
+const MANDATORY_FORMATION_ID = 1010;
+const LATE_USER_ID = 42;
+
+/** Body of a formation created by the course administration handlers (MAIR-817). */
+function courseBody(name) {
+  return {
+    name,
+    category: 'k6',
+    level: 'beginner',
+    is_mandatory: false,
+    modules: [
+      {
+        name: 'Module 1',
+        files: [
+          { title: 'Link', file_type: 'link', url: 'https://example.org/k6', duration_seconds: 60 },
+          { title: 'Quiz', file_type: 'quiz', is_required: false },
+        ],
+      },
+    ],
+  };
+}
+
+/** Creates a disposable formation (raw call) and returns its id. */
+function createCourse() {
+  return fixture('POST', '/api/v1/admin/formations/', courseBody(`k6 ${exec.vu.idInTest}`)).json('id');
+}
+
+function deleteCourse(formationId) {
+  fixture('DELETE', `/api/v1/admin/formations/${formationId}/`);
+}
+
 const spec = loadSpec();
 
 const readHandlers = {
@@ -202,6 +238,29 @@ const readHandlers = {
         return seeded.length === ENROLMENTS_PER_LEARNER;
       },
     }),
+  // MAIR-1144: training time of the year of a seeded learner (every enrolment is listed).
+  'GET /api/v1/formations/summary/': ({ request }) =>
+    check(request({ headers: randomLearner().headers }), {
+      'summary 200': (r) => r.status === 200,
+      'summary lists the enrolments': (r) => r.status === 200 && r.json('formations').length >= ENROLMENTS_PER_LEARNER,
+    }),
+  // MAIR-1149: the attestations of the Admin, who completed formation 4 (init-test.sql).
+  'GET /api/v1/formations/certificates/': ({ request }) =>
+    check(request(), {
+      'attestations 200': (r) => r.status === 200,
+      'attestations are a PDF': (r) => r.status === 200 && String(r.headers['Content-Type']).startsWith('application/pdf'),
+    }),
+  'GET /api/v1/formations/{formation_id}/certificate/': ({ request }) =>
+    check(request({ path: { formation_id: COMPLETED_FORMATION_ID } }), {
+      'attestation 200': (r) => r.status === 200,
+      'attestation is a PDF': (r) => r.status === 200 && String(r.headers['Content-Type']).startsWith('application/pdf'),
+    }),
+  // MAIR-1150: the indicators over the whole volume seed.
+  'GET /api/v1/admin/stats/': ({ request }) =>
+    check(request(), {
+      'stats 200': (r) => r.status === 200,
+      'stats read the seed': (r) => r.status === 200 && r.json('by_formation').length >= CATALOGUE_SIZE,
+    }),
   'GET /api/v1/formations/{formation_id}/': ({ request }) => {
     const learner = randomLearner();
     check(request({ path: { formation_id: learner.formationId }, headers: learner.headers }), {
@@ -255,6 +314,39 @@ const writeHandlers = {
     enroll(agentId(), FORMATION_ID);
     check(request({ path: { user_id: agentId(), formation_id: FORMATION_ID } }), {
       'unenroll 204': (r) => r.status === 204,
+    });
+  },
+
+  // MAIR-1149: the Admin rates the formation they completed (an upsert).
+  'POST /api/v1/formations/{formation_id}/rating/': ({ request }) =>
+    check(request({ path: { formation_id: COMPLETED_FORMATION_ID }, body: { rating: 5 } }), {
+      'rating 200': (r) => r.status === 200,
+    }),
+
+  // MAIR-1150: a reminder to the late user of the mandatory formation (one more row each time).
+  'POST /api/v1/admin/formations/{formation_id}/reminders/': ({ request }) =>
+    check(request({ path: { formation_id: MANDATORY_FORMATION_ID }, body: { user_ids: [LATE_USER_ID] } }), {
+      'reminders 200': (r) => r.status === 200,
+      'reminders reach the late user': (r) => r.status === 200 && r.json('sent') === 1,
+    }),
+
+  // MAIR-817: course administration, each handler on a formation of its own, deleted afterwards.
+  'POST /api/v1/admin/formations/': ({ request }) => {
+    const res = request({ body: courseBody(`k6 create ${exec.vu.idInTest}`) });
+    check(res, { 'create formation 201': (r) => r.status === 201 });
+    if (res.status === 201) deleteCourse(res.json('id'));
+  },
+  'PATCH /api/v1/admin/formations/{formation_id}/': ({ request }) => {
+    const formationId = createCourse();
+    check(request({ path: { formation_id: formationId }, body: courseBody(`k6 replaced ${exec.vu.idInTest}`) }), {
+      'replace formation 200': (r) => r.status === 200,
+    });
+    deleteCourse(formationId);
+  },
+  'DELETE /api/v1/admin/formations/{formation_id}/': ({ request }) => {
+    const formationId = createCourse();
+    check(request({ path: { formation_id: formationId } }), {
+      'delete formation 204': (r) => r.status === 204,
     });
   },
 

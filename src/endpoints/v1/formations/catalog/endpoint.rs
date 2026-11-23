@@ -8,18 +8,32 @@ use crate::database::formations::get_my_catalog::view::{
     CatalogFileRow, CatalogFormationRow, CatalogModuleRow, GetMyCatalogQueryView,
 };
 use crate::endpoints::v1::formations::catalog::view::{
-    CatalogFormation, CatalogModule, GetCatalogResultView,
+    CatalogFile, CatalogFormation, CatalogModule, ContentKind, CourseLevel, CourseSource,
+    GetCatalogResultView,
 };
-use crate::endpoints::v1::formations::formation_id::module_id::get::view::{File, FileType};
+use crate::endpoints::v1::formations::formation_id::module_id::get::view::FileType;
 use crate::endpoints::v1::formations::get::view::Status;
 use crate::error::log_error;
 
-fn map_file(row: &CatalogFileRow) -> File {
-    File {
+fn non_negative(value: i64) -> u64 {
+    u64::try_from(value).unwrap_or_default()
+}
+
+fn map_file(row: &CatalogFileRow) -> CatalogFile {
+    CatalogFile {
         id: id_from_sql(row.id()),
         file_name: row.file_name().to_string(),
         file_type: FileType::from(row.file_type().to_string()),
         file_size_bytes: row.file_size_bytes(),
+        kind: ContentKind::from_db(row.file_type()),
+        title: row.title().to_string(),
+        description: row.description().map(str::to_string),
+        duration_seconds: row
+            .duration_seconds()
+            .and_then(|seconds| u32::try_from(seconds).ok()),
+        is_required: row.is_required(),
+        sort_order: row.sort_order(),
+        url: row.url().map(str::to_string),
     }
 }
 
@@ -28,7 +42,9 @@ fn map_module(row: &CatalogModuleRow) -> CatalogModule {
         id: id_from_sql(row.id()),
         name: row.name().to_string(),
         description: row.description().unwrap_or_default().to_string(),
+        sort_order: row.sort_order(),
         completed: row.completed(),
+        duration_seconds: non_negative(row.duration_seconds()),
         files: row.files().iter().map(map_file).collect(),
     }
 }
@@ -38,8 +54,21 @@ fn map_formation(row: CatalogFormationRow) -> CatalogFormation {
         id: id_from_sql(row.id()),
         name: row.name().to_string(),
         description: row.description().unwrap_or_default().to_string(),
-        deadline: row.deadline(),
         status: Status::from(row.status().to_string()),
+        category: row.category().map(str::to_string),
+        level: row.level().and_then(CourseLevel::from_db),
+        is_mandatory: row.is_mandatory(),
+        deadline: row.deadline(),
+        source: CourseSource::from_db(row.source()),
+        instructor: row.instructor().map(str::to_string),
+        started_at: row.started_at().map(|dt| dt.and_utc()),
+        completed_at: row.completed_at().map(|dt| dt.and_utc()),
+        last_activity_at: row.last_activity_at().map(|dt| dt.and_utc()),
+        last_reminder_at: row.last_reminder_at().map(|dt| dt.and_utc()),
+        rating_average: row.rating_average(),
+        rating_count: non_negative(row.rating_count()),
+        my_rating: row.my_rating().and_then(|rating| u8::try_from(rating).ok()),
+        learners: non_negative(row.learners()),
         modules: row.modules().iter().map(map_module).collect(),
     }
 }
@@ -96,15 +125,20 @@ async fn trigger_get_catalog(
     path = "",
     summary = "List one's formations with their modules and files",
     description = "Returns, in one call, the formations the user of the JWT is enrolled in, \
-                   with for each its progress, its modules (and whether the user completed \
-                   them) and the files of each module (name, type, size).\n\n\
+                   with for each its progress and metadata (category, level, mandatory flag, \
+                   deadline, origin, instructor, dates of the caller's activity, latest reminder, \
+                   ratings, number of learners), its modules (and whether the user completed \
+                   them, their total duration) and the files of each module (title, type, \
+                   duration, size, and the URL of a `link` content).\n\n\
                    It merges `GET /api/v1/formations/`, `GET /api/v1/formations/{formation_id}/` \
                    and `GET /api/v1/formations/{formation_id}/{module_id}/` for every formation of \
                    the user, computed in a fixed number of queries whatever the number of formations \
                    or modules. Same access rules as these routes: only the caller's enrolments \
                    are visible, admins included.\n\n\
-                   The content of the files is **not** returned: to open one, ask for a signed URL from \
-                   `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`.",
+                   The content of the stored files is **not** returned: to open one, ask for a signed URL \
+                   from `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`. A `link` \
+                   is opened at its `url` directly, and a content without a file (`quiz`, `other`) \
+                   has nothing to open: the signed-URL route answers `404` to both.",
     responses(
         (
             status = 200,
@@ -116,23 +150,41 @@ async fn trigger_get_catalog(
                         "id": 4,
                         "name": "GDPR for local government staff",
                         "description": "Obligations and good practices",
-                        "deadline": "2026-12-15",
                         "status": "InProgress",
+                        "category": "Data protection",
+                        "level": "beginner",
+                        "is_mandatory": true,
+                        "deadline": "2026-12-31",
+                        "source": "internal",
+                        "instructor": "Data protection officer",
+                        "started_at": "2026-09-02T08:30:00Z",
+                        "completed_at": null,
+                        "last_activity_at": "2026-09-03T10:12:00Z",
+                        "last_reminder_at": null,
+                        "rating_average": 4.5,
+                        "rating_count": 12,
+                        "my_rating": null,
+                        "learners": 48,
                         "modules": [
                             {
                                 "id": 11,
                                 "name": "The principles of the GDPR",
                                 "description": "Lawfulness, minimisation, retention period",
+                                "sort_order": 1,
                                 "completed": true,
+                                "duration_seconds": 900,
                                 "files": [
-                                    { "id": 31, "file_name": "rgpd-principes.pdf", "file_type": "Pdf", "file_size_bytes": 482913 }
+                                    { "id": 31, "file_name": "gdpr-principles.pdf", "file_type": "Pdf", "file_size_bytes": 482913, "kind": "pdf", "title": "The principles of the GDPR", "description": null, "duration_seconds": 600, "is_required": true, "sort_order": 1, "url": null },
+                                    { "id": 32, "file_name": "Regulation text", "file_type": "Error", "file_size_bytes": null, "kind": "link", "title": "Regulation text", "description": "Official text", "duration_seconds": 300, "is_required": false, "sort_order": 2, "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj" }
                                 ]
                             },
                             {
                                 "id": 12,
                                 "name": "The rights of individuals",
                                 "description": "",
+                                "sort_order": 2,
                                 "completed": false,
+                                "duration_seconds": 0,
                                 "files": []
                             }
                         ]

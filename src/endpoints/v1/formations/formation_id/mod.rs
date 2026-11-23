@@ -1,6 +1,8 @@
+pub mod certificate;
 pub mod doc;
 pub mod get;
 pub mod module_id;
+pub mod rating;
 
 /// Path parameters of the routes of a formation.
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
@@ -21,6 +23,10 @@ pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(
         actix_web::web::scope("/{formation_id}")
             .service(get::endpoint::get_my_formation_by_id)
+            // Before `module_id::config`, whose `/{module_id}` scope would otherwise take these
+            // segments for an id.
+            .service(rating::endpoint::rate_formation)
+            .service(certificate::endpoint::get_certificate)
             .configure(module_id::config),
     );
 }

@@ -98,6 +98,7 @@ Statuses returned across the API, before the handler runs:
     tags(
         (name = "Formations", description = "View of the signed-in agent: their formations, modules, progress and the URLs of their attachments."),
         (name = "Admin - Formations", description = "Full catalogue of the formations and enrolment of the agents."),
+        (name = "Admin - Indicators", description = "Indicators of the e-learning: participation, progress and late agents."),
         (name = "Admin - Users", description = "Progress of the agents and unenrolment."),
         (name = "Service", description = "Unauthenticated technical probes used by Docker and Kubernetes: `/health` (liveness) and `/ready` (readiness).")
     ),

@@ -32,6 +32,19 @@ operations:
   GET /api/v1/admin/formations/: {access: admin, roles: [Admin]}
   GET /api/v1/admin/formations/{formation_id}/: {access: admin, roles: [Admin]}
   POST /api/v1/admin/formations/{formation_id}/: {access: admin, roles: [Admin]}
+
+  # --- Administration of the formations and indicators (MAIR-817, MAIR-1150) ---
+  POST /api/v1/admin/formations/: {access: admin, roles: [Admin], note: "creates a formation"}
+  PATCH /api/v1/admin/formations/{formation_id}/: {access: admin, roles: [Admin], note: "replaces a formation"}
+  DELETE /api/v1/admin/formations/{formation_id}/: {access: admin, roles: [Admin]}
+  POST /api/v1/admin/formations/{formation_id}/reminders/:
+    access: admin
+    roles: [Admin]
+    note: "records reminders for the unfinished agents of a mandatory formation"
+  GET /api/v1/admin/stats/:
+    access: admin
+    roles: [Admin]
+    personal: [late_agents.first_name, late_agents.last_name, late_agents.progress, late_agents.last_reminder_at]
   GET /api/v1/admin/users/:
     access: admin
     roles: [Admin]
@@ -55,12 +68,32 @@ operations:
   GET /api/v1/formations/catalog/:
     access: authenticated
     roles: [Admin, Maire, Responsable, User, Guest]
-    personal: [formations.progress_status, modules.is_completed]
+    personal: [formations.progress_status, formations.started_at, formations.completed_at, formations.last_activity_at, formations.last_reminder_at, formations.my_rating, modules.is_completed]
     note: "the caller's own enrolments with their modules, files and completion"
+  GET /api/v1/formations/summary/:
+    access: authenticated
+    roles: [Admin, Maire, Responsable, User, Guest]
+    personal: [formations.status, formations.time_spent_seconds, formations.completed_at]
+    note: "the caller's own training time of a year"
+  GET /api/v1/formations/certificates/:
+    access: authenticated
+    roles: [Admin, Maire, Responsable, User, Guest]
+    personal: [users.first_name, users.last_name, user_courses.completed_at]
+    note: "the caller's own attestations of a year (404 when they completed none)"
   GET /api/v1/formations/{formation_id}/:
     access: authenticated
     ownership: [learner]
     personal: [modules.is_completed]
+  POST /api/v1/formations/{formation_id}/rating/:
+    access: authenticated
+    ownership: [learner]
+    personal: [course_ratings.rating]
+    note: "the caller rates a formation they completed (409 before)"
+  GET /api/v1/formations/{formation_id}/certificate/:
+    access: authenticated
+    ownership: [learner]
+    personal: [users.first_name, users.last_name, user_courses.completed_at]
+    note: "the attestation of a formation the caller completed (409 before)"
   GET /api/v1/formations/{formation_id}/{module_id}/: {access: authenticated, ownership: [learner]}
   PATCH /api/v1/formations/{formation_id}/{module_id}/:
     access: authenticated

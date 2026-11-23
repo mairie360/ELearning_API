@@ -10,6 +10,8 @@ pub mod admin_reads;
 pub mod catalog;
 pub mod enrolment;
 pub mod formation_access;
+pub mod mair_1150_admin;
+pub mod mair_1150_learner;
 pub mod mair_534_negative_cases;
 pub mod mair_680_session_keys;
 pub mod module_access;
@@ -22,15 +24,18 @@ use std::sync::{Arc, Mutex, Once};
 
 use actix_web::web;
 
-use crate::common::{elearning_db_url, fixture_db};
+use crate::common::{elearning_db_url, fixture_db, ELEARNING_DB_ROLE};
 use elearning_api::storage::{FileStorage, StorageError};
 use jsonwebtoken::{encode, Algorithm, Header};
+use mairie360_api_lib::database::db_interface::Database;
 use mairie360_api_lib::jwt_manager::{
     parse_public_keys, parse_signing_key, Claims, SESSION_JWT_AUDIENCE, SESSION_JWT_ISSUER,
 };
+use mairie360_api_lib::redis::redis_interface::Redis;
 use mairie360_api_lib::smart_db::SmartDatabase;
 use mairie360_api_lib::state::AppState;
 use mairie360_api_lib::test_setup::http_setup::{test_jwt_private_key, TEST_JWT_PUBLIC_KEY};
+use mairie360_api_lib::test_setup::isolated::{isolated_db, IsolatedDb};
 
 pub const PRESIGNED_URL: &str = "https://storage.test/presigned";
 
@@ -129,6 +134,8 @@ pub struct TestContext {
     pub state: web::Data<AppState>,
     pub storage: Arc<MockFileStorage>,
     fixtures: SmartDatabase,
+    /// The database of [`TestContext::isolated`], dropped after the pools above.
+    _isolated: Option<IsolatedDb>,
 }
 
 impl TestContext {
@@ -145,6 +152,29 @@ impl TestContext {
             state: web::Data::new(state),
             storage: Arc::new(MockFileStorage::default()),
             fixtures: fixture_db().await,
+            _isolated: None,
+        }
+    }
+
+    /// Same as [`TestContext::new`] on a database of its own (MAIR-1002), for a test that reads
+    /// every row: the app as `elearning_api`, the fixtures as the superuser.
+    pub async fn isolated() -> Self {
+        set_jwt_env();
+        let isolated = isolated_db().await;
+        let state = AppState::new(
+            "redis://127.0.0.1:6379".to_string(),
+            isolated.url_as(ELEARNING_DB_ROLE),
+        )
+        .await;
+        let fixtures = SmartDatabase::new(
+            Database::new(&isolated.url()).await,
+            Redis::new("redis://127.0.0.1:6379"),
+        );
+        Self {
+            state: web::Data::new(state),
+            storage: Arc::new(MockFileStorage::default()),
+            fixtures,
+            _isolated: Some(isolated),
         }
     }
 
