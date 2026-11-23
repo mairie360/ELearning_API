@@ -11,7 +11,8 @@ pub const DEFAULT_PAGE_SIZE: u32 = 50;
 pub const MAX_PAGE_SIZE: u32 = 200;
 
 /// `limit` / `offset` of the paginated admin lists (`GET /api/v1/admin/users/`,
-/// `GET /api/v1/admin/formations/`), MAIR-395 / MAIR-425.
+/// `GET /api/v1/admin/formations/`, `GET /api/v1/admin/formations/{formation_id}/learners/`),
+/// MAIR-395 / MAIR-425 / MAIR-817.
 #[derive(Debug, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct AdminPageQuery {
@@ -19,7 +20,7 @@ pub struct AdminPageQuery {
     /// and `0` is raised to 1.
     #[param(example = 50, minimum = 1, maximum = 200)]
     limit: Option<u32>,
-    /// Number of items to skip, in `id` order. Defaults to 0. Page `n` (from 0) is
+    /// Number of items to skip, in the order of the list. Defaults to 0. Page `n` (from 0) is
     /// `offset = n * limit`; a page shorter than `limit` is the last one.
     #[param(example = 0, minimum = 0)]
     offset: Option<u32>,

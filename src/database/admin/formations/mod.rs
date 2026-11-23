@@ -2,6 +2,7 @@ pub mod check_course_content;
 pub mod create_course;
 pub mod delete_course;
 pub mod delete_course_content;
+pub mod get_formation_learners;
 pub mod get_formation_modules;
 pub mod get_formations;
 pub mod register_user_to_formation;

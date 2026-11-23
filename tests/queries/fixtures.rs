@@ -148,7 +148,7 @@ struct CreateUser {
 impl ApiRequestDto for CreateUser {
     fn query_sql(&self) -> &'static str {
         "INSERT INTO users (first_name, last_name, email, password, status) \
-         VALUES ('Agent', 'Test', $1, '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw', 'active') RETURNING id"
+         VALUES ($2, $3, $1, '$argon2id$v=19$m=19456,t=2,p=1$/iKF9PbiDRDs4EKPjlIIhg$UKx9vfwwps250mEP/bYp63CXbEnQGULeUAhDq+az9Aw', 'active') RETURNING id"
     }
 
     fn query_params(&self) -> &[QueryParam] {
@@ -159,6 +159,11 @@ impl ApiRequestDto for CreateUser {
 /// Creates a plain agent (no role, hence not an admin). The seeded users of
 /// the lib are unsuitable: Alice holds the Admin role and Bob is archived.
 pub async fn create_user(db: &SmartDatabase) -> i32 {
+    create_named_user(db, "Agent", "Test").await
+}
+
+/// Same as [`create_user`] with the given names (MAIR-817: ordering and search by name).
+pub async fn create_named_user(db: &SmartDatabase, first_name: &str, last_name: &str) -> i32 {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -171,7 +176,11 @@ pub async fn create_user(db: &SmartDatabase) -> i32 {
         COUNTER.fetch_add(1, Ordering::Relaxed)
     );
     let view = CreateUser {
-        params: vec![QueryParam::Text(email)],
+        params: vec![
+            QueryParam::Text(email),
+            QueryParam::Text(first_name.to_string()),
+            QueryParam::Text(last_name.to_string()),
+        ],
     };
     db.fetch_scalar::<i32, _>(&view)
         .await

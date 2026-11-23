@@ -182,6 +182,16 @@ exposes the same fields as the three per-formation routes and no `file_url`; BFF
   the seed nothing else reads, because ZAP calls them on the examples; the Admin completed course 4 in the seed so
   the attestations and the rating answer `2xx` to ZAP and k6.
 
+**Enrolment screens (MAIR-817).** `GET /admin/formations/{formation_id}/learners/?limit=&offset=` (`AdminPageQuery`,
+path example course 4) answers `{formation_id, total, limit, offset, learners: [{user_id, first_name, last_name, status,
+progress, started_at, completed_at, last_activity_at, last_reminder_at}]}`: the non-archived learners by last name, first
+name, id, `progress` the completed modules over the modules (0-100, 100 once completed), in one statement
+(`admin::formations::get_formation_learners`, the reminder date and completed modules computed for the page only), `404`
+for an unknown formation. `GET /admin/users/` also takes `search` (trimmed, 1-100 characters, case-insensitive `LIKE` on
+the exact expression of Database's trigram index `idx_users_search_text_trgm`: `first last`, `last first`, e-mail; `%` /
+`_` escaped) and `exclude_formation_id` (leaves out that formation's learners, `400` outside 1..2147483647), both
+checked by `AdminUsersFilterQuery::validate`, and gives `first_name` / `last_name` next to `name`.
+
 Every leaf handler is mounted as `#[get("/")]` (etc.) inside its segment scope, so its URL ends with `/`: its
 `#[utoipa::path]` must say `path = "/"` when the parent `doc.rs` nests it without a trailing slash, otherwise the
 spec documents a URL actix answers `404` to (k6 caught it on `/admin/formations/{formation_id}/` and

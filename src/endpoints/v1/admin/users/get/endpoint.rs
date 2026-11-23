@@ -5,25 +5,32 @@ use mairie360_api_lib::security::AuthenticatedUser;
 use mairie360_api_lib::state::AppState;
 
 use crate::database::admin::users::get_users::view::{GetUsersQueryView, UserRow};
-use crate::endpoints::v1::admin::users::get::view::{GetUsersResultView, User};
+use crate::endpoints::v1::admin::users::get::view::{
+    AdminUsersFilterQuery, GetUsersResultView, User,
+};
 use crate::endpoints::v1::admin::AdminPageQuery;
+use crate::endpoints::validation::{Validate, ValidationError};
 use crate::error::log_error;
 
 fn map_user(row: UserRow) -> User {
     User {
         id: id_from_sql(row.id()),
         name: row.name().to_string(),
+        first_name: row.first_name().to_string(),
+        last_name: row.last_name().to_string(),
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GetUsersError {
+    InvalidFilter(ValidationError),
     DatabaseError,
 }
 
 impl std::fmt::Display for GetUsersError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            GetUsersError::InvalidFilter(error) => write!(f, "{error}"),
             GetUsersError::DatabaseError => {
                 write!(f, "An error occurred while accessing the database.")
             }
@@ -34,6 +41,7 @@ impl std::fmt::Display for GetUsersError {
 impl ResponseError for GetUsersError {
     fn status_code(&self) -> StatusCode {
         match self {
+            GetUsersError::InvalidFilter(_) => StatusCode::BAD_REQUEST,
             GetUsersError::DatabaseError => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -46,8 +54,15 @@ impl ResponseError for GetUsersError {
 async fn trigger_get_users(
     state: web::Data<AppState>,
     page: &AdminPageQuery,
+    filter: &AdminUsersFilterQuery,
 ) -> Result<GetUsersResultView, GetUsersError> {
-    let view = GetUsersQueryView::new(page.limit(), page.offset());
+    filter.validate().map_err(GetUsersError::InvalidFilter)?;
+    let view = GetUsersQueryView::filtered(
+        page.limit(),
+        page.offset(),
+        filter.search(),
+        filter.exclude_formation_id(),
+    );
     let rows: Vec<UserRow> = state
         .get_smart_db()
         .fetch_all(&view)
@@ -64,11 +79,15 @@ async fn trigger_get_users(
     path = "",
     params(
         AdminPageQuery,
+        AdminUsersFilterQuery,
     ),
     summary = "List the active users",
     description = "Returns one page of the active (non-archived) users of the platform, in \
-                   `id` order, to pick who to enrol in a formation. Whether they are enrolled \
-                   in a formation or not does not matter.\n\n\
+                   `id` order, to pick who to enrol in a formation.\n\n\
+                   Optional filters (MAIR-817): `search` keeps the users whose `first last` \
+                   name, `last first` name or e-mail contains the term, whatever the letter \
+                   case; `exclude_formation_id` leaves out the users already enrolled in that \
+                   formation.\n\n\
                    Paginated: `limit` (default 50, capped to 200) and `offset` (default 0). A \
                    page shorter than `limit` is the last one; an `offset` past the end returns \
                    an empty list.\n\n\
@@ -82,17 +101,17 @@ async fn trigger_get_users(
             body = GetUsersResultView,
             example = json!({
                 "users": [
-                    { "id": 42, "name": "Jean Dupont" },
-                    { "id": 51, "name": "Amina Bensaïd" }
+                    { "id": 42, "name": "Jean Dupont", "first_name": "Jean", "last_name": "Dupont" },
+                    { "id": 51, "name": "Amina Bensaïd", "first_name": "Amina", "last_name": "Bensaïd" }
                 ]
             })
         ),
         (
             status = 400,
-            description = "`limit` or `offset` is not a non-negative integer.",
+            description = "`limit`, `offset` or `exclude_formation_id` is not a non-negative integer, `exclude_formation_id` is outside 1 to 2147483647, or `search` is blank once trimmed, longer than 100 characters or holds a control character.",
             body = String,
             content_type = "text/plain",
-            example = json!("Query deserialize error: invalid digit found in string")
+            example = json!("Invalid `search`: must not be empty")
         ),
         (
             status = 401,
@@ -133,7 +152,8 @@ pub async fn get_users(
     state: web::Data<AppState>,
     _: AuthenticatedUser,
     page: web::Query<AdminPageQuery>,
+    filter: web::Query<AdminUsersFilterQuery>,
 ) -> Result<impl Responder, GetUsersError> {
-    let users = trigger_get_users(state, &page).await?;
+    let users = trigger_get_users(state, &page, &filter).await?;
     Ok(HttpResponse::Ok().json(users))
 }
