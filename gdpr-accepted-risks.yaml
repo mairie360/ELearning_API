@@ -1,0 +1,24 @@
+# GDPR simulation risks reviewed and accepted (mairie360/CICD tests/gdpr/simulation/accepted.mjs).
+# A high-risk AI finding whose fingerprint is listed no longer blocks the Prod release.
+version: 1
+risks:
+  - fingerprint: 024bac0485270230efe1ff57  # users_audit_log.new_data
+    reason: >-
+      Audit trail of the accounts (users_audit_log), written by the database trigger on every change of a user row. Kept for accountability, purged by the retention policy (MAIR-286) and pseudonymised when the account is erased (MAIR-289); only administrators read it. Reviewed and accepted for the release.
+    date: 2026-11-25
+    author: Quentintnrl
+  - fingerprint: 61a29372b605317453c4fac6  # users_audit_log.new_data
+    reason: >-
+      Audit trail of the accounts (users_audit_log), written by the database trigger on every change of a user row. Kept for accountability, purged by the retention policy (MAIR-286) and pseudonymised when the account is erased (MAIR-289); only administrators read it. Reviewed and accepted for the release.
+    date: 2026-11-25
+    author: Quentintnrl
+  - fingerprint: 905ec967c74ee685da4a9c63  # users_audit_log.new_data
+    reason: >-
+      Audit trail of the accounts (users_audit_log), written by the database trigger on every change of a user row. Kept for accountability, purged by the retention policy (MAIR-286) and pseudonymised when the account is erased (MAIR-289); only administrators read it. Reviewed and accepted for the release.
+    date: 2026-11-25
+    author: Quentintnrl
+  - fingerprint: abad02b45069b7d20d086d2e  # users_audit_log.previous_data
+    reason: >-
+      Audit trail of the accounts (users_audit_log), written by the database trigger on every change of a user row. Kept for accountability, purged by the retention policy (MAIR-286) and pseudonymised when the account is erased (MAIR-289); only administrators read it. Reviewed and accepted for the release.
+    date: 2026-11-25
+    author: Quentintnrl

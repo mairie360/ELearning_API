@@ -30,12 +30,19 @@ steps:
       headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
       json: {user_id: "{{marker.email}}"}
     expect: [400]
-  - name: enrol an agent in a formation that does not exist (deliberate error)
+  - name: enrol an agent with an unknown field holding the marker (deliberate error)
     request:
       method: POST
       path: /api/v1/admin/formations/999999/
       headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
       json: {user_id: 2, comment: "{{marker.first_name}} {{marker.last_name}} {{marker.phone}}"}
+    expect: [400]
+  - name: enrol an agent in a formation that does not exist (deliberate error)
+    request:
+      method: POST
+      path: /api/v1/admin/formations/999999/
+      headers: {Authorization: "Bearer {{env.ADMIN_JWT}}"}
+      json: {user_id: 2}
     expect: [404]
   - name: enrol agent 2 in formation 4
     request:
