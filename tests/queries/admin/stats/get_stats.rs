@@ -138,3 +138,19 @@ async fn mair_1203_the_indicators_are_cached_until_an_admin_write() {
     assert!(!formation_ids(&fresh).contains(&listed));
     assert!(formation_ids(&fresh).contains(&unseen));
 }
+
+/// Concurrent misses of one process share one computation (the expiry of the cached entry must not
+/// run the aggregate once per waiting request): they all answer the same row.
+#[tokio::test]
+async fn mair_1203_concurrent_misses_share_one_computation() {
+    let isolated = isolated_db().await;
+    let db = SmartDatabase::new(
+        Database::new(&isolated.url_as(ELEARNING_DB_ROLE)).await,
+        isolated_redis().await,
+    );
+    let rows = futures_util::future::join_all((0..8).map(|_| load_stats(&db))).await;
+    let first = formation_ids(rows[0].as_ref().unwrap());
+    for row in &rows {
+        assert_eq!(formation_ids(row.as_ref().unwrap()), first);
+    }
+}

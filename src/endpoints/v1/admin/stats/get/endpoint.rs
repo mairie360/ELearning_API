@@ -92,17 +92,29 @@ fn map_late_agent(row: &LateAgentRow) -> LateAgent {
     }
 }
 
+/// Serializes the computation of the indicators within this process: when the cached entry
+/// expires, the requests that miss it wait for one computation instead of each running it.
+static STATS_LOAD: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Outcome of the cache probe of [`load_stats`]: the entry is not there (or Redis is unreachable).
+struct Missed;
+
 /// The indicators, read from the Redis cache ([`STATS_CACHE`], 60 s, shared by every admin) or
-/// computed and stored there. Without Redis they are computed on every call.
+/// computed and stored there. A miss takes [`STATS_LOAD`], then reads the cache again before
+/// computing, so concurrent misses of one pod share one statement (each pod computes at most once
+/// per expiry). Without Redis they are computed on every call, one at a time per pod.
 ///
 /// # Errors
 ///
 /// Returns the database error of the statement; nothing is cached then.
 pub async fn load_stats(db: &SmartDatabase) -> Result<StatsRow, ApiLibError> {
-    db.cached(&STATS_CACHE.shared(&()), async || {
-        db.fetch_one(&GetStatsQueryView::new()).await
-    })
-    .await
+    let key = STATS_CACHE.shared(&());
+    if let Ok(row) = db.cached(&key, async || Err::<StatsRow, _>(Missed)).await {
+        return Ok(row);
+    }
+    let _computing = STATS_LOAD.lock().await;
+    db.cached(&key, async || db.fetch_one(&GetStatsQueryView::new()).await)
+        .await
 }
 
 async fn trigger_get_stats(
