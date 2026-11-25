@@ -1,5 +1,16 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
+use mairie360_api_lib::smart_db::ReadCache;
+
+/// Redis namespace of the cached indicators.
+pub const STATS_CACHE_NAMESPACE: &str = "elearning_stats";
+/// Seconds the indicators stay cached: the statement aggregates every enrolment and completed
+/// module (about 80 ms of database time on 30 000 enrolments), so it runs at most once per
+/// window and per pod instead of once per admin page view.
+pub const STATS_CACHE_TTL_SECONDS: u64 = 60;
+/// One entry shared by every admin (the indicators do not depend on who asks). The admin writes
+/// on the formations invalidate it; the learners' progress shows up within the TTL.
+pub const STATS_CACHE: ReadCache = ReadCache::new(STATS_CACHE_NAMESPACE, STATS_CACHE_TTL_SECONDS);
 
 /// Most overdue enrolments [`GetStatsQueryView`] lists in `late_agents`.
 pub const MAX_LATE_AGENTS: i32 = 500;

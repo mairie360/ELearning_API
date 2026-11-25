@@ -1,3 +1,4 @@
+use crate::database::admin::stats::get_stats::view::STATS_CACHE_NAMESPACE;
 use mairie360_api_lib::database::db_interface::{ApiRequestDto, QueryParam};
 
 /// The fields of `courses` an administrator sets (MAIR-817), as the JSON object
@@ -50,5 +51,9 @@ impl ApiRequestDto for CreateCourseQueryView {
 
     fn query_params(&self) -> &[QueryParam] {
         &self.params
+    }
+
+    fn invalidated_read_caches(&self) -> &'static [&'static str] {
+        &[STATS_CACHE_NAMESPACE]
     }
 }

@@ -169,7 +169,10 @@ exposes the same fields as the three per-formation routes and no `file_url`; BFF
   text back through `certificate::pdf::read_back`; unit-tested offline). `summary` and `certificates` are registered before
   `/{formation_id}`, `rating` and `certificate` before `/{module_id}`. `access_matrix.rs` takes the `404` of
   `GET /formations/certificates/` as an answer, not a refusal.
-- `GET /admin/stats/` (indicators in one statement over the non-archived accounts, `late_agents` capped at 500),
+- `GET /admin/stats/` (indicators in one statement over the non-archived accounts, `late_agents` capped at 500;
+  about 80 ms of database time on the k6 seed, so the row is cached in Redis for 60 s, one entry shared by every
+  admin (`STATS_CACHE`, `endpoint::load_stats`), invalidated by the create / replace / delete / reminder views through
+  `invalidated_read_caches`, not by the learners' activity),
   `POST /admin/formations/{formation_id}/reminders/` (`{user_ids?}`, absent = every late agent; one statement,
   `404` unknown, `409` not mandatory), `POST /admin/formations/` (`201 {id}`), `PATCH` (full replacement; rows with
   an `id` are kept, the others deleted; `400` for an id outside the formation or a stored file whose type changes)
