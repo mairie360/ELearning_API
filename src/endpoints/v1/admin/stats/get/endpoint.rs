@@ -1,11 +1,13 @@
 use actix_web::http::StatusCode;
 use actix_web::{get, web, HttpResponse, Responder, ResponseError};
 use mairie360_api_lib::database::db_interface::id_from_sql;
+use mairie360_api_lib::error::ApiLibError;
 use mairie360_api_lib::security::AuthenticatedUser;
+use mairie360_api_lib::smart_db::SmartDatabase;
 use mairie360_api_lib::state::AppState;
 
 use crate::database::admin::stats::get_stats::view::{
-    FormationStatsRow, GetStatsQueryView, LateAgentRow, ServiceStatsRow, StatsRow,
+    FormationStatsRow, GetStatsQueryView, LateAgentRow, ServiceStatsRow, StatsRow, STATS_CACHE,
 };
 use crate::endpoints::v1::admin::stats::get::view::{
     FormationStats, GetStatsResultView, LateAgent, ServiceStats,
@@ -90,12 +92,23 @@ fn map_late_agent(row: &LateAgentRow) -> LateAgent {
     }
 }
 
+/// The indicators, read from the Redis cache ([`STATS_CACHE`], 60 s, shared by every admin) or
+/// computed and stored there. Without Redis they are computed on every call.
+///
+/// # Errors
+///
+/// Returns the database error of the statement; nothing is cached then.
+pub async fn load_stats(db: &SmartDatabase) -> Result<StatsRow, ApiLibError> {
+    db.cached(&STATS_CACHE.shared(&()), async || {
+        db.fetch_one(&GetStatsQueryView::new()).await
+    })
+    .await
+}
+
 async fn trigger_get_stats(
     state: web::Data<AppState>,
 ) -> Result<GetStatsResultView, GetStatsError> {
-    let row: StatsRow = state
-        .get_smart_db()
-        .fetch_one(&GetStatsQueryView::new())
+    let row = load_stats(state.get_smart_db())
         .await
         .map_err(log_error("trigger_get_stats", GetStatsError::DatabaseError))?;
 
@@ -119,12 +132,17 @@ async fn trigger_get_stats(
     path = "",
     summary = "Indicators of the e-learning",
     description = "Returns the indicators of the e-learning administration, computed over the \
-                   non-archived accounts in a fixed number of queries: formations by origin, \
+                   non-archived accounts in one statement: formations by origin, \
                    participation (overall and per service of the mairie), average progress of \
                    the enrolments, enrolments per formation and the agents late on a mandatory \
                    formation (deadline past, not completed) with their latest reminder.\n\n\
                    The progress of an enrolment is the share of the modules of the formation the \
                    agent completed (100 once completed, 0 for a formation without modules).\n\n\
+                   **Cache:** the indicators are cached in Redis for 60 seconds, one entry \
+                   shared by every admin. Creating, replacing or deleting a formation and \
+                   sending reminders invalidate it, so an admin reads those changes \
+                   immediately; the learners' activity (enrolments, completed modules) shows up \
+                   within those 60 seconds. Without Redis they are computed on every call.\n\n\
                    Admin only: a caller without the Admin role gets `403`.",
     responses(
         (

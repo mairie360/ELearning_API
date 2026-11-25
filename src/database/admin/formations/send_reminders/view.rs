@@ -1,3 +1,4 @@
+use crate::database::admin::stats::get_stats::view::STATS_CACHE_NAMESPACE;
 use mairie360_api_lib::database::db_interface::{
     id_from_sql, id_to_sql, ApiRequestDto, QueryParam,
 };
@@ -68,6 +69,10 @@ impl ApiRequestDto for SendRemindersQueryView {
 
     fn query_params(&self) -> &[QueryParam] {
         &self.params
+    }
+
+    fn invalidated_read_caches(&self) -> &'static [&'static str] {
+        &[STATS_CACHE_NAMESPACE]
     }
 }
 

@@ -4,12 +4,15 @@ use mairie360_api_lib::database::db_interface::Database;
 use mairie360_api_lib::redis::redis_interface::Redis;
 use mairie360_api_lib::smart_db::SmartDatabase;
 use mairie360_api_lib::test_setup::isolated::isolated_db;
+use mairie360_api_lib::test_setup::redis_setup::isolated_redis;
 
 use crate::common::ELEARNING_DB_ROLE;
 use crate::queries::fixtures::{
     archive_user, complete, create_course, create_module, create_user, enrol, set_course_meta,
 };
+use elearning_api::database::admin::formations::delete_course::view::DeleteCourseQueryView;
 use elearning_api::database::admin::stats::get_stats::view::{GetStatsQueryView, StatsRow};
+use elearning_api::endpoints::v1::admin::stats::get::endpoint::load_stats;
 
 async fn smart_db(url: &str) -> SmartDatabase {
     SmartDatabase::new(
@@ -98,4 +101,40 @@ async fn test_get_stats_counts_the_whole_instance() {
         .find(|s| s.service_id().is_none())
         .map_or(0, |s| s.agents());
     assert_eq!(without_service.agents(), before_without + 4);
+}
+
+fn formation_ids(row: &StatsRow) -> Vec<i32> {
+    row.by_formation().iter().map(|f| f.id()).collect()
+}
+
+/// The promote-staging k6 gate crossed its thresholds: computed on every call, the indicators
+/// saturated the database under load. They are now cached in Redis, shared by every admin, until
+/// an admin write on the formations or the end of the TTL.
+#[tokio::test]
+async fn mair_1203_the_indicators_are_cached_until_an_admin_write() {
+    let isolated = isolated_db().await;
+    let fx = smart_db(&isolated.url()).await;
+    let db = SmartDatabase::new(
+        Database::new(&isolated.url_as(ELEARNING_DB_ROLE)).await,
+        isolated_redis().await,
+    );
+    let listed = create_course(&fx, "Lue", "Lue").await;
+
+    let first = load_stats(&db).await.unwrap();
+    assert!(formation_ids(&first).contains(&listed));
+
+    // A formation written behind the API's back is not seen: the page comes from the cache.
+    let unseen = create_course(&fx, "Hors API", "Hors API").await;
+    let cached = load_stats(&db).await.unwrap();
+    assert_eq!(formation_ids(&cached), formation_ids(&first));
+
+    // An admin write of the API invalidates it once committed.
+    let deleted: bool = db
+        .fetch_scalar(&DeleteCourseQueryView::new(u64::try_from(listed).unwrap()))
+        .await
+        .unwrap();
+    assert!(deleted);
+    let fresh = load_stats(&db).await.unwrap();
+    assert!(!formation_ids(&fresh).contains(&listed));
+    assert!(formation_ids(&fresh).contains(&unseen));
 }
