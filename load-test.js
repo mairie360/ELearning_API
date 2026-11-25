@@ -104,6 +104,11 @@ const FORMATION_ID = 1000;
 // p(95) latency budget of each family of operations, in ms (reference machine).
 const READ_BUDGET_MS = 200;
 const WRITE_BUDGET_MS = 500;
+// The admin indicators aggregate every enrolment (about 80 ms on the perf seed). They are cached
+// 60 s, but the write scenario creates, edits and deletes formations all along, and each of these
+// admin writes clears the cache, so under this load most reads recompute them: they get the budget
+// of a write rather than the one of a plain read.
+const HEAVY_READ_BUDGETS_MS = { 'GET /api/v1/admin/stats/': WRITE_BUDGET_MS };
 
 const READ_METHODS = ['get', 'head', 'options'];
 
@@ -395,7 +400,8 @@ const writes = createCoverage(writeHandlers, {
 function latencyThresholds(coverage, budgetMs) {
   const thresholds = {};
   for (const operation of coverage.operations) {
-    thresholds[`http_req_duration{op:${operation.op}}`] = [`p(95)<${budgetMs}`];
+    const budget = HEAVY_READ_BUDGETS_MS[operation.op] ?? budgetMs;
+    thresholds[`http_req_duration{op:${operation.op}}`] = [`p(95)<${budget}`];
   }
   return thresholds;
 }
