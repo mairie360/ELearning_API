@@ -5170,7 +5170,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user_id\": \"{{agent_user_id}}\"\n}"
+              "raw": "{\n  \"user_id\": {{agent_user_id}}\n}"
             }
           }
         },
