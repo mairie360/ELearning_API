@@ -13,6 +13,7 @@ pub mod formation_access;
 pub mod mair_1150_admin;
 pub mod mair_1150_learner;
 pub mod mair_1216_admin_catalog;
+pub mod mair_1228_global_search;
 pub mod mair_534_negative_cases;
 pub mod mair_680_session_keys;
 pub mod mair_817_learners;

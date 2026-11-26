@@ -192,6 +192,12 @@ const readHandlers = {
   'GET /ready': ({ request }) => check(request(), { 'ready 200': (r) => r.status === 200 }),
 
   // Management view.
+  // Global search of the shared header: the formations of the caller's catalogue.
+  'GET /api/v1/search': ({ request }) =>
+    check(request({ query: { q: 'perf', limit: 8 } }), {
+      'search 200': (r) => r.status === 200,
+      'search answers a list': (r) => r.status === 200 && Array.isArray(r.json('items')),
+    }),
   'GET /api/v1/admin/formations/': ({ request }) =>
     check(request({ query: { details: true, offset: randomPage(CATALOGUE_SIZE) } }), {
       'catalog 200': (r) => r.status === 200,
