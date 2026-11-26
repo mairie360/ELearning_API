@@ -63,7 +63,7 @@ impl ApiRequestDto for GlobalSearchQueryView {
             'parent_id', NULL, \
             'updated_at', to_char(c.created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')) \
          FROM courses c \
-         WHERE c.title ILIKE '%' || $2 || '%' \
+         WHERE (c.title ILIKE '%' || $2 || '%' OR COALESCE(c.description, '') ILIKE '%' || $2 || '%') \
            AND ((SELECT is_admin($1)) \
                 OR EXISTS (SELECT 1 FROM user_courses uc \
                            WHERE uc.course_id = c.id AND uc.user_id = $1)) \

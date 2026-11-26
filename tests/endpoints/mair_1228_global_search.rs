@@ -92,6 +92,27 @@ async fn mair_1228_finds_the_formations_of_the_catalogue_only() {
 }
 
 #[actix_web::test]
+async fn mair_1228_a_term_in_the_description_finds_the_formation() {
+    let ctx = TestContext::new().await;
+    let app = init_app!(ctx);
+    let term = marker("incendie");
+    let course = create_course(
+        ctx.db(),
+        "Accueil des agents",
+        &format!("Prévention {term}"),
+    )
+    .await;
+    let learner = create_user(ctx.db()).await;
+    enrol(ctx.db(), learner, course).await;
+
+    let body: Value =
+        test::call_and_read_body_json(&app, search(&format!("?q={term}"), learner).to_request())
+            .await;
+    assert_eq!(ids(&body), vec![i64::from(course)], "{body}");
+    assert_eq!(body["items"][0]["title"], "Accueil des agents");
+}
+
+#[actix_web::test]
 async fn mair_1228_limit_cuts_and_wildcards_match_themselves() {
     let ctx = TestContext::new().await;
     let app = init_app!(ctx);
