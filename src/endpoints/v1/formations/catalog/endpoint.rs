@@ -133,8 +133,10 @@ async fn trigger_get_catalog(
                    It merges `GET /api/v1/formations/`, `GET /api/v1/formations/{formation_id}/` \
                    and `GET /api/v1/formations/{formation_id}/{module_id}/` for every formation of \
                    the user, computed in a fixed number of queries whatever the number of formations \
-                   or modules. Same access rules as these routes: only the caller's enrolments \
-                   are visible, admins included.\n\n\
+                   or modules. An agent only sees their own enrolments. An administrator sees \
+                   every formation, so they can open and manage those they never followed: a \
+                   formation they are not enrolled in comes out `NotStarted`, with no activity \
+                   dates and no completed module.\n\n\
                    The content of the stored files is **not** returned: to open one, ask for a signed URL \
                    from `GET /api/v1/formations/{formation_id}/{module_id}/{attachment_id}/`. A `link` \
                    is opened at its `url` directly, and a content without a file (`quiz`, `other`) \
@@ -142,7 +144,7 @@ async fn trigger_get_catalog(
     responses(
         (
             status = 200,
-            description = "Formations of the signed-in user with their modules and files. Empty list if they are enrolled in no formation.",
+            description = "Formations of the signed-in user (every formation for an administrator) with their modules and files. Empty list if an agent is enrolled in no formation.",
             body = GetCatalogResultView,
             example = json!({
                 "formations": [

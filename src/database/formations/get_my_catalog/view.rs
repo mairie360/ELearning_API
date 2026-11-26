@@ -3,7 +3,9 @@ use mairie360_api_lib::database::db_interface::{
     id_from_sql, id_to_sql, ApiRequestDto, QueryParam,
 };
 
-/// Lists the formations a user is enrolled in (`user_courses`) with, nested in the same row, their
+/// Lists the formations a user is enrolled in (`user_courses`), or every formation when the user is an
+/// administrator (`is_admin()`: an administrator manages formations they never followed; those come out
+/// `not_started` with no activity dates), with, nested in the same row, their
 /// modules (and whether the user completed each one) and the files of each module. One statement
 /// for the whole catalogue: the nested lists are correlated subqueries aggregated into JSON, so the
 /// number of queries does not grow with the number of formations or modules.
@@ -32,12 +34,14 @@ impl ApiRequestDto for GetMyCatalogQueryView {
         // formations (`learners`), not by a correlated subquery per formation.
         "WITH mine AS ( \
             SELECT course_id FROM user_courses WHERE user_id = $1 \
+            UNION \
+            SELECT id FROM courses WHERE (SELECT is_admin($1)) \
          ), learners AS ( \
             SELECT course_id, count(*) AS learners FROM user_courses \
             WHERE course_id IN (SELECT course_id FROM mine) GROUP BY course_id \
          ) \
          SELECT to_jsonb(t) FROM ( \
-            SELECT c.id, c.title AS name, c.description, uc.status::text AS status, \
+            SELECT c.id, c.title AS name, c.description, COALESCE(uc.status::text, 'not_started') AS status, \
                 c.category, c.level, c.is_mandatory, c.deadline, c.source, \
                 COALESCE( \
                     NULLIF(btrim(c.instructor_label), ''), \
@@ -89,10 +93,10 @@ impl ApiRequestDto for GetMyCatalogQueryView {
                     LEFT JOIN user_modules um ON um.module_id = cm.id AND um.user_id = $1 \
                     WHERE cm.course_id = c.id \
                 ), '[]'::jsonb) AS modules \
-            FROM user_courses uc \
-            JOIN courses c ON c.id = uc.course_id \
+            FROM mine m \
+            JOIN courses c ON c.id = m.course_id \
+            LEFT JOIN user_courses uc ON uc.course_id = c.id AND uc.user_id = $1 \
             LEFT JOIN learners l ON l.course_id = c.id \
-            WHERE uc.user_id = $1 \
             ORDER BY c.id \
          ) t"
     }

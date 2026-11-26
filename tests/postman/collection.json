@@ -5035,6 +5035,234 @@
           "response": []
         },
         {
+          "name": "MAIR-1216 The admin's catalogue lists the new formation the admin is not enrolled in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The formation is listed, not started, with its modules\", function () {",
+                  "    const formation = pm.response.json().formations.find((f) => f.id === Number(pm.environment.get('new_course_id')));",
+                  "    pm.expect(formation, 'formation missing from the admin catalogue').to.be.an('object');",
+                  "    pm.expect(formation.status).to.eql('NotStarted');",
+                  "    pm.expect(formation.started_at).to.eql(null);",
+                  "    pm.expect(formation.learners).to.eql(0);",
+                  "    pm.expect(formation.modules.map((m) => m.name)).to.eql(['Module 1', 'Module 2']);",
+                  "    pm.expect(formation.modules.every((m) => m.completed === false)).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/formations/catalog/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "formations",
+                "catalog",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "MAIR-1216 An agent's catalogue does not list a formation they are not enrolled in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The formation is not listed\", function () {",
+                  "    const formation = pm.response.json().formations.find((f) => f.id === Number(pm.environment.get('new_course_id')));",
+                  "    pm.expect(formation).to.eql(undefined);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/formations/catalog/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "formations",
+                "catalog",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "MAIR-1216 The admin enrols the agent in the new formation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/formations/{{new_course_id}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "formations",
+                "{{new_course_id}}",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{agent_user_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "MAIR-1216 The agent's catalogue now lists the new formation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"The formation is listed for the agent\", function () {",
+                  "    const formation = pm.response.json().formations.find((f) => f.id === Number(pm.environment.get('new_course_id')));",
+                  "    pm.expect(formation, 'formation missing from the agent catalogue').to.be.an('object');",
+                  "    pm.expect(formation.status).to.eql('NotStarted');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_agent}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/formations/catalog/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "formations",
+                "catalog",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "MAIR-1216 The admin's catalogue counts the agent as its learner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"One learner, the admin still not enrolled\", function () {",
+                  "    const formation = pm.response.json().formations.find((f) => f.id === Number(pm.environment.get('new_course_id')));",
+                  "    pm.expect(formation.learners).to.eql(1);",
+                  "    pm.expect(formation.status).to.eql('NotStarted');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_admin}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/formations/catalog/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "formations",
+                "catalog",
+                ""
+              ]
+            }
+          }
+        },
+        {
           "name": "An agent cannot replace a formation",
           "event": [
             {
