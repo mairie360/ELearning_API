@@ -64,6 +64,10 @@ operations:
   DELETE /api/v1/admin/users/{user_id}/{formation_id}/: {access: admin, roles: [Admin]}
 
   # --- The learner's own formations ---
+  GET /api/v1/search:
+    access: authenticated
+    roles: [Admin, Maire, Responsable, User, Guest]
+    note: "global search: the formations of the caller's catalogue (every formation for an administrator)"
   GET /api/v1/formations/:
     access: authenticated
     roles: [Admin, Maire, Responsable, User, Guest]
